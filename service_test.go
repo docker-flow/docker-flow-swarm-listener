@@ -8,15 +8,16 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"os"
 )
 
-type ServicesTestSuite struct {
+type ServiceTestSuite struct {
 	suite.Suite
 	serviceName string
 }
 
-func TestServicesUnitTestSuite(t *testing.T) {
-	s := new(ServicesTestSuite)
+func TestServiceUnitTestSuite(t *testing.T) {
+	s := new(ServiceTestSuite)
 	s.serviceName = "my-service"
 
 	logPrintfOrig := logPrintf
@@ -28,7 +29,7 @@ func TestServicesUnitTestSuite(t *testing.T) {
 
 // GetServices
 
-func (s *ServicesTestSuite) Test_GetServices_ReturnsServices() {
+func (s *ServiceTestSuite) Test_GetServices_ReturnsServices() {
 	services := NewService("unix:///var/run/docker.sock", "")
 
 	actual, _ := services.GetServices()
@@ -42,7 +43,7 @@ func (s *ServicesTestSuite) Test_GetServices_ReturnsServices() {
 	s.Equal("/demo", actual[index].Spec.Labels["DF_SERVICE_PATH"])
 }
 
-func (s *ServicesTestSuite) Test_GetServices_ReturnsError_WhenNewClientFails() {
+func (s *ServiceTestSuite) Test_GetServices_ReturnsError_WhenNewClientFails() {
 	dcOrig := dockerClient
 	defer func() { dockerClient = dcOrig }()
 	dockerClient = func(host string, version string, httpClient *http.Client, httpHeaders map[string]string) (*client.Client, error) {
@@ -53,7 +54,7 @@ func (s *ServicesTestSuite) Test_GetServices_ReturnsError_WhenNewClientFails() {
 	s.Error(err)
 }
 
-func (s *ServicesTestSuite) Test_GetServices_ReturnsError_WhenServiceListFails() {
+func (s *ServiceTestSuite) Test_GetServices_ReturnsError_WhenServiceListFails() {
 	services := NewService("unix:///this/socket/does/not/exist", "")
 
 	_, err := services.GetServices()
@@ -63,7 +64,7 @@ func (s *ServicesTestSuite) Test_GetServices_ReturnsError_WhenServiceListFails()
 
 // GetNewServices
 
-func (s *ServicesTestSuite) Test_GetNewServices_ReturnsAllServices_WhenExecutedForTheFirstTime() {
+func (s *ServiceTestSuite) Test_GetNewServices_ReturnsAllServices_WhenExecutedForTheFirstTime() {
 	services := NewService("unix:///var/run/docker.sock", "")
 
 	actual, _ := services.GetNewServices()
@@ -71,7 +72,7 @@ func (s *ServicesTestSuite) Test_GetNewServices_ReturnsAllServices_WhenExecutedF
 	s.Equal(2, len(actual))
 }
 
-func (s *ServicesTestSuite) Test_GetNewServices_ReturnsError_WhenGetServicesFails() {
+func (s *ServiceTestSuite) Test_GetNewServices_ReturnsError_WhenGetServicesFails() {
 	services := NewService("unix:///this/socket/does/not/exist", "")
 
 	_, err := services.GetNewServices()
@@ -79,7 +80,7 @@ func (s *ServicesTestSuite) Test_GetNewServices_ReturnsError_WhenGetServicesFail
 	s.Error(err)
 }
 
-func (s *ServicesTestSuite) Test_GetNewServices_ReturnsOnlyNewServices() {
+func (s *ServiceTestSuite) Test_GetNewServices_ReturnsOnlyNewServices() {
 	services := NewService("unix:///var/run/docker.sock", "")
 
 	services.GetNewServices()
@@ -90,7 +91,7 @@ func (s *ServicesTestSuite) Test_GetNewServices_ReturnsOnlyNewServices() {
 
 // NotifyServices
 
-func (s *ServicesTestSuite) Test_NotifyServices_SendsRequests() {
+func (s *ServiceTestSuite) Test_NotifyServices_SendsRequests() {
 	labels := make(map[string]string)
 	labels["DF_NOTIFY"] = "true"
 	labels["DF_key1"] = "value1"
@@ -99,14 +100,14 @@ func (s *ServicesTestSuite) Test_NotifyServices_SendsRequests() {
 	s.verifyNotifyService(labels, true, fmt.Sprintf("serviceName=%s&key1=value1", s.serviceName))
 }
 
-func (s *ServicesTestSuite) Test_NotifyServices_DoesNotSendRequest_WhenDfNotifyIsNotDefined() {
+func (s *ServiceTestSuite) Test_NotifyServices_DoesNotSendRequest_WhenDfNotifyIsNotDefined() {
 	labels := make(map[string]string)
 	labels["DF_key1"] = "value1"
 
 	s.verifyNotifyService(labels, false, "")
 }
 
-func (s *ServicesTestSuite) Test_NotifyServices_ReturnsError_WhenHttpStatusIsNot200() {
+func (s *ServiceTestSuite) Test_NotifyServices_ReturnsError_WhenHttpStatusIsNot200() {
 	httpSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 	}))
@@ -119,19 +120,71 @@ func (s *ServicesTestSuite) Test_NotifyServices_ReturnsError_WhenHttpStatusIsNot
 	s.Error(err)
 }
 
-func (s *ServicesTestSuite) Test_NotifyServices_ReturnsError_WhenHttpRequestReturnsError() {
+func (s *ServiceTestSuite) Test_NotifyServices_ReturnsError_WhenHttpRequestReturnsError() {
 	labels := make(map[string]string)
 	labels["DF_NOTIFY"] = "true"
 
-	services := NewService("unix:///var/run/docker.sock", "http://this-does-not-exist")
-	err := services.NotifyServices(s.getSwarmServices(labels))
+	service := NewService("unix:///var/run/docker.sock", "this-does-not-exist")
+	err := service.NotifyServices(s.getSwarmServices(labels))
 
 	s.Error(err)
 }
 
+// NewService
+
+func (s *ServiceTestSuite) Test_NewService_SetsHost() {
+	expected := "this-is-a-host"
+
+	service := NewService(expected, "")
+
+	s.Equal(expected, service.Host)
+}
+
+func (s *ServiceTestSuite) Test_NewService_SetsNotifUrl() {
+	expected := "this-is-a-notification-url"
+
+	service := NewService("", expected)
+
+	s.Equal(expected, service.NotifUrl)
+}
+
+// NewServiceFromEnv
+
+func (s *ServiceTestSuite) Test_NewServiceFromEnv_SetsHost() {
+	host := os.Getenv("DF_DOCKER_HOST")
+	defer func() { os.Setenv("DF_DOCKER_HOST", host)}()
+	expected := "this-is-a-host"
+	os.Setenv("DF_DOCKER_HOST", expected)
+
+	service := NewServiceFromEnv()
+
+	s.Equal(expected, service.Host)
+}
+
+func (s *ServiceTestSuite) Test_NewServiceFromEnv_SetsHostToSocket_WhenEnvIsNotPresent() {
+	host := os.Getenv("DF_DOCKER_HOST")
+	defer func() { os.Setenv("DF_DOCKER_HOST", host)}()
+	os.Unsetenv("DF_DOCKER_HOST")
+
+	service := NewServiceFromEnv()
+
+	s.Equal("unix:///var/run/docker.sock", service.Host)
+}
+
+func (s *ServiceTestSuite) Test_NewServiceFromEnv_SetsNotifUrl() {
+	host := os.Getenv("DF_NOTIFICATION_URL")
+	defer func() { os.Setenv("DF_NOTIFICATION_URL", host)}()
+	expected := "this-is-a-notification-url"
+	os.Setenv("DF_NOTIFICATION_URL", expected)
+
+	service := NewServiceFromEnv()
+
+	s.Equal(expected, service.NotifUrl)
+}
+
 // Util
 
-func (s *ServicesTestSuite) verifyNotifyService(labels map[string]string, expectSent bool, expectQuery string) {
+func (s *ServiceTestSuite) verifyNotifyService(labels map[string]string, expectSent bool, expectQuery string) {
 	actualSent := false
 	actualQuery := ""
 	httpSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -161,7 +214,7 @@ func (s *ServicesTestSuite) verifyNotifyService(labels map[string]string, expect
 	}
 }
 
-func (s *ServicesTestSuite) getSwarmServices(labels map[string]string) []swarm.Service {
+func (s *ServiceTestSuite) getSwarmServices(labels map[string]string) []swarm.Service {
 	ann := swarm.Annotations{
 		Name:   s.serviceName,
 		Labels: labels,

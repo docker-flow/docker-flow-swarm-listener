@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"strings"
 	"time"
+	"os"
 )
 
 var lastCreatedAt time.Time
@@ -96,5 +97,16 @@ func NewService(host, notifUrl string) Service {
 	return Service{
 		Host:     host,
 		NotifUrl: notifUrl,
+	}
+}
+
+func NewServiceFromEnv() Service {
+	host := "unix:///var/run/docker.sock"
+	if len(os.Getenv("DF_DOCKER_HOST")) > 0 {
+		host = os.Getenv("DF_DOCKER_HOST")
+	}
+	return Service{
+		Host: host,
+		NotifUrl: os.Getenv("DF_NOTIFICATION_URL"),
 	}
 }

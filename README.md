@@ -20,19 +20,20 @@ docker service rm util
 
 ## TODO
 
-- [ ] Create NewServiceFromEnv function
-- [ ] Do not send the same request twice
-- [ ] Ability to initiate service notifications through HTTP
 - [ ] Add main
 - [ ] Parameterize ticket period
 - [ ] Monitor services
 - [ ] Send a reconfigure request to the proxy if a service is created
 - [ ] Repeated failed proxy requests if they fail
 - [ ] Send a remove request to the proxy if a service is removed
-- [ ] Ability to have multiple proxy addresses
+- [ ] Ability to have multiple notification addresses
 - [ ] Add filters
 - [ ] Create a service during test setup
 - [ ] Remove the service after tests
 - [ ] Add the option to use NewEnvClient
+- [ ] Resend requests until the response is 200
+- [ ] Functional tests
+- [ ] Integration tests
 - [ ] Write README
 - [ ] Register in CircleCI
+- [ ] Ability to initiate service notifications through HTTP (speed up waiting period)
