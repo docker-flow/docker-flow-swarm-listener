@@ -13,37 +13,25 @@ import (
 type ServicesTestSuite struct {
 	suite.Suite
 	serviceName string
-//	Server *httptest.Server
 }
 
 func TestServicesUnitTestSuite(t *testing.T) {
 	s := new(ServicesTestSuite)
 	s.serviceName = "my-service"
-	suite.Run(t, s)
-}
 
-func (s *ServicesTestSuite) SetupTest() {
-//	s.Server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-//		actualPath := r.URL.Path
-//		if r.Method == "GET" {
-//			switch actualPath {
-//			case "/v1/docker-flow-proxy/reconfigure":
-//				w.WriteHeader(http.StatusOK)
-//				w.Header().Set("Content-Type", "application/json")
-//			default:
-//				w.WriteHeader(http.StatusNotFound)
-//			}
-//		}
-//	}))
-//	defer func() { s.Server.Close() }()
+	logPrintfOrig := logPrintf
+	defer func() { logPrintf = logPrintfOrig }()
+	logPrintf = func(format string, v ...interface{}) {}
+
+	suite.Run(t, s)
 }
 
 // GetServices
 
 func (s *ServicesTestSuite) Test_GetServices_ReturnsServices() {
-	services := NewServices()
+	services := NewServices("unix:///var/run/docker.sock")
 
-	actual, _ := services.GetServices("unix:///var/run/docker.sock")
+	actual, _ := services.GetServices()
 
 	s.Equal(2, len(actual))
 	index := 0
@@ -60,15 +48,44 @@ func (s *ServicesTestSuite) Test_GetServices_ReturnsError_WhenNewClientFails() {
 	dockerClient = func(host string, version string, httpClient *http.Client, httpHeaders map[string]string) (*client.Client, error) {
 		return &client.Client{}, fmt.Errorf("This is an error")
 	}
-	services := NewServices()
-	_, err := services.GetServices("unix:///var/run/docker.sock")
+	services := NewServices("unix:///var/run/docker.sock")
+	_, err := services.GetServices()
 	s.Error(err)
 }
 
 func (s *ServicesTestSuite) Test_GetServices_ReturnsError_WhenServiceListFails() {
-	services := NewServices()
-	_, err := services.GetServices("unix:///this/socket/does/not/exist")
+	services := NewServices("unix:///this/socket/does/not/exist")
+
+	_, err := services.GetServices()
+
 	s.Error(err)
+}
+
+// GetNewServices
+
+func (s *ServicesTestSuite) Test_GetNewServices_ReturnsAllServices_WhenExecutedForTheFirstTime() {
+	services := NewServices("unix:///var/run/docker.sock")
+
+	actual, _ := services.GetNewServices()
+
+	s.Equal(2, len(actual))
+}
+
+func (s *ServicesTestSuite) Test_GetNewServices_ReturnsError_WhenGetServicesFails() {
+	services := NewServices("unix:///this/socket/does/not/exist")
+
+	_, err := services.GetNewServices()
+
+	s.Error(err)
+}
+
+func (s *ServicesTestSuite) Test_GetNewServices_ReturnsOnlyNewServices() {
+	services := NewServices("unix:///var/run/docker.sock")
+
+	services.GetNewServices()
+	actual, _ := services.GetNewServices()
+
+	s.Equal(0, len(actual))
 }
 
 // NotifyServices
@@ -96,20 +113,17 @@ func (s *ServicesTestSuite) Test_NotifyServices_ReturnsError_WhenHttpStatusIsNot
 	labels := make(map[string]string)
 	labels["DF_NOTIFY"] = "true"
 
-	services := NewServices()
+	services := NewServices("unix:///var/run/docker.sock")
 	err := services.NotifyServices(s.getSwarmServices(labels), httpSrv.URL)
 
 	s.Error(err)
 }
 
 func (s *ServicesTestSuite) Test_NotifyServices_ReturnsError_WhenHttpRequestReturnsError() {
-//	httpSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-//		w.WriteHeader(http.StatusNotFound)
-//	}))
 	labels := make(map[string]string)
 	labels["DF_NOTIFY"] = "true"
 
-	services := NewServices()
+	services := NewServices("unix:///var/run/docker.sock")
 	err := services.NotifyServices(s.getSwarmServices(labels), "http://this-does-not-exist")
 
 	s.Error(err)
@@ -137,7 +151,7 @@ func (s *ServicesTestSuite) verifyNotifyService(labels map[string]string, expect
 	defer func() { httpSrv.Close() }()
 	url := fmt.Sprintf("%s/v1/docker-flow-proxy/reconfigure", httpSrv.URL)
 
-	services := NewServices()
+	services := NewServices("unix:///var/run/docker.sock")
 	err := services.NotifyServices(s.getSwarmServices(labels), url)
 
 	s.NoError(err)

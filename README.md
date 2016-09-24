@@ -20,6 +20,8 @@ docker service rm util
 
 ## TODO
 
+- [ ] Do not send the same request twice
+- [ ] Ability to initiate service notifications through HTTP
 - [ ] Add main
 - [ ] Parameterize ticket period
 - [ ] Monitor services
