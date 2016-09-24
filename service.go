@@ -42,16 +42,13 @@ func (m *Service) GetServices(host string) ([]swarm.Service, error) {
 func (m *Service) NotifyServices(services []swarm.Service, url string) error {
 	errs := []error{}
 	for _, s := range services {
-		send := false
 		fullUrl := fmt.Sprintf("%s?serviceName=%s", url, s.Spec.Name)
-		for k, v := range s.Spec.Labels {
-			if strings.EqualFold(k, "DF_NOTIFY") {
-				send = true
-			} else if strings.HasPrefix(k, "DF_") {
-				fullUrl = fmt.Sprintf("%s&%s=%s", fullUrl, strings.TrimLeft(k, "DF_"), v)
+		if _, ok := s.Spec.Labels["DF_NOTIFY"]; ok {
+			for k, v := range s.Spec.Labels {
+				if strings.HasPrefix(k, "DF_") && k != "DF_NOTIFY" {
+					fullUrl = fmt.Sprintf("%s&%s=%s", fullUrl, strings.TrimLeft(k, "DF_"), v)
+				}
 			}
-		}
-		if send {
 			resp, err := http.Get(fullUrl)
 			if err != nil {
 				log.Printf("ERROR: %s", err.Error())
