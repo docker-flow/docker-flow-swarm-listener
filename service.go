@@ -1,22 +1,24 @@
 package main
 
 import (
+	"fmt"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
 	"golang.org/x/net/context"
-	"time"
-	"net/http"
-	"fmt"
-	"strings"
 	"log"
+	"net/http"
+	"strings"
+	"time"
 )
 
 var lastCreatedAt time.Time
 var logPrintf = log.Printf
 var dockerClient = client.NewClient
-type Service struct{
-	Host string
+
+type Service struct {
+	Host     string
+	NotifUrl string
 }
 
 func (m *Service) GetServices() ([]swarm.Service, error) {
@@ -33,11 +35,13 @@ func (m *Service) GetServices() ([]swarm.Service, error) {
 		return []swarm.Service{}, err
 	}
 
-//	t := time.NewTicker(time.Second * 5)
-//	for {
-//		println("Something")
-//		<-t.C
-//	}
+	//	t := time.NewTicker(time.Second * 5)
+	//	for {
+	//		println("Something")
+	//		<-t.C
+	//	}
+
+	//	time.Sleep(time.Second * 5)
 
 	return services, nil
 }
@@ -60,10 +64,10 @@ func (m *Service) GetNewServices() ([]swarm.Service, error) {
 	return newServices, nil
 }
 
-func (m *Service) NotifyServices(services []swarm.Service, url string) error {
+func (m *Service) NotifyServices(services []swarm.Service) error {
 	errs := []error{}
 	for _, s := range services {
-		fullUrl := fmt.Sprintf("%s?serviceName=%s", url, s.Spec.Name)
+		fullUrl := fmt.Sprintf("%s?serviceName=%s", m.NotifUrl, s.Spec.Name)
 		if _, ok := s.Spec.Labels["DF_NOTIFY"]; ok {
 			for k, v := range s.Spec.Labels {
 				if strings.HasPrefix(k, "DF_") && k != "DF_NOTIFY" {
@@ -88,8 +92,9 @@ func (m *Service) NotifyServices(services []swarm.Service, url string) error {
 	return nil
 }
 
-func NewServices(host string) Service {
+func NewService(host, notifUrl string) Service {
 	return Service{
-		Host: host,
+		Host:     host,
+		NotifUrl: notifUrl,
 	}
 }

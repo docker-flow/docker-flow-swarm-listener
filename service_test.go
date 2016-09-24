@@ -2,12 +2,12 @@ package main
 
 import (
 	"fmt"
+	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
 	"github.com/stretchr/testify/suite"
 	"net/http"
-	"testing"
-	"github.com/docker/docker/api/types/swarm"
 	"net/http/httptest"
+	"testing"
 )
 
 type ServicesTestSuite struct {
@@ -29,7 +29,7 @@ func TestServicesUnitTestSuite(t *testing.T) {
 // GetServices
 
 func (s *ServicesTestSuite) Test_GetServices_ReturnsServices() {
-	services := NewServices("unix:///var/run/docker.sock")
+	services := NewService("unix:///var/run/docker.sock", "")
 
 	actual, _ := services.GetServices()
 
@@ -48,13 +48,13 @@ func (s *ServicesTestSuite) Test_GetServices_ReturnsError_WhenNewClientFails() {
 	dockerClient = func(host string, version string, httpClient *http.Client, httpHeaders map[string]string) (*client.Client, error) {
 		return &client.Client{}, fmt.Errorf("This is an error")
 	}
-	services := NewServices("unix:///var/run/docker.sock")
+	services := NewService("unix:///var/run/docker.sock", "")
 	_, err := services.GetServices()
 	s.Error(err)
 }
 
 func (s *ServicesTestSuite) Test_GetServices_ReturnsError_WhenServiceListFails() {
-	services := NewServices("unix:///this/socket/does/not/exist")
+	services := NewService("unix:///this/socket/does/not/exist", "")
 
 	_, err := services.GetServices()
 
@@ -64,7 +64,7 @@ func (s *ServicesTestSuite) Test_GetServices_ReturnsError_WhenServiceListFails()
 // GetNewServices
 
 func (s *ServicesTestSuite) Test_GetNewServices_ReturnsAllServices_WhenExecutedForTheFirstTime() {
-	services := NewServices("unix:///var/run/docker.sock")
+	services := NewService("unix:///var/run/docker.sock", "")
 
 	actual, _ := services.GetNewServices()
 
@@ -72,7 +72,7 @@ func (s *ServicesTestSuite) Test_GetNewServices_ReturnsAllServices_WhenExecutedF
 }
 
 func (s *ServicesTestSuite) Test_GetNewServices_ReturnsError_WhenGetServicesFails() {
-	services := NewServices("unix:///this/socket/does/not/exist")
+	services := NewService("unix:///this/socket/does/not/exist", "")
 
 	_, err := services.GetNewServices()
 
@@ -80,7 +80,7 @@ func (s *ServicesTestSuite) Test_GetNewServices_ReturnsError_WhenGetServicesFail
 }
 
 func (s *ServicesTestSuite) Test_GetNewServices_ReturnsOnlyNewServices() {
-	services := NewServices("unix:///var/run/docker.sock")
+	services := NewService("unix:///var/run/docker.sock", "")
 
 	services.GetNewServices()
 	actual, _ := services.GetNewServices()
@@ -113,8 +113,8 @@ func (s *ServicesTestSuite) Test_NotifyServices_ReturnsError_WhenHttpStatusIsNot
 	labels := make(map[string]string)
 	labels["DF_NOTIFY"] = "true"
 
-	services := NewServices("unix:///var/run/docker.sock")
-	err := services.NotifyServices(s.getSwarmServices(labels), httpSrv.URL)
+	services := NewService("unix:///var/run/docker.sock", httpSrv.URL)
+	err := services.NotifyServices(s.getSwarmServices(labels))
 
 	s.Error(err)
 }
@@ -123,8 +123,8 @@ func (s *ServicesTestSuite) Test_NotifyServices_ReturnsError_WhenHttpRequestRetu
 	labels := make(map[string]string)
 	labels["DF_NOTIFY"] = "true"
 
-	services := NewServices("unix:///var/run/docker.sock")
-	err := services.NotifyServices(s.getSwarmServices(labels), "http://this-does-not-exist")
+	services := NewService("unix:///var/run/docker.sock", "http://this-does-not-exist")
+	err := services.NotifyServices(s.getSwarmServices(labels))
 
 	s.Error(err)
 }
@@ -151,8 +151,8 @@ func (s *ServicesTestSuite) verifyNotifyService(labels map[string]string, expect
 	defer func() { httpSrv.Close() }()
 	url := fmt.Sprintf("%s/v1/docker-flow-proxy/reconfigure", httpSrv.URL)
 
-	services := NewServices("unix:///var/run/docker.sock")
-	err := services.NotifyServices(s.getSwarmServices(labels), url)
+	services := NewService("unix:///var/run/docker.sock", url)
+	err := services.NotifyServices(s.getSwarmServices(labels))
 
 	s.NoError(err)
 	s.Equal(expectSent, actualSent)
@@ -163,7 +163,7 @@ func (s *ServicesTestSuite) verifyNotifyService(labels map[string]string, expect
 
 func (s *ServicesTestSuite) getSwarmServices(labels map[string]string) []swarm.Service {
 	ann := swarm.Annotations{
-		Name: s.serviceName,
+		Name:   s.serviceName,
 		Labels: labels,
 	}
 	spec := swarm.ServiceSpec{
@@ -174,4 +174,3 @@ func (s *ServicesTestSuite) getSwarmServices(labels map[string]string) []swarm.S
 	}
 	return []swarm.Service{serv}
 }
-

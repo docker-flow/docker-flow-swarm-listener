@@ -20,6 +20,7 @@ docker service rm util
 
 ## TODO
 
+- [ ] Create NewServiceFromEnv function
 - [ ] Do not send the same request twice
 - [ ] Ability to initiate service notifications through HTTP
 - [ ] Add main
@@ -34,3 +35,4 @@ docker service rm util
 - [ ] Remove the service after tests
 - [ ] Add the option to use NewEnvClient
 - [ ] Write README
+- [ ] Register in CircleCI
