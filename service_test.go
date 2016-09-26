@@ -40,7 +40,7 @@ func (s *ServiceTestSuite) Test_GetServices_ReturnsServices() {
 		index = 1
 	}
 	s.Equal("util-1", actual[index].Spec.Name)
-	s.Equal("/demo", actual[index].Spec.Labels["DF_SERVICE_PATH"])
+	s.Equal("/demo", actual[index].Spec.Labels["DF_servicePath"])
 }
 
 func (s *ServiceTestSuite) Test_GetServices_ReturnsError_WhenNewClientFails() {
@@ -115,7 +115,7 @@ func (s *ServiceTestSuite) Test_NotifyServices_ReturnsError_WhenHttpStatusIsNot2
 	labels["DF_NOTIFY"] = "true"
 
 	services := NewService("unix:///var/run/docker.sock", httpSrv.URL)
-	err := services.NotifyServices(s.getSwarmServices(labels))
+	err := services.NotifyServices(s.getSwarmServices(labels), 1, 0)
 
 	s.Error(err)
 }
@@ -125,9 +125,29 @@ func (s *ServiceTestSuite) Test_NotifyServices_ReturnsError_WhenHttpRequestRetur
 	labels["DF_NOTIFY"] = "true"
 
 	service := NewService("unix:///var/run/docker.sock", "this-does-not-exist")
-	err := service.NotifyServices(s.getSwarmServices(labels))
+	err := service.NotifyServices(s.getSwarmServices(labels), 1, 0)
 
 	s.Error(err)
+}
+
+func (s *ServiceTestSuite) Test_NotifyServices_RetriesRequests() {
+	attempt := 0
+	labels := make(map[string]string)
+	labels["DF_NOTIFY"] = "true"
+	httpSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if attempt < 2 {
+			w.WriteHeader(http.StatusNotFound)
+		} else {
+			w.WriteHeader(http.StatusOK)
+			w.Header().Set("Content-Type", "application/json")
+		}
+		attempt = attempt + 1
+	}))
+
+	service := NewService("unix:///var/run/docker.sock", httpSrv.URL)
+	err := service.NotifyServices(s.getSwarmServices(labels), 3, 0)
+
+	s.NoError(err)
 }
 
 // NewService
@@ -205,7 +225,7 @@ func (s *ServiceTestSuite) verifyNotifyService(labels map[string]string, expectS
 	url := fmt.Sprintf("%s/v1/docker-flow-proxy/reconfigure", httpSrv.URL)
 
 	services := NewService("unix:///var/run/docker.sock", url)
-	err := services.NotifyServices(s.getSwarmServices(labels))
+	err := services.NotifyServices(s.getSwarmServices(labels), 1, 0)
 
 	s.NoError(err)
 	s.Equal(expectSent, actualSent)

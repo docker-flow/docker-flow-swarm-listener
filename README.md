@@ -8,23 +8,23 @@
 docker swarm init
 
 docker service create --name util-1 \
-    -l DF_SERVICE_PATH=/demo \
+    -l DF_NOTIFY=true \
+    -l DF_servicePath=/demo \
     alpine sleep 1000000000
 
 docker service create --name util-2 alpine sleep 1000000000
 
 go test --cover
 
+go build -v -o docker-flow-swarm-listener
+
+DF_INTERVAL=1 DF_NOTIFICATION_URL=http://localhost ./docker-flow-swarm-listener
+
 docker service rm util
 ```
 
 ## TODO
 
-- [ ] Add main
-- [ ] Parameterize ticket period
-- [ ] Monitor services
-- [ ] Send a reconfigure request to the proxy if a service is created
-- [ ] Repeated failed proxy requests if they fail
 - [ ] Send a remove request to the proxy if a service is removed
 - [ ] Ability to have multiple notification addresses
 - [ ] Add filters

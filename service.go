@@ -36,20 +36,13 @@ func (m *Service) GetServices() ([]swarm.Service, error) {
 		return []swarm.Service{}, err
 	}
 
-	//	t := time.NewTicker(time.Second * 5)
-	//	for {
-	//		println("Something")
-	//		<-t.C
-	//	}
-
-	//	time.Sleep(time.Second * 5)
-
 	return services, nil
 }
 
 func (m *Service) GetNewServices() ([]swarm.Service, error) {
 	services, err := m.GetServices()
 	if err != nil {
+		logPrintf(err.Error())
 		return []swarm.Service{}, err
 	}
 	newServices := []swarm.Service{}
@@ -65,7 +58,7 @@ func (m *Service) GetNewServices() ([]swarm.Service, error) {
 	return newServices, nil
 }
 
-func (m *Service) NotifyServices(services []swarm.Service) error {
+func (m *Service) NotifyServices(services []swarm.Service, retries, interval int) error {
 	errs := []error{}
 	for _, s := range services {
 		fullUrl := fmt.Sprintf("%s?serviceName=%s", m.NotifUrl, s.Spec.Name)
@@ -76,14 +69,26 @@ func (m *Service) NotifyServices(services []swarm.Service) error {
 				}
 			}
 			logPrintf("Sending a service notification to %s", fullUrl)
-			resp, err := http.Get(fullUrl)
-			if err != nil {
-				logPrintf("ERROR: %s", err.Error())
-				errs = append(errs, err)
-			} else if resp.StatusCode != http.StatusOK {
-				msg := fmt.Errorf("Request %s returned status code %d", fullUrl, resp.StatusCode)
-				logPrintf("ERROR: %s", msg)
-				errs = append(errs, msg)
+			for i := 1; i <= retries; i++ {
+				resp, err := http.Get(fullUrl)
+				if err == nil && resp.StatusCode == http.StatusOK {
+					break
+				} else if i < retries {
+					logPrintf("Notification to %s failed. Retrying...", fullUrl)
+					if interval > 0 {
+						t := time.NewTicker(time.Second * time.Duration(interval))
+						<-t.C
+					}
+				} else {
+					if err != nil {
+						logPrintf("ERROR: %s", err.Error())
+						errs = append(errs, err)
+					} else if resp.StatusCode != http.StatusOK {
+						msg := fmt.Errorf("Request %s returned status code %d", fullUrl, resp.StatusCode)
+						logPrintf("ERROR: %s", msg)
+						errs = append(errs, msg)
+					}
+				}
 			}
 		}
 	}
