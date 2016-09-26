@@ -10,8 +10,10 @@ func main() {
 	args := GetArgs()
 	t := time.NewTicker(time.Second * time.Duration(args.Interval))
 	for {
-		services, _ := service.GetNewServices()
-		service.NotifyServices(services, args.Retry, args.RetryInterval)
+		if len(service.NotifUrl) > 0 {
+			services, _ := service.GetNewServices()
+			service.NotifyServices(services, args.Retry, args.RetryInterval)
+		}
 		<-t.C
 		logPrintf("Tick")
 	}

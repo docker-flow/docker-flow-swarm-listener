@@ -1,6 +1,10 @@
 ## Environment Variables
 
-* DF_SERVICE_PATH
+* DF_DOCKER_HOST
+* DF_NOTIFICATION_URL
+* DF_INTERVAL
+* DF_RETRY
+* DF_RETRY_INTERVAL
 
 ## Test
 
@@ -23,17 +27,16 @@ DF_INTERVAL=1 DF_NOTIFICATION_URL=http://localhost ./docker-flow-swarm-listener
 docker service rm util
 ```
 
+## Build
+
+```bash
+docker run --rm -v $PWD:/usr/src/myapp -w /usr/src/myapp -v go:/go golang:1.7 bash -c "go get -d -v -t && go build -v -o docker-flow-swarm-listener"
+
+docker build -t vfarcic/docker-flow-swarm-listener .
+```
+
 ## TODO
 
-- [ ] Send a remove request to the proxy if a service is removed
-- [ ] Ability to have multiple notification addresses
-- [ ] Add filters
-- [ ] Create a service during test setup
-- [ ] Remove the service after tests
-- [ ] Add the option to use NewEnvClient
-- [ ] Resend requests until the response is 200
-- [ ] Functional tests
-- [ ] Integration tests
+- [ ] Add the option to use labels instead env. vars.
 - [ ] Write README
 - [ ] Register in CircleCI
-- [ ] Ability to initiate service notifications through HTTP (speed up waiting period)
