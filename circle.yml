@@ -2,6 +2,10 @@ machine:
   services:
     - docker
 
+dependencies:
+  override:
+    - docker info
+    - docker swarm join
+
 test:
   override:
-   - docker swarm join
