@@ -1,3 +1,15 @@
+# Docker Flow: Swarm Listener
+
+The project listens to Docker Swarm events and sends requests when a change occurs. At the moment, the only supported option is to send a notification when a new service is created. Wide feature support is coming soon.
+
+## Example
+
+The example that follows will use the *Swarm Listener* to reconfigure the [Docker Flow: Proxy](https://github.com/vfarcic/docker-flow-proxy) whenever a new service is created.
+
+```bash
+git clone
+```
+
 ## Environment Variables
 
 * DF_DOCKER_HOST
@@ -37,6 +49,4 @@ docker build -t vfarcic/docker-flow-swarm-listener .
 
 ## TODO
 
-- [ ] Add the option to use labels instead env. vars.
 - [ ] Write README
-- [ ] Register in CircleCI

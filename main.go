@@ -15,6 +15,5 @@ func main() {
 			service.NotifyServices(services, args.Retry, args.RetryInterval)
 		}
 		<-t.C
-		logPrintf("Tick")
 	}
 }
