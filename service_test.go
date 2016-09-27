@@ -7,8 +7,8 @@ import (
 	"github.com/stretchr/testify/suite"
 	"net/http"
 	"net/http/httptest"
-	"testing"
 	"os"
+	"testing"
 )
 
 type ServiceTestSuite struct {
@@ -40,7 +40,7 @@ func (s *ServiceTestSuite) Test_GetServices_ReturnsServices() {
 		index = 1
 	}
 	s.Equal("util-1", actual[index].Spec.Name)
-	s.Equal("/demo", actual[index].Spec.Labels["DF_servicePath"])
+	s.Equal("/demo", actual[index].Spec.Labels["com.df.servicePath"])
 }
 
 func (s *ServiceTestSuite) Test_GetServices_ReturnsError_WhenNewClientFails() {
@@ -93,9 +93,9 @@ func (s *ServiceTestSuite) Test_GetNewServices_ReturnsOnlyNewServices() {
 
 func (s *ServiceTestSuite) Test_NotifyServices_SendsRequests() {
 	labels := make(map[string]string)
-	labels["DF_NOTIFY"] = "true"
-	labels["DF_key1"] = "value1"
-	labels["VAR_WITHOUT_DF_PREFIX"] = "something"
+	labels["com.df.notify"] = "true"
+	labels["com.df.key1"] = "value1"
+	labels["label.without.correct.prefix"] = "something"
 
 	s.verifyNotifyService(labels, true, fmt.Sprintf("serviceName=%s&key1=value1", s.serviceName))
 }
@@ -112,7 +112,7 @@ func (s *ServiceTestSuite) Test_NotifyServices_ReturnsError_WhenHttpStatusIsNot2
 		w.WriteHeader(http.StatusNotFound)
 	}))
 	labels := make(map[string]string)
-	labels["DF_NOTIFY"] = "true"
+	labels["com.df.notify"] = "true"
 
 	services := NewService("unix:///var/run/docker.sock", httpSrv.URL)
 	err := services.NotifyServices(s.getSwarmServices(labels), 1, 0)
@@ -122,7 +122,7 @@ func (s *ServiceTestSuite) Test_NotifyServices_ReturnsError_WhenHttpStatusIsNot2
 
 func (s *ServiceTestSuite) Test_NotifyServices_ReturnsError_WhenHttpRequestReturnsError() {
 	labels := make(map[string]string)
-	labels["DF_NOTIFY"] = "true"
+	labels["com.df.notify"] = "true"
 
 	service := NewService("unix:///var/run/docker.sock", "this-does-not-exist")
 	err := service.NotifyServices(s.getSwarmServices(labels), 1, 0)
@@ -133,7 +133,7 @@ func (s *ServiceTestSuite) Test_NotifyServices_ReturnsError_WhenHttpRequestRetur
 func (s *ServiceTestSuite) Test_NotifyServices_RetriesRequests() {
 	attempt := 0
 	labels := make(map[string]string)
-	labels["DF_NOTIFY"] = "true"
+	labels["com.df.notify"] = "true"
 	httpSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if attempt < 2 {
 			w.WriteHeader(http.StatusNotFound)
@@ -172,7 +172,7 @@ func (s *ServiceTestSuite) Test_NewService_SetsNotifUrl() {
 
 func (s *ServiceTestSuite) Test_NewServiceFromEnv_SetsHost() {
 	host := os.Getenv("DF_DOCKER_HOST")
-	defer func() { os.Setenv("DF_DOCKER_HOST", host)}()
+	defer func() { os.Setenv("DF_DOCKER_HOST", host) }()
 	expected := "this-is-a-host"
 	os.Setenv("DF_DOCKER_HOST", expected)
 
@@ -183,7 +183,7 @@ func (s *ServiceTestSuite) Test_NewServiceFromEnv_SetsHost() {
 
 func (s *ServiceTestSuite) Test_NewServiceFromEnv_SetsHostToSocket_WhenEnvIsNotPresent() {
 	host := os.Getenv("DF_DOCKER_HOST")
-	defer func() { os.Setenv("DF_DOCKER_HOST", host)}()
+	defer func() { os.Setenv("DF_DOCKER_HOST", host) }()
 	os.Unsetenv("DF_DOCKER_HOST")
 
 	service := NewServiceFromEnv()
@@ -193,7 +193,7 @@ func (s *ServiceTestSuite) Test_NewServiceFromEnv_SetsHostToSocket_WhenEnvIsNotP
 
 func (s *ServiceTestSuite) Test_NewServiceFromEnv_SetsNotifUrl() {
 	host := os.Getenv("DF_NOTIFICATION_URL")
-	defer func() { os.Setenv("DF_NOTIFICATION_URL", host)}()
+	defer func() { os.Setenv("DF_NOTIFICATION_URL", host) }()
 	expected := "this-is-a-notification-url"
 	os.Setenv("DF_NOTIFICATION_URL", expected)
 

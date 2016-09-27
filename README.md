@@ -6,7 +6,7 @@ The project listens to Docker Swarm events and sends requests when a change occu
 
 The example that follows will use the *Swarm Listener* to reconfigure the [Docker Flow: Proxy](https://github.com/vfarcic/docker-flow-proxy) whenever a new service is created.
 
-I will assume that you already have a Swarm cluster set up.
+I will assume that you already have a Swarm cluster set up and that manager nodes are labeled as `manager` (e.g. `docker node update --label-add type=manager <NODE_NAME>`).
 
 Let's run a Proxy service. We'll use it as a way to demonstrate how *Swarm Listener* works.
 
@@ -22,13 +22,14 @@ docker service create --name proxy \
     vfarcic/docker-flow-proxy
 ```
 
-Next, we'll create the `swarm-listener` service.
+Next, we'll create the `swarm-listener` service. Please note that the assumption is that manager nodes are labeled as `type == manager`. If, in your case, they are labeled differently, please change the constraint from the command that follows.
 
 ```bash
 docker service create --name swarm-listener \
     --network proxy \
     --mount "type=bind,source=/var/run/docker.sock,target=/var/run/docker.sock" \
     -e DF_NOTIFICATION_URL=http://proxy:8080/v1/docker-flow-proxy/reconfigure \
+    --constraint 'node.labels.type == manager' \
     vfarcic/docker-flow-swarm-listener
 ```
 
@@ -44,9 +45,9 @@ docker service create --name go-demo-db \
 docker service create --name go-demo \
   -e DB=go-demo-db \
   --network proxy \
-  -l DF_NOTIFY=true \
-  -l DF_servicePath=/demo \
-  -l DF_port=8080 \
+  -l com.df.notify=true \
+  -l com.df.servicePath=/demo \
+  -l com.df.port=8080 \
   vfarcic/go-demo
 ```
 
@@ -69,7 +70,7 @@ Starting Docker Flow: Swarm Listener
 Sending a service notification to http://proxy:8080/v1/docker-flow-proxy/reconfigure?serviceName=go-demo&port=8080&servicePath=/demo
 ```
 
-As you can see, the listener detected that the `go-demo` service has the label `DF_NOTIFY` and sent the notification request. The address of the notification request is the value of the environment variable `DF_NOTIFICATION_URL` declared in the `swarm-listener` service. The parameters are a combination of the service name and all the labels prefixed with `DF_`.
+As you can see, the listener detected that the `go-demo` service has the label `com.df.notify` and sent the notification request. The address of the notification request is the value of the environment variable `DF_NOTIFICATION_URL` declared in the `swarm-listener` service. The parameters are a combination of the service name and all the labels prefixed with `DF_`.
 
 ## Environment Variables
 

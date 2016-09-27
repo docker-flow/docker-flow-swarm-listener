@@ -2,10 +2,10 @@ package main
 
 import (
 	"github.com/stretchr/testify/suite"
-	"testing"
+	"math/rand"
 	"os"
 	"strconv"
-	"math/rand"
+	"testing"
 )
 
 type ArgsTestSuite struct {

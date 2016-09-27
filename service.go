@@ -8,9 +8,9 @@ import (
 	"golang.org/x/net/context"
 	"log"
 	"net/http"
+	"os"
 	"strings"
 	"time"
-	"os"
 )
 
 var lastCreatedAt time.Time
@@ -62,10 +62,10 @@ func (m *Service) NotifyServices(services []swarm.Service, retries, interval int
 	errs := []error{}
 	for _, s := range services {
 		fullUrl := fmt.Sprintf("%s?serviceName=%s", m.NotifUrl, s.Spec.Name)
-		if _, ok := s.Spec.Labels["DF_NOTIFY"]; ok {
+		if _, ok := s.Spec.Labels["com.df.notify"]; ok {
 			for k, v := range s.Spec.Labels {
-				if strings.HasPrefix(k, "DF_") && k != "DF_NOTIFY" {
-					fullUrl = fmt.Sprintf("%s&%s=%s", fullUrl, strings.TrimLeft(k, "DF_"), v)
+				if strings.HasPrefix(k, "com.df") && k != "com.df.notify" {
+					fullUrl = fmt.Sprintf("%s&%s=%s", fullUrl, strings.TrimLeft(k, "com.df."), v)
 				}
 			}
 			logPrintf("Sending a service notification to %s", fullUrl)
@@ -111,7 +111,7 @@ func NewServiceFromEnv() Service {
 		host = os.Getenv("DF_DOCKER_HOST")
 	}
 	return Service{
-		Host: host,
+		Host:     host,
 		NotifUrl: os.Getenv("DF_NOTIFICATION_URL"),
 	}
 }

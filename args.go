@@ -6,15 +6,15 @@ import (
 )
 
 type Args struct {
-	Interval int
-	Retry int
+	Interval      int
+	Retry         int
 	RetryInterval int
 }
 
 func GetArgs() *Args {
 	return &Args{
-		Interval: getValue(5, "DF_INTERVAL"),
-		Retry: getValue(1, "DF_RETRY"),
+		Interval:      getValue(5, "DF_INTERVAL"),
+		Retry:         getValue(1, "DF_RETRY"),
 		RetryInterval: getValue(0, "DF_RETRY_INTERVAL"),
 	}
 }
