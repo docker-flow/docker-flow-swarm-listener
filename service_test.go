@@ -9,16 +9,19 @@ import (
 	"net/http/httptest"
 	"os"
 	"testing"
+	"time"
 )
 
 type ServiceTestSuite struct {
 	suite.Suite
 	serviceName string
+	removedServices []string
 }
 
 func TestServiceUnitTestSuite(t *testing.T) {
 	s := new(ServiceTestSuite)
 	s.serviceName = "my-service"
+	s.removedServices = []string{"my-removed-service-1"}
 
 	logPrintfOrig := logPrintf
 	defer func() { logPrintf = logPrintfOrig }()
@@ -30,7 +33,7 @@ func TestServiceUnitTestSuite(t *testing.T) {
 // GetServices
 
 func (s *ServiceTestSuite) Test_GetServices_ReturnsServices() {
-	services := NewService("unix:///var/run/docker.sock", "")
+	services := NewService("unix:///var/run/docker.sock", "", "")
 
 	actual, _ := services.GetServices()
 
@@ -49,13 +52,13 @@ func (s *ServiceTestSuite) Test_GetServices_ReturnsError_WhenNewClientFails() {
 	dockerClient = func(host string, version string, httpClient *http.Client, httpHeaders map[string]string) (*client.Client, error) {
 		return &client.Client{}, fmt.Errorf("This is an error")
 	}
-	services := NewService("unix:///var/run/docker.sock", "")
+	services := NewService("unix:///var/run/docker.sock", "", "")
 	_, err := services.GetServices()
 	s.Error(err)
 }
 
 func (s *ServiceTestSuite) Test_GetServices_ReturnsError_WhenServiceListFails() {
-	services := NewService("unix:///this/socket/does/not/exist", "")
+	services := NewService("unix:///this/socket/does/not/exist", "", "")
 
 	_, err := services.GetServices()
 
@@ -65,72 +68,94 @@ func (s *ServiceTestSuite) Test_GetServices_ReturnsError_WhenServiceListFails() 
 // GetNewServices
 
 func (s *ServiceTestSuite) Test_GetNewServices_ReturnsAllServices_WhenExecutedForTheFirstTime() {
-	services := NewService("unix:///var/run/docker.sock", "")
+	service := NewService("unix:///var/run/docker.sock", "", "")
+	service.lastCreatedAt = time.Time{}
+	services, _ := service.GetServices()
 
-	actual, _ := services.GetNewServices()
+	actual, _ := service.GetNewServices(services)
 
 	s.Equal(2, len(actual))
 }
 
-func (s *ServiceTestSuite) Test_GetNewServices_ReturnsError_WhenGetServicesFails() {
-	services := NewService("unix:///this/socket/does/not/exist", "")
-
-	_, err := services.GetNewServices()
-
-	s.Error(err)
-}
-
 func (s *ServiceTestSuite) Test_GetNewServices_ReturnsOnlyNewServices() {
-	services := NewService("unix:///var/run/docker.sock", "")
+	service := NewService("unix:///var/run/docker.sock", "", "")
+	services, _ := service.GetServices()
 
-	services.GetNewServices()
-	actual, _ := services.GetNewServices()
+	service.GetNewServices(services)
+	services, _ = service.GetServices()
+	actual, _ := service.GetNewServices(services)
 
 	s.Equal(0, len(actual))
 }
 
-// NotifyServices
+func (s *ServiceTestSuite) Test_GetNewServices_AddsServices() {
+	service := NewService("unix:///var/run/docker.sock", "", "")
+	services, _ := service.GetServices()
 
-func (s *ServiceTestSuite) Test_NotifyServices_SendsRequests() {
+	service.GetNewServices(services)
+
+	s.Equal(2, len(service.Services))
+	s.Contains(service.Services, "util-1")
+	s.Contains(service.Services, "util-2")
+}
+
+// GetRemovedServices
+
+func (s *ServiceTestSuite) Test_GetRemovedServices_ReturnsNamesOfRemovedServices() {
+	service := NewService("unix:///var/run/docker.sock", "", "")
+	services, _ := service.GetServices()
+	service.Services["removed-service-1"] = true
+	service.Services["removed-service-2"] = true
+
+	actual := service.GetRemovedServices(services)
+
+	s.Equal(2, len(actual))
+	s.Contains(actual, "removed-service-1")
+	s.Contains(actual, "removed-service-2")
+}
+
+// NotifyServicesCreate
+
+func (s *ServiceTestSuite) Test_NotifyServicesCreate_SendsRequests() {
 	labels := make(map[string]string)
 	labels["com.df.notify"] = "true"
 	labels["com.df.key1"] = "value1"
 	labels["label.without.correct.prefix"] = "something"
 
-	s.verifyNotifyService(labels, true, fmt.Sprintf("serviceName=%s&key1=value1", s.serviceName))
+	s.verifyNotifyServiceCreate(labels, true, fmt.Sprintf("serviceName=%s&key1=value1", s.serviceName))
 }
 
-func (s *ServiceTestSuite) Test_NotifyServices_DoesNotSendRequest_WhenDfNotifyIsNotDefined() {
+func (s *ServiceTestSuite) Test_NotifyServicesCreate_DoesNotSendRequest_WhenDfNotifyIsNotDefined() {
 	labels := make(map[string]string)
 	labels["DF_key1"] = "value1"
 
-	s.verifyNotifyService(labels, false, "")
+	s.verifyNotifyServiceCreate(labels, false, "")
 }
 
-func (s *ServiceTestSuite) Test_NotifyServices_ReturnsError_WhenHttpStatusIsNot200() {
+func (s *ServiceTestSuite) Test_NotifyServicesCreate_ReturnsError_WhenHttpStatusIsNot200() {
 	httpSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 	}))
 	labels := make(map[string]string)
 	labels["com.df.notify"] = "true"
 
-	services := NewService("unix:///var/run/docker.sock", httpSrv.URL)
-	err := services.NotifyServices(s.getSwarmServices(labels), 1, 0)
+	services := NewService("unix:///var/run/docker.sock", httpSrv.URL, "")
+	err := services.NotifyServicesCreate(s.getSwarmServices(labels), 1, 0)
 
 	s.Error(err)
 }
 
-func (s *ServiceTestSuite) Test_NotifyServices_ReturnsError_WhenHttpRequestReturnsError() {
+func (s *ServiceTestSuite) Test_NotifyServicesCreate_ReturnsError_WhenHttpRequestReturnsError() {
 	labels := make(map[string]string)
 	labels["com.df.notify"] = "true"
 
-	service := NewService("unix:///var/run/docker.sock", "this-does-not-exist")
-	err := service.NotifyServices(s.getSwarmServices(labels), 1, 0)
+	service := NewService("unix:///var/run/docker.sock", "this-does-not-exist", "")
+	err := service.NotifyServicesCreate(s.getSwarmServices(labels), 1, 0)
 
 	s.Error(err)
 }
 
-func (s *ServiceTestSuite) Test_NotifyServices_RetriesRequests() {
+func (s *ServiceTestSuite) Test_NotifyServicesCreate_RetriesRequests() {
 	attempt := 0
 	labels := make(map[string]string)
 	labels["com.df.notify"] = "true"
@@ -144,8 +169,52 @@ func (s *ServiceTestSuite) Test_NotifyServices_RetriesRequests() {
 		attempt = attempt + 1
 	}))
 
-	service := NewService("unix:///var/run/docker.sock", httpSrv.URL)
-	err := service.NotifyServices(s.getSwarmServices(labels), 3, 0)
+	service := NewService("unix:///var/run/docker.sock", httpSrv.URL, "")
+	err := service.NotifyServicesCreate(s.getSwarmServices(labels), 3, 0)
+
+	s.NoError(err)
+}
+
+// NotifyServicesRemove
+
+func (s *ServiceTestSuite) Test_NotifyServicesRemove_SendsRequests() {
+	s.verifyNotifyServiceRemove(true, fmt.Sprintf("serviceName=%s", s.removedServices[0]))
+}
+
+func (s *ServiceTestSuite) Test_NotifyServicesRemove_ReturnsError_WhenHttpStatusIsNot200() {
+	httpSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+
+	services := NewService("unix:///var/run/docker.sock", "", httpSrv.URL)
+	err := services.NotifyServicesRemove(s.removedServices, 1, 0)
+
+	s.Error(err)
+}
+
+func (s *ServiceTestSuite) Test_NotifyServicesRemove_ReturnsError_WhenHttpRequestReturnsError() {
+	service := NewService("unix:///var/run/docker.sock", "", "this-does-not-exist")
+	err := service.NotifyServicesRemove(s.removedServices, 1, 0)
+
+	s.Error(err)
+}
+
+func (s *ServiceTestSuite) Test_NotifyServicesRemove_RetriesRequests() {
+	attempt := 0
+	labels := make(map[string]string)
+	labels["com.df.notify"] = "true"
+	httpSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if attempt < 2 {
+			w.WriteHeader(http.StatusNotFound)
+		} else {
+			w.WriteHeader(http.StatusOK)
+			w.Header().Set("Content-Type", "application/json")
+		}
+		attempt = attempt + 1
+	}))
+
+	service := NewService("unix:///var/run/docker.sock", "", httpSrv.URL)
+	err := service.NotifyServicesRemove(s.removedServices, 3, 0)
 
 	s.NoError(err)
 }
@@ -155,7 +224,7 @@ func (s *ServiceTestSuite) Test_NotifyServices_RetriesRequests() {
 func (s *ServiceTestSuite) Test_NewService_SetsHost() {
 	expected := "this-is-a-host"
 
-	service := NewService(expected, "")
+	service := NewService(expected, "", "")
 
 	s.Equal(expected, service.Host)
 }
@@ -163,9 +232,9 @@ func (s *ServiceTestSuite) Test_NewService_SetsHost() {
 func (s *ServiceTestSuite) Test_NewService_SetsNotifUrl() {
 	expected := "this-is-a-notification-url"
 
-	service := NewService("", expected)
+	service := NewService("", expected, "")
 
-	s.Equal(expected, service.NotifUrl)
+	s.Equal(expected, service.NotifCreateServiceUrl)
 }
 
 // NewServiceFromEnv
@@ -199,12 +268,34 @@ func (s *ServiceTestSuite) Test_NewServiceFromEnv_SetsNotifUrl() {
 
 	service := NewServiceFromEnv()
 
-	s.Equal(expected, service.NotifUrl)
+	s.Equal(expected, service.NotifCreateServiceUrl)
+}
+
+func (s *ServiceTestSuite) Test_NewServiceFromEnv_SetsNotifCreateServiceUrl() {
+	host := os.Getenv("DF_NOTIF_CREATE_SERVICE_URL")
+	defer func() { os.Setenv("DF_NOTIF_CREATE_SERVICE_URL", host) }()
+	expected := "this-is-a-notification-url"
+	os.Setenv("DF_NOTIF_CREATE_SERVICE_URL", expected)
+
+	service := NewServiceFromEnv()
+
+	s.Equal(expected, service.NotifCreateServiceUrl)
+}
+
+func (s *ServiceTestSuite) Test_NewServiceFromEnv_SetsNotifRemoveServiceUrl() {
+	host := os.Getenv("DF_NOTIF_REMOVE_SERVICE_URL")
+	defer func() { os.Setenv("DF_NOTIF_REMOVE_SERVICE_URL", host) }()
+	expected := "this-is-a-notification-url"
+	os.Setenv("DF_NOTIF_REMOVE_SERVICE_URL", expected)
+
+	service := NewServiceFromEnv()
+
+	s.Equal(expected, service.NotifRemoveServiceUrl)
 }
 
 // Util
 
-func (s *ServiceTestSuite) verifyNotifyService(labels map[string]string, expectSent bool, expectQuery string) {
+func (s *ServiceTestSuite) verifyNotifyServiceCreate(labels map[string]string, expectSent bool, expectQuery string) {
 	actualSent := false
 	actualQuery := ""
 	httpSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -224,13 +315,45 @@ func (s *ServiceTestSuite) verifyNotifyService(labels map[string]string, expectS
 	defer func() { httpSrv.Close() }()
 	url := fmt.Sprintf("%s/v1/docker-flow-proxy/reconfigure", httpSrv.URL)
 
-	services := NewService("unix:///var/run/docker.sock", url)
-	err := services.NotifyServices(s.getSwarmServices(labels), 1, 0)
+	services := NewService("unix:///var/run/docker.sock", url, "")
+	err := services.NotifyServicesCreate(s.getSwarmServices(labels), 1, 0)
 
 	s.NoError(err)
 	s.Equal(expectSent, actualSent)
 	if expectSent {
 		s.Equal(expectQuery, actualQuery)
+	}
+}
+
+func (s *ServiceTestSuite) verifyNotifyServiceRemove(expectSent bool, expectQuery string) {
+	actualSent := false
+	actualQuery := ""
+	httpSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		actualPath := r.URL.Path
+		if r.Method == "GET" {
+			switch actualPath {
+			case "/v1/docker-flow-proxy/remove":
+				w.WriteHeader(http.StatusOK)
+				w.Header().Set("Content-Type", "application/json")
+				actualQuery = r.URL.RawQuery
+				actualSent = true
+			default:
+				w.WriteHeader(http.StatusNotFound)
+			}
+		}
+	}))
+	defer func() { httpSrv.Close() }()
+	url := fmt.Sprintf("%s/v1/docker-flow-proxy/remove", httpSrv.URL)
+
+	service := NewService("unix:///var/run/docker.sock", "", url)
+	service.Services[s.removedServices[0]] = true
+	err := service.NotifyServicesRemove(s.removedServices, 1, 0)
+
+	s.NoError(err)
+	s.Equal(expectSent, actualSent)
+	if expectSent {
+		s.Equal(expectQuery, actualQuery)
+		s.NotContains(service.Services, s.removedServices[0])
 	}
 }
 

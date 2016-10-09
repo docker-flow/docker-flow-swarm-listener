@@ -13,13 +13,23 @@ import (
 	"time"
 )
 
-var lastCreatedAt time.Time
 var logPrintf = log.Printf
 var dockerClient = client.NewClient
 
 type Service struct {
-	Host     string
-	NotifUrl string
+	Host                  string
+	NotifCreateServiceUrl string
+	NotifRemoveServiceUrl string
+	Services              map[string]bool
+	lastCreatedAt         time.Time
+}
+
+type Serviceable interface {
+	GetServices() ([]swarm.Service, error)
+	GetNewServices() ([]swarm.Service, error)
+	NotifyServices(services []swarm.Service, retries, interval int) error
+	NewService(host, notifUrl string) Service
+	NewServiceFromEnv() Service
 }
 
 func (m *Service) GetServices() ([]swarm.Service, error) {
@@ -39,36 +49,49 @@ func (m *Service) GetServices() ([]swarm.Service, error) {
 	return services, nil
 }
 
-func (m *Service) GetNewServices() ([]swarm.Service, error) {
-	services, err := m.GetServices()
-	if err != nil {
-		logPrintf(err.Error())
-		return []swarm.Service{}, err
-	}
+func (m *Service) GetNewServices(services []swarm.Service) ([]swarm.Service, error) {
 	newServices := []swarm.Service{}
-	tmpCreatedAt := lastCreatedAt
+	tmpCreatedAt := m.lastCreatedAt
 	for _, s := range services {
 		if tmpCreatedAt.Nanosecond() == 0 || s.Meta.CreatedAt.After(tmpCreatedAt) {
 			newServices = append(newServices, s)
-			if lastCreatedAt.Before(s.Meta.CreatedAt) {
-				lastCreatedAt = s.Meta.CreatedAt
+			m.Services[s.Spec.Name] = true
+			if m.lastCreatedAt.Before(s.Meta.CreatedAt) {
+				m.lastCreatedAt = s.Meta.CreatedAt
 			}
 		}
 	}
 	return newServices, nil
 }
 
-func (m *Service) NotifyServices(services []swarm.Service, retries, interval int) error {
+func (m *Service) GetRemovedServices(services []swarm.Service) []string {
+	tmpMap := make(map[string]bool)
+	for k, _ := range m.Services {
+		tmpMap[k] = true
+	}
+	for _, v := range services {
+		if _, ok := m.Services[v.Spec.Name]; ok {
+			delete(tmpMap, v.Spec.Name)
+		}
+	}
+	rs := []string{}
+	for k, _ := range tmpMap {
+		rs = append(rs, k)
+	}
+	return rs
+}
+
+func (m *Service) NotifyServicesCreate(services []swarm.Service, retries, interval int) error {
 	errs := []error{}
 	for _, s := range services {
-		fullUrl := fmt.Sprintf("%s?serviceName=%s", m.NotifUrl, s.Spec.Name)
+		fullUrl := fmt.Sprintf("%s?serviceName=%s", m.NotifCreateServiceUrl, s.Spec.Name)
 		if _, ok := s.Spec.Labels["com.df.notify"]; ok {
 			for k, v := range s.Spec.Labels {
 				if strings.HasPrefix(k, "com.df") && k != "com.df.notify" {
 					fullUrl = fmt.Sprintf("%s&%s=%s", fullUrl, strings.TrimLeft(k, "com.df."), v)
 				}
 			}
-			logPrintf("Sending a service notification to %s", fullUrl)
+			logPrintf("Sending a service created notification to %s", fullUrl)
 			for i := 1; i <= retries; i++ {
 				resp, err := http.Get(fullUrl)
 				if err == nil && resp.StatusCode == http.StatusOK {
@@ -98,10 +121,46 @@ func (m *Service) NotifyServices(services []swarm.Service, retries, interval int
 	return nil
 }
 
-func NewService(host, notifUrl string) Service {
+func (m *Service) NotifyServicesRemove(services []string, retries, interval int) error {
+	errs := []error{}
+	for _, v := range services {
+		fullUrl := fmt.Sprintf("%s?serviceName=%s", m.NotifRemoveServiceUrl, v)
+		logPrintf("Sending a service removed notification to %s", fullUrl)
+		for i := 1; i <= retries; i++ {
+			resp, err := http.Get(fullUrl)
+			if err == nil && resp.StatusCode == http.StatusOK {
+				delete(m.Services, v)
+				break
+			} else if i < retries {
+				logPrintf("Notification to %s failed. Retrying...", fullUrl)
+				if interval > 0 {
+					t := time.NewTicker(time.Second * time.Duration(interval))
+					<-t.C
+				}
+			} else {
+				if err != nil {
+					logPrintf("ERROR: %s", err.Error())
+					errs = append(errs, err)
+				} else if resp.StatusCode != http.StatusOK {
+					msg := fmt.Errorf("Request %s returned status code %d", fullUrl, resp.StatusCode)
+					logPrintf("ERROR: %s", msg)
+					errs = append(errs, msg)
+				}
+			}
+		}
+	}
+	if len(errs) > 0 {
+		return fmt.Errorf("At least one request produced errors. Please consult logs for more details.")
+	}
+	return nil
+}
+
+func NewService(host, notifCreateServiceUrl, notifRemoveServiceUrl string) Service {
 	return Service{
 		Host:     host,
-		NotifUrl: notifUrl,
+		NotifCreateServiceUrl: notifCreateServiceUrl,
+		NotifRemoveServiceUrl: notifRemoveServiceUrl,
+		Services: make(map[string]bool),
 	}
 }
 
@@ -110,8 +169,18 @@ func NewServiceFromEnv() Service {
 	if len(os.Getenv("DF_DOCKER_HOST")) > 0 {
 		host = os.Getenv("DF_DOCKER_HOST")
 	}
+	notifCreateServiceUrl := os.Getenv("DF_NOTIF_CREATE_SERVICE_URL")
+	if len(notifCreateServiceUrl) == 0 {
+		notifCreateServiceUrl = os.Getenv("DF_NOTIFICATION_URL")
+	}
+	notifRemoveServiceUrl := os.Getenv("DF_NOTIF_REMOVE_SERVICE_URL")
+	if len(notifRemoveServiceUrl) == 0 {
+		notifRemoveServiceUrl = os.Getenv("DF_NOTIFICATION_URL")
+	}
 	return Service{
 		Host:     host,
-		NotifUrl: os.Getenv("DF_NOTIFICATION_URL"),
+		NotifCreateServiceUrl: notifCreateServiceUrl,
+		NotifRemoveServiceUrl: notifRemoveServiceUrl,
+		Services: make(map[string]bool),
 	}
 }
