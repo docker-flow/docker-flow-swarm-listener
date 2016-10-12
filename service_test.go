@@ -10,6 +10,9 @@ import (
 	"os"
 	"testing"
 	"time"
+	"os/exec"
+	"github.com/stretchr/testify/mock"
+	"strings"
 )
 
 type ServiceTestSuite struct {
@@ -27,7 +30,9 @@ func TestServiceUnitTestSuite(t *testing.T) {
 	defer func() { logPrintf = logPrintfOrig }()
 	logPrintf = func(format string, v ...interface{}) {}
 
+	createTestServices()
 	suite.Run(t, s)
+	removeTestServices()
 }
 
 // GetServices
@@ -69,7 +74,7 @@ func (s *ServiceTestSuite) Test_GetServices_ReturnsError_WhenServiceListFails() 
 
 func (s *ServiceTestSuite) Test_GetNewServices_ReturnsAllServices_WhenExecutedForTheFirstTime() {
 	service := NewService("unix:///var/run/docker.sock", "", "")
-	service.lastCreatedAt = time.Time{}
+	serviceLastCreatedAt = time.Time{}
 	services, _ := service.GetServices()
 
 	actual, _ := service.GetNewServices(services)
@@ -369,4 +374,83 @@ func (s *ServiceTestSuite) getSwarmServices(labels map[string]string) []swarm.Se
 		Spec: spec,
 	}
 	return []swarm.Service{serv}
+}
+
+func createTestServices() {
+	createTestService("util-1", []string{"com.df.notify=true", "com.df.servicePath=/demo"})
+	createTestService("util-2", []string{})
+}
+
+func createTestService(name string, labels []string) {
+	args := []string{"service", "create", "--name", name}
+	for _, v := range labels {
+		args = append(args, "-l", v)
+	}
+	args = append(args, "alpine", "sleep", "1000000000")
+	exec.Command("docker", args...).Output()
+}
+
+func removeTestServices() {
+	removeTestService("util-1")
+	removeTestService("util-2")
+}
+
+func removeTestService(name string) {
+	exec.Command("docker", "service", "rm", name).Output()
+}
+
+// Mocks
+
+type ServicerMock struct {
+	mock.Mock
+}
+
+func (m *ServicerMock) Execute(args []string) error {
+	params := m.Called(args)
+	return params.Error(0)
+}
+
+func (m *ServicerMock) ServeHTTP(w http.ResponseWriter, req *http.Request) {
+	m.Called(w, req)
+}
+
+
+
+
+
+func (m *ServicerMock) GetServices() ([]swarm.Service, error) {
+	args := m.Called()
+	return args.Get(0).([]swarm.Service), args.Error(1)
+}
+
+func (m *ServicerMock) GetNewServices(services []swarm.Service) ([]swarm.Service, error) {
+	args := m.Called()
+	return args.Get(0).([]swarm.Service), args.Error(1)
+}
+
+func (m *ServicerMock) NotifyServicesCreate(services []swarm.Service, retries, interval int) error {
+	args := m.Called(services, retries, interval)
+	return args.Error(0)
+}
+
+func (m *ServicerMock) NotifyServicesRemove(services []string, retries, interval int) error {
+	args := m.Called(services, retries, interval)
+	return args.Error(0)
+}
+
+func getServicerMock(skipMethod string) *ServicerMock {
+	mockObj := new(ServicerMock)
+	if !strings.EqualFold("GetServices", skipMethod) {
+		mockObj.On("GetServices").Return([]swarm.Service{}, nil)
+	}
+	if !strings.EqualFold("GetNewServices", skipMethod) {
+		mockObj.On("GetNewServices", mock.Anything).Return([]swarm.Service{}, nil)
+	}
+	if !strings.EqualFold("NotifyServicesCreate", skipMethod) {
+		mockObj.On("NotifyServicesCreate", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	}
+	if !strings.EqualFold("NotifyServicesRemove", skipMethod) {
+		mockObj.On("NotifyServicesRemove", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	}
+	return mockObj
 }

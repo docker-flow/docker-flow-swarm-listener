@@ -15,26 +15,24 @@ import (
 
 var logPrintf = log.Printf
 var dockerClient = client.NewClient
+var serviceLastCreatedAt time.Time
 
 type Service struct {
 	Host                  string
 	NotifCreateServiceUrl string
 	NotifRemoveServiceUrl string
 	Services              map[string]bool
-	lastCreatedAt         time.Time
 }
 
-type Serviceable interface {
+type Servicer interface {
 	GetServices() ([]swarm.Service, error)
-	GetNewServices() ([]swarm.Service, error)
-	NotifyServices(services []swarm.Service, retries, interval int) error
-	NewService(host, notifUrl string) Service
-	NewServiceFromEnv() Service
+	GetNewServices(services []swarm.Service) ([]swarm.Service, error)
+	NotifyServicesCreate(services []swarm.Service, retries, interval int) error
+	NotifyServicesRemove(services []string, retries, interval int) error
 }
 
-func (m *Service) GetServices() ([]swarm.Service, error) {
+func (m Service) GetServices() ([]swarm.Service, error) {
 	defaultHeaders := map[string]string{"User-Agent": "engine-api-cli-1.0"}
-	// TODO: Move to main
 	dc, err := dockerClient(m.Host, "v1.22", nil, defaultHeaders)
 
 	if err != nil {
@@ -49,22 +47,22 @@ func (m *Service) GetServices() ([]swarm.Service, error) {
 	return services, nil
 }
 
-func (m *Service) GetNewServices(services []swarm.Service) ([]swarm.Service, error) {
+func (m Service) GetNewServices(services []swarm.Service) ([]swarm.Service, error) {
 	newServices := []swarm.Service{}
-	tmpCreatedAt := m.lastCreatedAt
+	tmpCreatedAt := serviceLastCreatedAt
 	for _, s := range services {
 		if tmpCreatedAt.Nanosecond() == 0 || s.Meta.CreatedAt.After(tmpCreatedAt) {
 			newServices = append(newServices, s)
 			m.Services[s.Spec.Name] = true
-			if m.lastCreatedAt.Before(s.Meta.CreatedAt) {
-				m.lastCreatedAt = s.Meta.CreatedAt
+			if serviceLastCreatedAt.Before(s.Meta.CreatedAt) {
+				serviceLastCreatedAt = s.Meta.CreatedAt
 			}
 		}
 	}
 	return newServices, nil
 }
 
-func (m *Service) GetRemovedServices(services []swarm.Service) []string {
+func (m Service) GetRemovedServices(services []swarm.Service) []string {
 	tmpMap := make(map[string]bool)
 	for k, _ := range m.Services {
 		tmpMap[k] = true
@@ -81,7 +79,7 @@ func (m *Service) GetRemovedServices(services []swarm.Service) []string {
 	return rs
 }
 
-func (m *Service) NotifyServicesCreate(services []swarm.Service, retries, interval int) error {
+func (m Service) NotifyServicesCreate(services []swarm.Service, retries, interval int) error {
 	errs := []error{}
 	for _, s := range services {
 		fullUrl := fmt.Sprintf("%s?serviceName=%s", m.NotifCreateServiceUrl, s.Spec.Name)
@@ -121,7 +119,7 @@ func (m *Service) NotifyServicesCreate(services []swarm.Service, retries, interv
 	return nil
 }
 
-func (m *Service) NotifyServicesRemove(services []string, retries, interval int) error {
+func (m Service) NotifyServicesRemove(services []string, retries, interval int) error {
 	errs := []error{}
 	for _, v := range services {
 		fullUrl := fmt.Sprintf("%s?serviceName=%s", m.NotifRemoveServiceUrl, v)
