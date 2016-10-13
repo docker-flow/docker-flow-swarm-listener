@@ -37,7 +37,7 @@ docker service create --name swarm-listener \
     vfarcic/docker-flow-swarm-listener
 ```
 
-The service is attached to the proxy service (just as the `proxy` service), mounts the Docker socket, and declares the environment variables `DF_NOTIF_CREATE_SERVICE_URL` and `DF_NOTIF_REMOVE_SERVICE_URL`. We'll see the purpose of the variable soon.
+The service is attached to the proxy network (just as the `proxy` service), mounts the Docker socket, and declares the environment variables `DF_NOTIF_CREATE_SERVICE_URL` and `DF_NOTIF_REMOVE_SERVICE_URL`. We'll see the purpose of the variables soon.
 
 Now we can deploy a service that will trigger the listener.
 
@@ -55,7 +55,7 @@ docker service create --name go-demo \
   vfarcic/go-demo
 ```
 
-Please note that we declared the label `DF_NOTIFY`. Only services with this label (it can hold any value) will be eligible to receive notifications through *Docker Flow: Swarm Listener*. We also declared a couple of other labels (`DF_servicePath` and `DF_port`).
+Please note that we declared the label `com.df.notify`. Only services with this label (it can hold any value) will be eligible to receive notifications through *Docker Flow: Swarm Listener*. We also declared a couple of other labels (`DF_servicePath` and `DF_port`).
 
 Before proceeding, we should wait until all the services are up and running. Please use the `docker service ls` command to check the status.
 

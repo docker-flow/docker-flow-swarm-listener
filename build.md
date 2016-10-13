@@ -1,22 +1,13 @@
 ## Version
 
 ```bash
-VERSION=0.3
+VERSION=0.4
 ```
 
 ## Automated Test
 
 ```bash
-docker service create --name util-1 \
-    -l com.df.notify=true \
-    -l com.df.servicePath=/demo \
-    alpine sleep 1000000000
-
-docker service create --name util-2 alpine sleep 1000000000
-
 go test --cover
-
-docker service rm util-1 util-2
 ```
 
 ## Build
@@ -24,9 +15,9 @@ docker service rm util-1 util-2
 ```bash
 docker run --rm -v $PWD:/usr/src/myapp -w /usr/src/myapp -v go:/go golang:1.7 bash -c "go get -d -v -t && go build -v -o docker-flow-swarm-listener"
 
-docker build -t vfarcic/docker-flow-swarm-listener .
+docker build -t vfarcic/docker-flow-swarm-listener:latest .
 
-docker tag vfarcic/docker-flow-swarm-listener vfarcic/docker-flow-swarm-listener:$VERSION
+docker tag vfarcic/docker-flow-swarm-listener:latest vfarcic/docker-flow-swarm-listener:$VERSION
 ```
 
 ## Manual Tests
@@ -127,30 +118,7 @@ docker network rm proxy
 ## Publish
 
 ```bash
-docker push vfarcic/docker-flow-swarm-listener
+docker push vfarcic/docker-flow-swarm-listener:latest
 
 docker push vfarcic/docker-flow-swarm-listener:$VERSION
 ```
-
-
-
-
-
-docker service rm swarm-listener
-
-docker run --rm -v $PWD:/usr/src/myapp -w /usr/src/myapp -v go:/go golang:1.7 bash -c "go get -d -v -t && go build -v -o docker-flow-swarm-listener"
-
-docker build -t vfarcic/docker-flow-swarm-listener .
-
-docker tag vfarcic/docker-flow-swarm-listener vfarcic/docker-flow-swarm-listener:beta
-
-docker service create --name swarm-listener \
-    --network proxy \
-    --mount "type=bind,source=/var/run/docker.sock,target=/var/run/docker.sock" \
-    -e DF_NOTIF_CREATE_SERVICE_URL=http://proxy:8080/v1/docker-flow-proxy/reconfigure \
-    -e DF_NOTIF_REMOVE_SERVICE_URL=http://proxy:8080/v1/docker-flow-proxy/remove \
-    vfarcic/docker-flow-swarm-listener:beta
-
-docker exec -it $UTIL_ID drill swarm-listener
-
-docker exec -it $UTIL_ID curl "http://swarm-listener:8080/v1/docker-flow-swarm-listener/notify-services"

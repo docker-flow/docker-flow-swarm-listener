@@ -1,12 +1,12 @@
 package main
 
 import (
-	"github.com/stretchr/testify/suite"
-	"testing"
 	"fmt"
-	"net/http"
-	"github.com/stretchr/testify/mock"
 	"github.com/docker/docker/api/types/swarm"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/suite"
+	"net/http"
+	"testing"
 )
 
 type ServerTestSuite struct {
@@ -25,7 +25,7 @@ func TestServerUnitTestSuite(t *testing.T) {
 
 func (s *ServerTestSuite) Test_Run_InvokesHTTPListenAndServe() {
 	var actual string
-	expected := fmt.Sprintf("localhost:8080")
+	expected := fmt.Sprintf(":8080")
 	httpListenAndServe = func(addr string, handler http.Handler) error {
 		actual = addr
 		return nil

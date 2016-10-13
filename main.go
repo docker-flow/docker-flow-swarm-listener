@@ -8,7 +8,7 @@ func main() {
 	logPrintf("Starting Docker Flow: Swarm Listener")
 	service := NewServiceFromEnv()
 	serve := NewServe(service)
-	serve.Run()
+	go serve.Run()
 
 	args := GetArgs()
 	t := time.NewTicker(time.Second * time.Duration(args.Interval))

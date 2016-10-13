@@ -4,20 +4,20 @@ import (
 	"fmt"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"os/exec"
+	"strings"
 	"testing"
 	"time"
-	"os/exec"
-	"github.com/stretchr/testify/mock"
-	"strings"
 )
 
 type ServiceTestSuite struct {
 	suite.Suite
-	serviceName string
+	serviceName     string
 	removedServices []string
 }
 
@@ -49,6 +49,7 @@ func (s *ServiceTestSuite) Test_GetServices_ReturnsServices() {
 	}
 	s.Equal("util-1", actual[index].Spec.Name)
 	s.Equal("/demo", actual[index].Spec.Labels["com.df.servicePath"])
+	s.Equal("true", actual[index].Spec.Labels["com.df.distribute"])
 }
 
 func (s *ServiceTestSuite) Test_GetServices_ReturnsError_WhenNewClientFails() {
@@ -124,10 +125,10 @@ func (s *ServiceTestSuite) Test_GetRemovedServices_ReturnsNamesOfRemovedServices
 func (s *ServiceTestSuite) Test_NotifyServicesCreate_SendsRequests() {
 	labels := make(map[string]string)
 	labels["com.df.notify"] = "true"
-	labels["com.df.key1"] = "value1"
+	labels["com.df.distribute"] = "true"
 	labels["label.without.correct.prefix"] = "something"
 
-	s.verifyNotifyServiceCreate(labels, true, fmt.Sprintf("serviceName=%s&key1=value1", s.serviceName))
+	s.verifyNotifyServiceCreate(labels, true, fmt.Sprintf("serviceName=%s&distribute=true", s.serviceName))
 }
 
 func (s *ServiceTestSuite) Test_NotifyServicesCreate_DoesNotSendRequest_WhenDfNotifyIsNotDefined() {
@@ -377,7 +378,7 @@ func (s *ServiceTestSuite) getSwarmServices(labels map[string]string) []swarm.Se
 }
 
 func createTestServices() {
-	createTestService("util-1", []string{"com.df.notify=true", "com.df.servicePath=/demo"})
+	createTestService("util-1", []string{"com.df.notify=true", "com.df.servicePath=/demo", "com.df.distribute=true"})
 	createTestService("util-2", []string{})
 }
 
@@ -413,10 +414,6 @@ func (m *ServicerMock) Execute(args []string) error {
 func (m *ServicerMock) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	m.Called(w, req)
 }
-
-
-
-
 
 func (m *ServicerMock) GetServices() ([]swarm.Service, error) {
 	args := m.Called()

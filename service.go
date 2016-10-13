@@ -86,10 +86,10 @@ func (m Service) NotifyServicesCreate(services []swarm.Service, retries, interva
 		if _, ok := s.Spec.Labels["com.df.notify"]; ok {
 			for k, v := range s.Spec.Labels {
 				if strings.HasPrefix(k, "com.df") && k != "com.df.notify" {
-					fullUrl = fmt.Sprintf("%s&%s=%s", fullUrl, strings.TrimLeft(k, "com.df."), v)
+					fullUrl = fmt.Sprintf("%s&%s=%s", fullUrl, strings.TrimPrefix(k, "com.df."), v)
 				}
 			}
-			logPrintf("Sending a service created notification to %s", fullUrl)
+			logPrintf("Sending service created notification to %s", fullUrl)
 			for i := 1; i <= retries; i++ {
 				resp, err := http.Get(fullUrl)
 				if err == nil && resp.StatusCode == http.StatusOK {
@@ -123,7 +123,7 @@ func (m Service) NotifyServicesRemove(services []string, retries, interval int) 
 	errs := []error{}
 	for _, v := range services {
 		fullUrl := fmt.Sprintf("%s?serviceName=%s", m.NotifRemoveServiceUrl, v)
-		logPrintf("Sending a service removed notification to %s", fullUrl)
+		logPrintf("Sending service removed notification to %s", fullUrl)
 		for i := 1; i <= retries; i++ {
 			resp, err := http.Get(fullUrl)
 			if err == nil && resp.StatusCode == http.StatusOK {
@@ -155,10 +155,10 @@ func (m Service) NotifyServicesRemove(services []string, retries, interval int) 
 
 func NewService(host, notifCreateServiceUrl, notifRemoveServiceUrl string) Service {
 	return Service{
-		Host:     host,
+		Host: host,
 		NotifCreateServiceUrl: notifCreateServiceUrl,
 		NotifRemoveServiceUrl: notifRemoveServiceUrl,
-		Services: make(map[string]bool),
+		Services:              make(map[string]bool),
 	}
 }
 
@@ -176,9 +176,9 @@ func NewServiceFromEnv() Service {
 		notifRemoveServiceUrl = os.Getenv("DF_NOTIFICATION_URL")
 	}
 	return Service{
-		Host:     host,
+		Host: host,
 		NotifCreateServiceUrl: notifCreateServiceUrl,
 		NotifRemoveServiceUrl: notifRemoveServiceUrl,
-		Services: make(map[string]bool),
+		Services:              make(map[string]bool),
 	}
 }
