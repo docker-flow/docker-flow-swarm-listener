@@ -52,10 +52,12 @@ func (m Service) GetNewServices(services []swarm.Service) ([]swarm.Service, erro
 	tmpCreatedAt := serviceLastCreatedAt
 	for _, s := range services {
 		if tmpCreatedAt.Nanosecond() == 0 || s.Meta.CreatedAt.After(tmpCreatedAt) {
-			newServices = append(newServices, s)
-			m.Services[s.Spec.Name] = true
-			if serviceLastCreatedAt.Before(s.Meta.CreatedAt) {
-				serviceLastCreatedAt = s.Meta.CreatedAt
+			if _, ok := s.Spec.Labels["com.df.notify"]; ok {
+				newServices = append(newServices, s)
+				m.Services[s.Spec.Name] = true
+				if serviceLastCreatedAt.Before(s.Meta.CreatedAt) {
+					serviceLastCreatedAt = s.Meta.CreatedAt
+				}
 			}
 		}
 	}

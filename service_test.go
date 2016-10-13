@@ -80,7 +80,7 @@ func (s *ServiceTestSuite) Test_GetNewServices_ReturnsAllServices_WhenExecutedFo
 
 	actual, _ := service.GetNewServices(services)
 
-	s.Equal(2, len(actual))
+	s.Equal(1, len(actual))
 }
 
 func (s *ServiceTestSuite) Test_GetNewServices_ReturnsOnlyNewServices() {
@@ -100,9 +100,8 @@ func (s *ServiceTestSuite) Test_GetNewServices_AddsServices() {
 
 	service.GetNewServices(services)
 
-	s.Equal(2, len(service.Services))
+	s.Equal(1, len(service.Services))
 	s.Contains(service.Services, "util-1")
-	s.Contains(service.Services, "util-2")
 }
 
 // GetRemovedServices

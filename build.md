@@ -118,7 +118,7 @@ docker network rm proxy
 ## Publish
 
 ```bash
-docker push vfarcic/docker-flow-swarm-listener:latest
-
 docker push vfarcic/docker-flow-swarm-listener:$VERSION
+
+docker push vfarcic/docker-flow-swarm-listener:latest
 ```
