@@ -25,7 +25,7 @@ docker service create --name proxy \
     vfarcic/docker-flow-proxy
 ```
 
-Next, we'll create the `swarm-listener` service. Please note that the assumption is that Swarm manager nodes are labeled as `type == manager`. If, in your case, they are labeled differently, please change the constraint from the command that follows.
+Next, we'll create the `swarm-listener` service.
 
 ```bash
 docker service create --name swarm-listener \
@@ -33,7 +33,7 @@ docker service create --name swarm-listener \
     --mount "type=bind,source=/var/run/docker.sock,target=/var/run/docker.sock" \
     -e DF_NOTIF_CREATE_SERVICE_URL=http://proxy:8080/v1/docker-flow-proxy/reconfigure \
     -e DF_NOTIF_REMOVE_SERVICE_URL=http://proxy:8080/v1/docker-flow-proxy/remove \
-    --constraint 'node.labels.type == manager' \
+    --constraint 'node.role==manager' \
     vfarcic/docker-flow-swarm-listener
 ```
 
