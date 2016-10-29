@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/suite"
 	"net/http"
 	"testing"
+	"time"
 )
 
 type ServerTestSuite struct {
@@ -108,7 +109,8 @@ func (s *ServerTestSuite) Test_ServeHTTP_InvokesNotifyServicesCreate_WhenUrlIsNo
 	srv := NewServe(mockObj)
 	srv.ServeHTTP(rw, req)
 
-	mockObj.AssertCalled(s.T(), "NotifyServicesCreate", services, 3, 5)
+	time.Sleep(1 * time.Millisecond)
+	mockObj.AssertCalled(s.T(), "NotifyServicesCreate", services, 10, 5)
 }
 
 // NewServe

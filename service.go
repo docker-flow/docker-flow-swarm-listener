@@ -11,6 +11,7 @@ import (
 	"os"
 	"strings"
 	"time"
+	"io/ioutil"
 )
 
 var logPrintf = log.Printf
@@ -97,7 +98,6 @@ func (m Service) NotifyServicesCreate(services []swarm.Service, retries, interva
 				if err == nil && resp.StatusCode == http.StatusOK {
 					break
 				} else if i < retries {
-					logPrintf("Notification to %s failed. Retrying...", fullUrl)
 					if interval > 0 {
 						t := time.NewTicker(time.Second * time.Duration(interval))
 						<-t.C
@@ -107,7 +107,9 @@ func (m Service) NotifyServicesCreate(services []swarm.Service, retries, interva
 						logPrintf("ERROR: %s", err.Error())
 						errs = append(errs, err)
 					} else if resp.StatusCode != http.StatusOK {
-						msg := fmt.Errorf("Request %s returned status code %d", fullUrl, resp.StatusCode)
+						body, _ := ioutil.ReadAll(resp.Body)
+						msg := fmt.Errorf("Request %s returned status code %d\n%s", fullUrl, resp.StatusCode, string(body[:]))
+//						msg := fmt.Errorf("Request %s returned status code %d", fullUrl, resp.StatusCode)
 						logPrintf("ERROR: %s", msg)
 						errs = append(errs, msg)
 					}
@@ -132,7 +134,6 @@ func (m Service) NotifyServicesRemove(services []string, retries, interval int) 
 				delete(m.Services, v)
 				break
 			} else if i < retries {
-				logPrintf("Notification to %s failed. Retrying...", fullUrl)
 				if interval > 0 {
 					t := time.NewTicker(time.Second * time.Duration(interval))
 					<-t.C

@@ -77,7 +77,6 @@ We found the ID of the container and displayed the logs. The output is as follow
 Starting Docker Flow: Swarm Listener
 Starting iterations
 Sending a service created notification to http://proxy:8080/v1/docker-flow-proxy/reconfigure?serviceName=go-demo&port=8080&servicePath=/demo
-Notification to http://proxy:8080/v1/docker-flow-proxy/reconfigure?serviceName=go-demo&port=8080&servicePath=/demo failed. Retrying...
 ```
 
 As you can see, the listener detected that the `go-demo` service has the label `com.df.notify` and sent the notification request. The address of the notification request is the value of the environment variable `DF_NOTIF_CREATE_SERVICE_URL` declared in the `swarm-listener` service. The parameters are a combination of the service name and all the labels prefixed with `DF_`.
@@ -98,7 +97,6 @@ The output of the `docker logs` commands is as follows.
 Starting Docker Flow: Swarm Listener
 Starting iterations
 Sending a service created notification to http://proxy:8080/v1/docker-flow-proxy/reconfigure?serviceName=go-demo&port=8080&servicePath=/demo
-Notification to http://proxy:8080/v1/docker-flow-proxy/reconfigure?serviceName=go-demo&port=8080&servicePath=/demo failed. Retrying...
 Sending a service removed notification to http://proxy:8080/v1/docker-flow-proxy/remove?serviceName=go-demo
 ```
 
