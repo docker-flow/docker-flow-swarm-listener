@@ -9,7 +9,7 @@ The project listens to Docker Swarm events and sends requests when a change occu
 
 The example that follows will use the *Swarm Listener* to reconfigure the [Docker Flow: Proxy](https://github.com/vfarcic/docker-flow-proxy) whenever a new service is created.
 
-I will assume that you already have a Swarm cluster set up and that manager nodes are labeled as `manager` (e.g. `docker node update --label-add type=manager <NODE_NAME>`).
+I will assume that you already have a Swarm cluster set up.
 
 Let's run a Proxy service. We'll use it as a way to demonstrate how *Swarm Listener* works.
 
