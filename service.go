@@ -32,7 +32,7 @@ type Servicer interface {
 	NotifyServicesRemove(services []string, retries, interval int) error
 }
 
-func (m Service) GetServices() ([]swarm.Service, error) {
+func (m *Service) GetServices() ([]swarm.Service, error) {
 	defaultHeaders := map[string]string{"User-Agent": "engine-api-cli-1.0"}
 	dc, err := dockerClient(m.Host, "v1.22", nil, defaultHeaders)
 
@@ -48,7 +48,7 @@ func (m Service) GetServices() ([]swarm.Service, error) {
 	return services, nil
 }
 
-func (m Service) GetNewServices(services []swarm.Service) ([]swarm.Service, error) {
+func (m *Service) GetNewServices(services []swarm.Service) ([]swarm.Service, error) {
 	newServices := []swarm.Service{}
 	tmpCreatedAt := serviceLastCreatedAt
 	for _, s := range services {
@@ -65,7 +65,7 @@ func (m Service) GetNewServices(services []swarm.Service) ([]swarm.Service, erro
 	return newServices, nil
 }
 
-func (m Service) GetRemovedServices(services []swarm.Service) []string {
+func (m *Service) GetRemovedServices(services []swarm.Service) []string {
 	tmpMap := make(map[string]bool)
 	for k, _ := range m.Services {
 		tmpMap[k] = true
@@ -82,7 +82,7 @@ func (m Service) GetRemovedServices(services []swarm.Service) []string {
 	return rs
 }
 
-func (m Service) NotifyServicesCreate(services []swarm.Service, retries, interval int) error {
+func (m *Service) NotifyServicesCreate(services []swarm.Service, retries, interval int) error {
 	errs := []error{}
 	for _, s := range services {
 		fullUrl := fmt.Sprintf("%s?serviceName=%s", m.NotifCreateServiceUrl, s.Spec.Name)
@@ -109,7 +109,6 @@ func (m Service) NotifyServicesCreate(services []swarm.Service, retries, interva
 					} else if resp.StatusCode != http.StatusOK {
 						body, _ := ioutil.ReadAll(resp.Body)
 						msg := fmt.Errorf("Request %s returned status code %d\n%s", fullUrl, resp.StatusCode, string(body[:]))
-//						msg := fmt.Errorf("Request %s returned status code %d", fullUrl, resp.StatusCode)
 						logPrintf("ERROR: %s", msg)
 						errs = append(errs, msg)
 					}
@@ -123,7 +122,7 @@ func (m Service) NotifyServicesCreate(services []swarm.Service, retries, interva
 	return nil
 }
 
-func (m Service) NotifyServicesRemove(services []string, retries, interval int) error {
+func (m *Service) NotifyServicesRemove(services []string, retries, interval int) error {
 	errs := []error{}
 	for _, v := range services {
 		fullUrl := fmt.Sprintf("%s?serviceName=%s", m.NotifRemoveServiceUrl, v)
@@ -156,8 +155,8 @@ func (m Service) NotifyServicesRemove(services []string, retries, interval int) 
 	return nil
 }
 
-func NewService(host, notifCreateServiceUrl, notifRemoveServiceUrl string) Service {
-	return Service{
+func NewService(host, notifCreateServiceUrl, notifRemoveServiceUrl string) *Service {
+	return &Service{
 		Host: host,
 		NotifCreateServiceUrl: notifCreateServiceUrl,
 		NotifRemoveServiceUrl: notifRemoveServiceUrl,
@@ -165,7 +164,7 @@ func NewService(host, notifCreateServiceUrl, notifRemoveServiceUrl string) Servi
 	}
 }
 
-func NewServiceFromEnv() Service {
+func NewServiceFromEnv() *Service {
 	host := "unix:///var/run/docker.sock"
 	if len(os.Getenv("DF_DOCKER_HOST")) > 0 {
 		host = os.Getenv("DF_DOCKER_HOST")
@@ -178,7 +177,7 @@ func NewServiceFromEnv() Service {
 	if len(notifRemoveServiceUrl) == 0 {
 		notifRemoveServiceUrl = os.Getenv("DF_NOTIFICATION_URL")
 	}
-	return Service{
+	return &Service{
 		Host: host,
 		NotifCreateServiceUrl: notifCreateServiceUrl,
 		NotifRemoveServiceUrl: notifRemoveServiceUrl,

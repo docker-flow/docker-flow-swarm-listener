@@ -37,8 +37,8 @@ func (m *Serve) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func NewServe(service Servicer) Serve {
-	return Serve{
+func NewServe(service Servicer) *Serve {
+	return &Serve{
 		Service: service,
 	}
 }

@@ -11,7 +11,6 @@ func main() {
 	go serve.Run()
 
 	args := GetArgs()
-	t := time.NewTicker(time.Second * time.Duration(args.Interval))
 	logPrintf("Starting iterations")
 	for {
 		if len(service.NotifCreateServiceUrl) > 0 {
@@ -21,6 +20,6 @@ func main() {
 			removedServices := service.GetRemovedServices(allServices)
 			service.NotifyServicesRemove(removedServices, args.Retry, args.RetryInterval)
 		}
-		<-t.C
+		time.Sleep(time.Second * time.Duration(args.Interval))
 	}
 }
