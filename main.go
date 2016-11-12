@@ -11,15 +11,15 @@ func main() {
 	go serve.Run()
 
 	args := GetArgs()
-	logPrintf("Starting iterations")
-	for {
-		if len(service.NotifCreateServiceUrl) > 0 {
+	if len(service.NotifCreateServiceUrl) > 0 {
+		logPrintf("Starting iterations")
+		for {
 			allServices, _ := service.GetServices()
 			newServices, _ := service.GetNewServices(allServices)
 			service.NotifyServicesCreate(newServices, args.Retry, args.RetryInterval)
 			removedServices := service.GetRemovedServices(allServices)
 			service.NotifyServicesRemove(removedServices, args.Retry, args.RetryInterval)
+			time.Sleep(time.Second * time.Duration(args.Interval))
 		}
-		time.Sleep(time.Second * time.Duration(args.Interval))
 	}
 }

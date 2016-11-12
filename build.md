@@ -7,7 +7,7 @@ go test --cover
 ## Build
 
 ```bash
-docker run --rm -v $PWD:/usr/src/myapp -w /usr/src/myapp -v go:/go golang:1.6-alpine sh -c "go get -d -v -t && go build -v -o docker-flow-swarm-listener"
+docker run --rm -v $PWD:/usr/src/myapp -w /usr/src/myapp -v go:/go golang:1.7-alpine sh -c "go get -d -v -t && go build -v -o docker-flow-swarm-listener"
 
 docker build -t vfarcic/docker-flow-swarm-listener:latest .
 ```

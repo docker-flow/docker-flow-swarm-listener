@@ -3,26 +3,27 @@ package main
 import (
 	"fmt"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
 	"golang.org/x/net/context"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
 	"strings"
 	"time"
-	"io/ioutil"
 )
 
 var logPrintf = log.Printf
-var dockerClient = client.NewClient
-var serviceLastCreatedAt time.Time
 
 type Service struct {
 	Host                  string
 	NotifCreateServiceUrl string
 	NotifRemoveServiceUrl string
 	Services              map[string]bool
+	ServiceLastCreatedAt  time.Time
+	DockerClient          *client.Client
 }
 
 type Servicer interface {
@@ -33,32 +34,25 @@ type Servicer interface {
 }
 
 func (m *Service) GetServices() ([]swarm.Service, error) {
-	defaultHeaders := map[string]string{"User-Agent": "engine-api-cli-1.0"}
-	dc, err := dockerClient(m.Host, "v1.22", nil, defaultHeaders)
-
+	filter := filters.NewArgs()
+	filter.Add("label", "com.df.notify=true")
+	services, err := m.DockerClient.ServiceList(context.Background(), types.ServiceListOptions{Filter: filter})
 	if err != nil {
+		logPrintf(err.Error())
 		return []swarm.Service{}, err
 	}
-
-	services, err := dc.ServiceList(context.Background(), types.ServiceListOptions{})
-	if err != nil {
-		return []swarm.Service{}, err
-	}
-
 	return services, nil
 }
 
 func (m *Service) GetNewServices(services []swarm.Service) ([]swarm.Service, error) {
 	newServices := []swarm.Service{}
-	tmpCreatedAt := serviceLastCreatedAt
+	tmpCreatedAt := m.ServiceLastCreatedAt
 	for _, s := range services {
 		if tmpCreatedAt.Nanosecond() == 0 || s.Meta.CreatedAt.After(tmpCreatedAt) {
-			if _, ok := s.Spec.Labels["com.df.notify"]; ok {
-				newServices = append(newServices, s)
-				m.Services[s.Spec.Name] = true
-				if serviceLastCreatedAt.Before(s.Meta.CreatedAt) {
-					serviceLastCreatedAt = s.Meta.CreatedAt
-				}
+			newServices = append(newServices, s)
+			m.Services[s.Spec.Name] = true
+			if m.ServiceLastCreatedAt.Before(s.Meta.CreatedAt) {
+				m.ServiceLastCreatedAt = s.Meta.CreatedAt
 			}
 		}
 	}
@@ -125,7 +119,7 @@ func (m *Service) NotifyServicesCreate(services []swarm.Service, retries, interv
 func (m *Service) NotifyServicesRemove(services []string, retries, interval int) error {
 	errs := []error{}
 	for _, v := range services {
-		fullUrl := fmt.Sprintf("%s?serviceName=%s", m.NotifRemoveServiceUrl, v)
+		fullUrl := fmt.Sprintf("%s?serviceName=%s&distribute=true", m.NotifRemoveServiceUrl, v)
 		logPrintf("Sending service removed notification to %s", fullUrl)
 		for i := 1; i <= retries; i++ {
 			resp, err := http.Get(fullUrl)
@@ -156,11 +150,17 @@ func (m *Service) NotifyServicesRemove(services []string, retries, interval int)
 }
 
 func NewService(host, notifCreateServiceUrl, notifRemoveServiceUrl string) *Service {
+	defaultHeaders := map[string]string{"User-Agent": "engine-api-cli-1.0"}
+	dc, err := client.NewClient(host, "v1.22", nil, defaultHeaders)
+	if err != nil {
+		logPrintf(err.Error())
+	}
 	return &Service{
 		Host: host,
 		NotifCreateServiceUrl: notifCreateServiceUrl,
 		NotifRemoveServiceUrl: notifRemoveServiceUrl,
 		Services:              make(map[string]bool),
+		DockerClient:          dc,
 	}
 }
 
@@ -177,10 +177,5 @@ func NewServiceFromEnv() *Service {
 	if len(notifRemoveServiceUrl) == 0 {
 		notifRemoveServiceUrl = os.Getenv("DF_NOTIFICATION_URL")
 	}
-	return &Service{
-		Host: host,
-		NotifCreateServiceUrl: notifCreateServiceUrl,
-		NotifRemoveServiceUrl: notifRemoveServiceUrl,
-		Services:              make(map[string]bool),
-	}
+	return NewService(host, notifCreateServiceUrl, notifRemoveServiceUrl)
 }

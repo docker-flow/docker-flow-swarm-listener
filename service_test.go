@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"github.com/docker/docker/api/types/swarm"
-	"github.com/docker/docker/client"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	"net/http"
@@ -42,26 +41,20 @@ func (s *ServiceTestSuite) Test_GetServices_ReturnsServices() {
 
 	actual, _ := services.GetServices()
 
-	s.Equal(2, len(actual))
-	index := 0
-	if actual[1].Spec.Name == "util-1" {
-		index = 1
-	}
-	s.Equal("util-1", actual[index].Spec.Name)
-	s.Equal("/demo", actual[index].Spec.Labels["com.df.servicePath"])
-	s.Equal("true", actual[index].Spec.Labels["com.df.distribute"])
+	s.Equal(1, len(actual))
+	s.Equal("util-1", actual[0].Spec.Name)
+	s.Equal("/demo", actual[0].Spec.Labels["com.df.servicePath"])
+	s.Equal("true", actual[0].Spec.Labels["com.df.distribute"])
 }
 
-func (s *ServiceTestSuite) Test_GetServices_ReturnsError_WhenNewClientFails() {
-	dcOrig := dockerClient
-	defer func() { dockerClient = dcOrig }()
-	dockerClient = func(host string, version string, httpClient *http.Client, httpHeaders map[string]string) (*client.Client, error) {
-		return &client.Client{}, fmt.Errorf("This is an error")
-	}
-	services := NewService("unix:///var/run/docker.sock", "", "")
-	_, err := services.GetServices()
-	s.Error(err)
-}
+//func (s *ServiceTestSuite) Test_GetServices_ReturnsError_WhenNewClientFails() {
+//	services := NewService("unix:///var/run/docker.sock", "", "")
+//	hostOrig := services.Host
+//	defer func() { services.Host = hostOrig }()
+//	services.Host = "This host does not exist"
+//	_, err := services.GetServices()
+//	s.Error(err)
+//}
 
 func (s *ServiceTestSuite) Test_GetServices_ReturnsError_WhenServiceListFails() {
 	services := NewService("unix:///this/socket/does/not/exist", "", "")
@@ -75,7 +68,7 @@ func (s *ServiceTestSuite) Test_GetServices_ReturnsError_WhenServiceListFails() 
 
 func (s *ServiceTestSuite) Test_GetNewServices_ReturnsAllServices_WhenExecutedForTheFirstTime() {
 	service := NewService("unix:///var/run/docker.sock", "", "")
-	serviceLastCreatedAt = time.Time{}
+	service.ServiceLastCreatedAt = time.Time{}
 	services, _ := service.GetServices()
 
 	actual, _ := service.GetNewServices(services)
@@ -183,7 +176,7 @@ func (s *ServiceTestSuite) Test_NotifyServicesCreate_RetriesRequests() {
 // NotifyServicesRemove
 
 func (s *ServiceTestSuite) Test_NotifyServicesRemove_SendsRequests() {
-	s.verifyNotifyServiceRemove(true, fmt.Sprintf("serviceName=%s", s.removedServices[0]))
+	s.verifyNotifyServiceRemove(true, fmt.Sprintf("serviceName=%s&distribute=true", s.removedServices[0]))
 }
 
 func (s *ServiceTestSuite) Test_NotifyServicesRemove_ReturnsError_WhenHttpStatusIsNot200() {
