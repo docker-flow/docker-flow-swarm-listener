@@ -14,7 +14,7 @@ docker build -t vfarcic/docker-flow-swarm-listener:latest .
 ## Publish
 
 ```bash
-VERSION=0.5
+VERSION=0.6
 
 docker tag vfarcic/docker-flow-swarm-listener:latest vfarcic/docker-flow-swarm-listener:$VERSION
 

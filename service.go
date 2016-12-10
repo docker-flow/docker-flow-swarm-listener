@@ -81,6 +81,7 @@ func (m *Service) NotifyServicesCreate(services []swarm.Service, retries, interv
 	for _, s := range services {
 		fullUrl := fmt.Sprintf("%s?serviceName=%s", m.NotifCreateServiceUrl, s.Spec.Name)
 		if _, ok := s.Spec.Labels["com.df.notify"]; ok {
+
 			for k, v := range s.Spec.Labels {
 				if strings.HasPrefix(k, "com.df") && k != "com.df.notify" {
 					fullUrl = fmt.Sprintf("%s&%s=%s", fullUrl, strings.TrimPrefix(k, "com.df."), v)

@@ -1,4 +1,4 @@
-FROM alpine:3.1
+FROM alpine:3.4
 MAINTAINER 	Viktor Farcic <viktor@farcic.com>
 
 ENV DF_DOCKER_HOST="unix:///var/run/docker.sock" \
