@@ -13,6 +13,7 @@ import (
 	"os"
 	"strings"
 	"time"
+	"net/url"
 )
 
 var logPrintf = log.Printf
@@ -79,14 +80,22 @@ func (m *Service) GetRemovedServices(services []swarm.Service) []string {
 func (m *Service) NotifyServicesCreate(services []swarm.Service, retries, interval int) error {
 	errs := []error{}
 	for _, s := range services {
-		fullUrl := fmt.Sprintf("%s?serviceName=%s", m.NotifCreateServiceUrl, s.Spec.Name)
 		if _, ok := s.Spec.Labels["com.df.notify"]; ok {
-
+			urlObj, err := url.Parse(m.NotifCreateServiceUrl)
+			if err != nil {
+				logPrintf("ERROR: %s", err.Error())
+				errs = append(errs, err)
+				break
+			}
+			parameters := url.Values{}
+			parameters.Add("serviceName", s.Spec.Name)
 			for k, v := range s.Spec.Labels {
 				if strings.HasPrefix(k, "com.df") && k != "com.df.notify" {
-					fullUrl = fmt.Sprintf("%s&%s=%s", fullUrl, strings.TrimPrefix(k, "com.df."), v)
+					parameters.Add(strings.TrimPrefix(k, "com.df."), v)
 				}
 			}
+			urlObj.RawQuery = parameters.Encode()
+			fullUrl := urlObj.String()
 			logPrintf("Sending service created notification to %s", fullUrl)
 			for i := 1; i <= retries; i++ {
 				resp, err := http.Get(fullUrl)
@@ -120,7 +129,17 @@ func (m *Service) NotifyServicesCreate(services []swarm.Service, retries, interv
 func (m *Service) NotifyServicesRemove(services []string, retries, interval int) error {
 	errs := []error{}
 	for _, v := range services {
-		fullUrl := fmt.Sprintf("%s?serviceName=%s&distribute=true", m.NotifRemoveServiceUrl, v)
+		urlObj, err := url.Parse(m.NotifRemoveServiceUrl)
+		if err != nil {
+			logPrintf("ERROR: %s", err.Error())
+			errs = append(errs, err)
+			break
+		}
+		parameters := url.Values{}
+		parameters.Add("serviceName", v)
+		parameters.Add("distribute", "true")
+		urlObj.RawQuery = parameters.Encode()
+		fullUrl := urlObj.String()
 		logPrintf("Sending service removed notification to %s", fullUrl)
 		for i := 1; i <= retries; i++ {
 			resp, err := http.Get(fullUrl)

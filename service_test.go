@@ -120,7 +120,16 @@ func (s *ServiceTestSuite) Test_NotifyServicesCreate_SendsRequests() {
 	labels["com.df.distribute"] = "true"
 	labels["label.without.correct.prefix"] = "something"
 
-	s.verifyNotifyServiceCreate(labels, true, fmt.Sprintf("serviceName=%s&distribute=true", s.serviceName))
+	s.verifyNotifyServiceCreate(labels, true, fmt.Sprintf("distribute=true&serviceName=%s", s.serviceName))
+}
+
+func (s *ServiceTestSuite) Test_NotifyServicesCreate_ReturnsError_WhenUrlCannotBeParsed() {
+	labels := make(map[string]string)
+	labels["com.df.notify"] = "true"
+	services := NewService("unix:///var/run/docker.sock", "%%%", "")
+	err := services.NotifyServicesCreate(s.getSwarmServices(labels), 1, 0)
+
+	s.Error(err)
 }
 
 func (s *ServiceTestSuite) Test_NotifyServicesCreate_DoesNotSendRequest_WhenDfNotifyIsNotDefined() {
@@ -176,7 +185,14 @@ func (s *ServiceTestSuite) Test_NotifyServicesCreate_RetriesRequests() {
 // NotifyServicesRemove
 
 func (s *ServiceTestSuite) Test_NotifyServicesRemove_SendsRequests() {
-	s.verifyNotifyServiceRemove(true, fmt.Sprintf("serviceName=%s&distribute=true", s.removedServices[0]))
+	s.verifyNotifyServiceRemove(true, fmt.Sprintf("distribute=true&serviceName=%s", s.removedServices[0]))
+}
+
+func (s *ServiceTestSuite) Test_NotifyServicesRemove_ReturnsError_WhenUrlCannotBeParsed() {
+	services := NewService("unix:///var/run/docker.sock", "", "%%%")
+	err := services.NotifyServicesRemove(s.removedServices, 1, 0)
+
+	s.Error(err)
 }
 
 func (s *ServiceTestSuite) Test_NotifyServicesRemove_ReturnsError_WhenHttpStatusIsNot200() {
