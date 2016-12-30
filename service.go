@@ -10,10 +10,10 @@ import (
 	"io/ioutil"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"strings"
 	"time"
-	"net/url"
 )
 
 var logPrintf = log.Printf
@@ -37,7 +37,7 @@ type Servicer interface {
 func (m *Service) GetServices() ([]swarm.Service, error) {
 	filter := filters.NewArgs()
 	filter.Add("label", "com.df.notify=true")
-	services, err := m.DockerClient.ServiceList(context.Background(), types.ServiceListOptions{Filter: filter})
+	services, err := m.DockerClient.ServiceList(context.Background(), types.ServiceListOptions{Filters: filter})
 	if err != nil {
 		logPrintf(err.Error())
 		return []swarm.Service{}, err
