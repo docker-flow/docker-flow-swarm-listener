@@ -169,7 +169,7 @@ func (m *Service) NotifyServicesRemove(services []string, retries, interval int)
 	return nil
 }
 
-func NewService(host, notifCreateServiceUrl, notifRemoveServiceUrl string) *Service {
+func NewService(host, notifyCreateServiceUrl, notifyRemoveServiceUrl string) *Service {
 	defaultHeaders := map[string]string{"User-Agent": "engine-api-cli-1.0"}
 	dc, err := client.NewClient(host, "v1.22", nil, defaultHeaders)
 	if err != nil {
@@ -177,8 +177,8 @@ func NewService(host, notifCreateServiceUrl, notifRemoveServiceUrl string) *Serv
 	}
 	return &Service{
 		Host: host,
-		NotifCreateServiceUrl: notifCreateServiceUrl,
-		NotifRemoveServiceUrl: notifRemoveServiceUrl,
+		NotifCreateServiceUrl: notifyCreateServiceUrl,
+		NotifRemoveServiceUrl: notifyRemoveServiceUrl,
 		Services:              make(map[string]bool),
 		DockerClient:          dc,
 	}
@@ -186,16 +186,25 @@ func NewService(host, notifCreateServiceUrl, notifRemoveServiceUrl string) *Serv
 
 func NewServiceFromEnv() *Service {
 	host := "unix:///var/run/docker.sock"
-	if len(os.Getenv("DF_DOCKER_HOST")) > 0 {
+        notifyCreateServiceUrl := os.Getenv("DF_NOTIFY_CREATE_SERVICE_URL")
+        notifyRemoveServiceUrl := os.Getenv("DF_NOTIFY_REMOVE_SERVICE_URL")
+
+	if len(notifyCreateServiceUrl) > 0 {
 		host = os.Getenv("DF_DOCKER_HOST")
 	}
-	notifCreateServiceUrl := os.Getenv("DF_NOTIF_CREATE_SERVICE_URL")
-	if len(notifCreateServiceUrl) == 0 {
-		notifCreateServiceUrl = os.Getenv("DF_NOTIFICATION_URL")
-	}
-	notifRemoveServiceUrl := os.Getenv("DF_NOTIF_REMOVE_SERVICE_URL")
-	if len(notifRemoveServiceUrl) == 0 {
-		notifRemoveServiceUrl = os.Getenv("DF_NOTIFICATION_URL")
-	}
-	return NewService(host, notifCreateServiceUrl, notifRemoveServiceUrl)
+        if len(os.Getenv("DF_NOTIFY_CREATE_SERVICE_URL")) > 0 {
+                notifyCreateServiceUrl = os.Getenv("DF_NOTIFY_CREATE_SERVICE_URL")
+        } else if len(os.Getenv("DF_NOTIF_CREATE_SERVICE_URL")) > 0 {
+                notifyCreateServiceUrl = os.Getenv("DF_NOTIF_CREATE_SERVICE_URL")
+        } else {
+                notifyCreateServiceUrl = os.Getenv("DF_NOTIFICATION_URL")   
+        } 
+        if len(notifyRemoveServiceUrl) > 0 {
+                notifyRemoveServiceUrl = os.Getenv("DF_NOTIFY_REMOVE_SERVICE_URL")
+        } else if len(os.Getenv("DF_NOTIF_REMOVE_SERVICE_URL")) > 0 {
+                notifyRemoveServiceUrl = os.Getenv("DF_NOTIF_REMOVE_SERVICE_URL")
+        } else {
+                notifyRemoveServiceUrl = os.Getenv("DF_NOTIFICATION_URL")
+        }
+	return NewService(host, notifyCreateServiceUrl, notifyRemoveServiceUrl)
 }
