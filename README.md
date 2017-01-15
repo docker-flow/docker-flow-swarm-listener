@@ -109,9 +109,6 @@ The following environment variables can be used when creating the `swarm listene
 |Name               |Description                                               |Default Value|
 |-------------------|----------------------------------------------------------|-------------|
 |DF_DOCKER_HOST     |Path to the Docker socket                   |unix:///var/run/docker.sock|
-|DF_NOTIFICATION_URL|Deprecated in favour of DF_NOTIFY_* variables              |             |
-|DF_NOTIF_CREATE_SERVICE_URL|Deprecated in favor of DY_NOTIFY_* variables||
-|DF_NOTIF_REMOVE_SERVICE_URL|Deprecated in favor of DF_NOTIFY_* variables||
 |DF_NOTIFY_CREATE_SERVICE_URL|The URL that will be used to send notification requests when a service is created||
 |DF_NOTIFY_REMOVE_SERVICE_URL|The URL that will be used to send notification requests when a service is removed||
 |DF_INTERVAL        |Interval (in seconds) between service discovery requests  |5            |
