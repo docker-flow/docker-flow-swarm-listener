@@ -31,13 +31,13 @@ Next, we'll create the `swarm-listener` service.
 docker service create --name swarm-listener \
     --network proxy \
     --mount "type=bind,source=/var/run/docker.sock,target=/var/run/docker.sock" \
-    -e DF_NOTIF_CREATE_SERVICE_URL=http://proxy:8080/v1/docker-flow-proxy/reconfigure \
-    -e DF_NOTIF_REMOVE_SERVICE_URL=http://proxy:8080/v1/docker-flow-proxy/remove \
+    -e DF_NOTIFY_CREATE_SERVICE_URL=http://proxy:8080/v1/docker-flow-proxy/reconfigure \
+    -e DF_NOTIFY_REMOVE_SERVICE_URL=http://proxy:8080/v1/docker-flow-proxy/remove \
     --constraint 'node.role==manager' \
     vfarcic/docker-flow-swarm-listener
 ```
 
-The service is attached to the proxy network (just as the `proxy` service), mounts the Docker socket, and declares the environment variables `DF_NOTIF_CREATE_SERVICE_URL` and `DF_NOTIF_REMOVE_SERVICE_URL`. We'll see the purpose of the variables soon.
+The service is attached to the proxy network (just as the `proxy` service), mounts the Docker socket, and declares the environment variables `DF_NOTIFY_CREATE_SERVICE_URL` and `DF_NOTIFY_REMOVE_SERVICE_URL`. We'll see the purpose of the variables soon.
 
 Now we can deploy a service that will trigger the listener.
 
@@ -79,7 +79,7 @@ Starting iterations
 Sending a service created notification to http://proxy:8080/v1/docker-flow-proxy/reconfigure?serviceName=go-demo&port=8080&servicePath=/demo
 ```
 
-As you can see, the listener detected that the `go-demo` service has the label `com.df.notify` and sent the notification request. The address of the notification request is the value of the environment variable `DF_NOTIF_CREATE_SERVICE_URL` declared in the `swarm-listener` service. The parameters are a combination of the service name and all the labels prefixed with `DF_`.
+As you can see, the listener detected that the `go-demo` service has the label `com.df.notify` and sent the notification request. The address of the notification request is the value of the environment variable `DF_NOTIFY_CREATE_SERVICE_URL` declared in the `swarm-listener` service. The parameters are a combination of the service name and all the labels prefixed with `DF_`.
 
 You might have seen few entries stating that the notification request failed and will be retried. *Docker Flow: Swarm Listener* has a built-in retry mechanism. As long as the output message does not start with `ERROR:`, the notification will reach the destination. Please see the [Environment Variables](#environment-variables) for more info.
 
@@ -109,9 +109,11 @@ The following environment variables can be used when creating the `swarm listene
 |Name               |Description                                               |Default Value|
 |-------------------|----------------------------------------------------------|-------------|
 |DF_DOCKER_HOST     |Path to the Docker socket                   |unix:///var/run/docker.sock|
-|DF_NOTIFICATION_URL|Deprecated in favour of DF_NOTIF_* variables              |             |
-|DF_NOTIF_CREATE_SERVICE_URL|The URL that will be used to send notification requests when a service is created||
-|DF_NOTIF_REMOVE_SERVICE_URL|The URL that will be used to send notification requests when a service is removed||
+|DF_NOTIFICATION_URL|Deprecated in favour of DF_NOTIFY_* variables              |             |
+|DF_NOTIF_CREATE_SERVICE_URL|Deprecated in favor of DY_NOTIFY_* variables||
+|DF_NOTIF_REMOVE_SERVICE_URL|Deprecated in favor of DF_NOTIFY_* variables||
+|DF_NOTIFY_CREATE_SERVICE_URL|The URL that will be used to send notification requests when a service is created||
+|DF_NOTIFY_REMOVE_SERVICE_URL|The URL that will be used to send notification requests when a service is removed||
 |DF_INTERVAL        |Interval (in seconds) between service discovery requests  |5            |
 |DF_RETRY           |Number of notification request retries                    |10           |
 |DF_RETRY_INTERVAL  |Interval (in seconds) between notification request retries|5            |
