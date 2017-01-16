@@ -17,6 +17,7 @@ import (
 )
 
 var logPrintf = log.Printf
+var dockerApiVersion string = "v1.24"
 
 type Service struct {
 	Host                  string
@@ -171,7 +172,7 @@ func (m *Service) NotifyServicesRemove(services []string, retries, interval int)
 
 func NewService(host, notifyCreateServiceUrl, notifyRemoveServiceUrl string) *Service {
 	defaultHeaders := map[string]string{"User-Agent": "engine-api-cli-1.0"}
-	dc, err := client.NewClient(host, "v1.22", nil, defaultHeaders)
+	dc, err := client.NewClient(host, dockerApiVersion, nil, defaultHeaders)
 	if err != nil {
 		logPrintf(err.Error())
 	}
