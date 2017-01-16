@@ -11,7 +11,7 @@ func main() {
 	go serve.Run()
 
 	args := GetArgs()
-	if len(service.NotifCreateServiceUrl) > 0 {
+	if len(service.NotifyCreateServiceUrl) > 0 {
 		logPrintf("Starting iterations")
 		for {
 			allServices, _ := service.GetServices()

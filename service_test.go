@@ -248,7 +248,7 @@ func (s *ServiceTestSuite) Test_NewService_SetsNotifUrl() {
 
 	service := NewService("", expected, "")
 
-	s.Equal(expected, service.NotifCreateServiceUrl)
+	s.Equal(expected, service.NotifyCreateServiceUrl)
 }
 
 // NewServiceFromEnv
@@ -282,10 +282,10 @@ func (s *ServiceTestSuite) Test_NewServiceFromEnv_SetsNotifUrl() {
 
 	service := NewServiceFromEnv()
 
-	s.Equal(expected, service.NotifCreateServiceUrl)
+	s.Equal(expected, service.NotifyCreateServiceUrl)
 }
 
-func (s *ServiceTestSuite) Test_NewServiceFromEnv_SetsNotifCreateServiceUrl() {
+func (s *ServiceTestSuite) Test_NewServiceFromEnv_SetsNotifyCreateServiceUrl() {
 	host := os.Getenv("DF_NOTIFY_CREATE_SERVICE_URL")
 	defer func() { os.Setenv("DF_NOTIFY_CREATE_SERVICE_URL", host) }()
 	expected := "this-is-a-notification-url"
@@ -293,10 +293,10 @@ func (s *ServiceTestSuite) Test_NewServiceFromEnv_SetsNotifCreateServiceUrl() {
 
 	service := NewServiceFromEnv()
 
-	s.Equal(expected, service.NotifCreateServiceUrl)
+	s.Equal(expected, service.NotifyCreateServiceUrl)
 }
 
-func (s *ServiceTestSuite) Test_NewServiceFromEnv_SetsNotifRemoveServiceUrl() {
+func (s *ServiceTestSuite) Test_NewServiceFromEnv_SetsNotifyRemoveServiceUrl() {
 	host := os.Getenv("DF_NOTIFY_REMOVE_SERVICE_URL")
 	defer func() { os.Setenv("DF_NOTIFY_REMOVE_SERVICE_URL", host) }()
 	expected := "this-is-a-notification-url"
@@ -304,7 +304,7 @@ func (s *ServiceTestSuite) Test_NewServiceFromEnv_SetsNotifRemoveServiceUrl() {
 
 	service := NewServiceFromEnv()
 
-	s.Equal(expected, service.NotifRemoveServiceUrl)
+	s.Equal(expected, service.NotifyRemoveServiceUrl)
 }
 
 // Util
