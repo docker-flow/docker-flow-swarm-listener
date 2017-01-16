@@ -21,8 +21,8 @@ var dockerApiVersion string = "v1.24"
 
 type Service struct {
 	Host                  string
-	NotifCreateServiceUrl string
-	NotifRemoveServiceUrl string
+	NotifyCreateServiceUrl string
+	NotifyRemoveServiceUrl string
 	Services              map[string]bool
 	ServiceLastCreatedAt  time.Time
 	DockerClient          *client.Client
@@ -82,7 +82,7 @@ func (m *Service) NotifyServicesCreate(services []swarm.Service, retries, interv
 	errs := []error{}
 	for _, s := range services {
 		if _, ok := s.Spec.Labels["com.df.notify"]; ok {
-			urlObj, err := url.Parse(m.NotifCreateServiceUrl)
+			urlObj, err := url.Parse(m.NotifyCreateServiceUrl)
 			if err != nil {
 				logPrintf("ERROR: %s", err.Error())
 				errs = append(errs, err)
@@ -130,7 +130,7 @@ func (m *Service) NotifyServicesCreate(services []swarm.Service, retries, interv
 func (m *Service) NotifyServicesRemove(services []string, retries, interval int) error {
 	errs := []error{}
 	for _, v := range services {
-		urlObj, err := url.Parse(m.NotifRemoveServiceUrl)
+		urlObj, err := url.Parse(m.NotifyRemoveServiceUrl)
 		if err != nil {
 			logPrintf("ERROR: %s", err.Error())
 			errs = append(errs, err)
@@ -178,8 +178,8 @@ func NewService(host, notifyCreateServiceUrl, notifyRemoveServiceUrl string) *Se
 	}
 	return &Service{
 		Host: host,
-		NotifCreateServiceUrl: notifyCreateServiceUrl,
-		NotifRemoveServiceUrl: notifyRemoveServiceUrl,
+		NotifyCreateServiceUrl: notifyCreateServiceUrl,
+		NotifyRemoveServiceUrl: notifyRemoveServiceUrl,
 		Services:              make(map[string]bool),
 		DockerClient:          dc,
 	}
