@@ -20,12 +20,12 @@ var logPrintf = log.Printf
 var dockerApiVersion string = "v1.24"
 
 type Service struct {
-	Host                  string
+	Host                   string
 	NotifyCreateServiceUrl string
 	NotifyRemoveServiceUrl string
-	Services              map[string]bool
-	ServiceLastCreatedAt  time.Time
-	DockerClient          *client.Client
+	Services               map[string]bool
+	ServiceLastCreatedAt   time.Time
+	DockerClient           *client.Client
 }
 
 type Servicer interface {
@@ -180,31 +180,31 @@ func NewService(host, notifyCreateServiceUrl, notifyRemoveServiceUrl string) *Se
 		Host: host,
 		NotifyCreateServiceUrl: notifyCreateServiceUrl,
 		NotifyRemoveServiceUrl: notifyRemoveServiceUrl,
-		Services:              make(map[string]bool),
-		DockerClient:          dc,
+		Services:               make(map[string]bool),
+		DockerClient:           dc,
 	}
 }
 
 func NewServiceFromEnv() *Service {
-        var notifyCreateServiceUrl, notifyRemoveServiceUrl string
+	var notifyCreateServiceUrl, notifyRemoveServiceUrl string
 	host := "unix:///var/run/docker.sock"
 
 	if len(os.Getenv("DF_DOCKER_HOST")) > 0 {
 		host = os.Getenv("DF_DOCKER_HOST")
 	}
-        if len(os.Getenv("DF_NOTIFY_CREATE_SERVICE_URL")) > 0 {
-                notifyCreateServiceUrl = os.Getenv("DF_NOTIFY_CREATE_SERVICE_URL")
-        } else if len(os.Getenv("DF_NOTIF_CREATE_SERVICE_URL")) > 0 {
-                notifyCreateServiceUrl = os.Getenv("DF_NOTIF_CREATE_SERVICE_URL")
-        } else {
-                notifyCreateServiceUrl = os.Getenv("DF_NOTIFICATION_URL")   
-        } 
-        if len(os.Getenv("DF_NOTIFY_REMOVE_SERVICE_URL")) > 0 {
-                notifyRemoveServiceUrl = os.Getenv("DF_NOTIFY_REMOVE_SERVICE_URL")
-        } else if len(os.Getenv("DF_NOTIF_REMOVE_SERVICE_URL")) > 0 {
-                notifyRemoveServiceUrl = os.Getenv("DF_NOTIF_REMOVE_SERVICE_URL")
-        } else {
-                notifyRemoveServiceUrl = os.Getenv("DF_NOTIFICATION_URL")
-        }
+	if len(os.Getenv("DF_NOTIFY_CREATE_SERVICE_URL")) > 0 {
+		notifyCreateServiceUrl = os.Getenv("DF_NOTIFY_CREATE_SERVICE_URL")
+	} else if len(os.Getenv("DF_NOTIF_CREATE_SERVICE_URL")) > 0 {
+		notifyCreateServiceUrl = os.Getenv("DF_NOTIF_CREATE_SERVICE_URL")
+	} else {
+		notifyCreateServiceUrl = os.Getenv("DF_NOTIFICATION_URL")
+	}
+	if len(os.Getenv("DF_NOTIFY_REMOVE_SERVICE_URL")) > 0 {
+		notifyRemoveServiceUrl = os.Getenv("DF_NOTIFY_REMOVE_SERVICE_URL")
+	} else if len(os.Getenv("DF_NOTIF_REMOVE_SERVICE_URL")) > 0 {
+		notifyRemoveServiceUrl = os.Getenv("DF_NOTIF_REMOVE_SERVICE_URL")
+	} else {
+		notifyRemoveServiceUrl = os.Getenv("DF_NOTIFICATION_URL")
+	}
 	return NewService(host, notifyCreateServiceUrl, notifyRemoveServiceUrl)
 }
