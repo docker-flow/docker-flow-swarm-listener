@@ -17,7 +17,7 @@ import (
 )
 
 var logPrintf = log.Printf
-var dockerApiVersion string = "v1.24"
+var dockerApiVersion string = "v1.22"
 
 type Service struct {
 	Host                   string
