@@ -185,11 +185,10 @@ func NewService(host, notifyCreateServiceUrl, notifyRemoveServiceUrl string) *Se
 }
 
 func NewServiceFromEnv() *Service {
+        var notifyCreateServiceUrl, notifyRemoveServiceUrl string
 	host := "unix:///var/run/docker.sock"
-        notifyCreateServiceUrl := os.Getenv("DF_NOTIFY_CREATE_SERVICE_URL")
-        notifyRemoveServiceUrl := os.Getenv("DF_NOTIFY_REMOVE_SERVICE_URL")
 
-	if len(notifyCreateServiceUrl) > 0 {
+	if len(os.Getenv("DF_DOCKER_HOST")) > 0 {
 		host = os.Getenv("DF_DOCKER_HOST")
 	}
         if len(os.Getenv("DF_NOTIFY_CREATE_SERVICE_URL")) > 0 {
@@ -199,7 +198,7 @@ func NewServiceFromEnv() *Service {
         } else {
                 notifyCreateServiceUrl = os.Getenv("DF_NOTIFICATION_URL")   
         } 
-        if len(notifyRemoveServiceUrl) > 0 {
+        if len(os.Getenv("DF_NOTIFY_REMOVE_SERVICE_URL")) > 0 {
                 notifyRemoveServiceUrl = os.Getenv("DF_NOTIFY_REMOVE_SERVICE_URL")
         } else if len(os.Getenv("DF_NOTIF_REMOVE_SERVICE_URL")) > 0 {
                 notifyRemoveServiceUrl = os.Getenv("DF_NOTIF_REMOVE_SERVICE_URL")
