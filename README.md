@@ -112,5 +112,5 @@ The following environment variables can be used when creating the `swarm listene
 |DF_NOTIFY_CREATE_SERVICE_URL|The URL that will be used to send notification requests when a service is created||
 |DF_NOTIFY_REMOVE_SERVICE_URL|The URL that will be used to send notification requests when a service is removed||
 |DF_INTERVAL        |Interval (in seconds) between service discovery requests  |5            |
-|DF_RETRY           |Number of notification request retries                    |10           |
+|DF_RETRY           |Number of notification request retries                    |50           |
 |DF_RETRY_INTERVAL  |Interval (in seconds) between notification request retries|5            |
