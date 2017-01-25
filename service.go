@@ -23,8 +23,8 @@ type Service struct {
 	Host                   string
 	NotifyCreateServiceUrl string
 	NotifyRemoveServiceUrl string
-	Services               map[string]bool
-	ServiceLastCreatedAt   time.Time
+	Services               map[string]swarm.Service
+	ServiceLastUpdatedAt   time.Time
 	DockerClient           *client.Client
 }
 
@@ -48,13 +48,34 @@ func (m *Service) GetServices() ([]swarm.Service, error) {
 
 func (m *Service) GetNewServices(services []swarm.Service) ([]swarm.Service, error) {
 	newServices := []swarm.Service{}
-	tmpCreatedAt := m.ServiceLastCreatedAt
+	tmpUpdatedAt := m.ServiceLastUpdatedAt
 	for _, s := range services {
-		if tmpCreatedAt.Nanosecond() == 0 || s.Meta.CreatedAt.After(tmpCreatedAt) {
-			newServices = append(newServices, s)
-			m.Services[s.Spec.Name] = true
-			if m.ServiceLastCreatedAt.Before(s.Meta.CreatedAt) {
-				m.ServiceLastCreatedAt = s.Meta.CreatedAt
+		if tmpUpdatedAt.Nanosecond() == 0 || s.Meta.UpdatedAt.After(tmpUpdatedAt) {
+			updated := false
+			if service, ok := m.Services[s.Spec.Name]; ok {
+				// Check whether a label was added or updated
+				for k, v := range s.Spec.Labels {
+					if strings.HasPrefix(k, "com.df.") {
+						if storedValue, ok := service.Spec.Labels[k]; !ok || v != storedValue {
+							updated = true
+						}
+					}
+				}
+				// Check whether a label was removed
+				for k, _ := range service.Spec.Labels {
+					if _, ok := s.Spec.Labels[k]; !ok {
+						updated = true
+					}
+				}
+			} else { // It's a new service
+				updated = true
+			}
+			if updated {
+				newServices = append(newServices, s)
+				m.Services[s.Spec.Name] = s
+				if m.ServiceLastUpdatedAt.Before(s.Meta.UpdatedAt) {
+					m.ServiceLastUpdatedAt = s.Meta.UpdatedAt
+				}
 			}
 		}
 	}
@@ -62,9 +83,9 @@ func (m *Service) GetNewServices(services []swarm.Service) ([]swarm.Service, err
 }
 
 func (m *Service) GetRemovedServices(services []swarm.Service) []string {
-	tmpMap := make(map[string]bool)
-	for k, _ := range m.Services {
-		tmpMap[k] = true
+	tmpMap := make(map[string]swarm.Service)
+	for k, v := range m.Services {
+		tmpMap[k] = v
 	}
 	for _, v := range services {
 		if _, ok := m.Services[v.Spec.Name]; ok {
@@ -180,7 +201,7 @@ func NewService(host, notifyCreateServiceUrl, notifyRemoveServiceUrl string) *Se
 		Host: host,
 		NotifyCreateServiceUrl: notifyCreateServiceUrl,
 		NotifyRemoveServiceUrl: notifyRemoveServiceUrl,
-		Services:               make(map[string]bool),
+		Services:               make(map[string]swarm.Service),
 		DockerClient:           dc,
 	}
 }

@@ -68,7 +68,7 @@ func (s *ServiceTestSuite) Test_GetServices_ReturnsError_WhenServiceListFails() 
 
 func (s *ServiceTestSuite) Test_GetNewServices_ReturnsAllServices_WhenExecutedForTheFirstTime() {
 	service := NewService("unix:///var/run/docker.sock", "", "")
-	service.ServiceLastCreatedAt = time.Time{}
+	service.ServiceLastUpdatedAt = time.Time{}
 	services, _ := service.GetServices()
 
 	actual, _ := service.GetNewServices(services)
@@ -97,13 +97,69 @@ func (s *ServiceTestSuite) Test_GetNewServices_AddsServices() {
 	s.Contains(service.Services, "util-1")
 }
 
+func (s *ServiceTestSuite) Test_GetNewServices_AddsUpdatedServices_WhenLabelIsAdded() {
+	defer func() {
+		exec.Command("docker", "service", "update", "--label-rm", "com.df.something", "util-1").Output()
+	}()
+	service := NewService("unix:///var/run/docker.sock", "", "")
+	services, _ := service.GetServices()
+
+	exec.Command("docker", "service", "update", "--label-add", "com.df.something=else", "util-1").Output()
+	service.GetNewServices(services)
+	services, _ = service.GetServices()
+	actual, _ := service.GetNewServices(services)
+
+	s.Equal(1, len(actual))
+}
+
+func (s *ServiceTestSuite) Test_GetNewServices_DoesNotAddUpdatedServices_WhenComDfLabelsDidNotChange() {
+	service := NewService("unix:///var/run/docker.sock", "", "")
+	services, _ := service.GetServices()
+
+	exec.Command("docker", "service", "update", "--label-add", "something=else", "util-1").Output()
+	service.GetNewServices(services)
+	services, _ = service.GetServices()
+	actual, _ := service.GetNewServices(services)
+
+	s.Equal(0, len(actual))
+}
+
+func (s *ServiceTestSuite) Test_GetNewServices_AddsUpdatedServices_WhenLabelIsRemoved() {
+	exec.Command("docker", "service", "update", "--label-add", "com.df.something=else", "util-1").Output()
+	service := NewService("unix:///var/run/docker.sock", "", "")
+	services, _ := service.GetServices()
+
+	exec.Command("docker", "service", "update", "--label-rm", "com.df.something", "util-1").Output()
+	service.GetNewServices(services)
+	services, _ = service.GetServices()
+	actual, _ := service.GetNewServices(services)
+
+	s.Equal(1, len(actual))
+}
+
+func (s *ServiceTestSuite) Test_GetNewServices_AddsUpdatedServices_WhenLabelIsUpdated() {
+	defer func() {
+		exec.Command("docker", "service", "update", "--label-rm", "com.df.something", "util-1").Output()
+	}()
+	exec.Command("docker", "service", "update", "--label-add", "com.df.something=else", "util-1").Output()
+	service := NewService("unix:///var/run/docker.sock", "", "")
+	services, _ := service.GetServices()
+
+	exec.Command("docker", "service", "update", "--label-add", "com.df.something=little-piggy", "util-1").Output()
+	service.GetNewServices(services)
+	services, _ = service.GetServices()
+	actual, _ := service.GetNewServices(services)
+
+	s.Equal(1, len(actual))
+}
+
 // GetRemovedServices
 
 func (s *ServiceTestSuite) Test_GetRemovedServices_ReturnsNamesOfRemovedServices() {
 	service := NewService("unix:///var/run/docker.sock", "", "")
 	services, _ := service.GetServices()
-	service.Services["removed-service-1"] = true
-	service.Services["removed-service-2"] = true
+	service.Services["removed-service-1"] = swarm.Service{}
+	service.Services["removed-service-2"] = swarm.Service{}
 
 	actual := service.GetRemovedServices(services)
 
@@ -360,7 +416,7 @@ func (s *ServiceTestSuite) verifyNotifyServiceRemove(expectSent bool, expectQuer
 	url := fmt.Sprintf("%s/v1/docker-flow-proxy/remove", httpSrv.URL)
 
 	service := NewService("unix:///var/run/docker.sock", "", url)
-	service.Services[s.removedServices[0]] = true
+	service.Services[s.removedServices[0]] = swarm.Service{}
 	err := service.NotifyServicesRemove(s.removedServices, 1, 0)
 
 	s.NoError(err)
