@@ -2,7 +2,7 @@
 
 The project listens to Docker Swarm events and sends requests when a change occurs. At the moment, the only supported option is to send a notification when a new service is created, or an existing service was removed from the cluster. More extensive feature support is coming soon.
 
-* [Sending Notification Requests On Service Creation and Removal](#sending-notification-requests-on-cervice-creation-and-removal)
+* [Sending Notification Requests On Service Creation and Removal](#sending-notification-requests-on-service-creation-and-removal)
 * [Sending Notification Requests To Multiple Destinations](#sending-notification-requests-to-multiple-destinations)
 * [Configuring Docker Flow Swarm Listener](#configuring-docker-flow-proxy)
 
