@@ -9,7 +9,7 @@ services:
   - docker
 
 before_install:
-  - openssl aes-256-cbc -K $encrypted_fdd0765d255b_key -iv $encrypted_fdd0765d255b_iv -in proxy-key.enc -out proxy-key -d
+  - openssl aes-256-cbc -K $encrypted_9acc217090f3_key -iv $encrypted_9acc217090f3_iv -in proxy-key.enc -out proxy-key -d
   - chmod 600 proxy-key
 
 script:
