@@ -2,14 +2,15 @@
 
 The project listens to Docker Swarm events and sends requests when a change occurs. At the moment, the only supported option is to send a notification when a new service is created, or an existing service was removed from the cluster. More extensive feature support is coming soon.
 
-* [Example](#example)
-* [Environment Variables](#environment-variables)
+* [Sending Notification Requests On Service Creation and Removal](#sending-notification-requests-on-cervice-creation-and-removal)
+* [Sending Notification Requests To Multiple Destinations](#sending-notification-requests-to-multiple-destinations)
+* [Configuring Docker Flow Swarm Listener](#configuring-docker-flow-proxy)
 
-## Example
+## Sending Notification Requests On Service Creation and Removal
 
 The example that follows will use the *Swarm Listener* to reconfigure the [Docker Flow: Proxy](https://github.com/vfarcic/docker-flow-proxy) whenever a new service is created.
 
-I will assume that you already have a Swarm cluster set up.
+I will assume that you already have a Swarm cluster set up with Docker Machines. If that's not the case, feel free to use the [scripts/dm-swarm.sh](https://github.com/vfarcic/docker-flow-swarm-listener/blob/master/scripts/dm-swarm.sh) script to create a three nodes cluster.
 
 Let's run a Proxy service. We'll use it as a way to demonstrate how *Swarm Listener* works.
 
@@ -91,7 +92,7 @@ docker service rm go-demo
 docker logs $ID
 ```
 
-The output of the `docker logs` commands is as follows.
+The output of the `docker logs` commands is as follows (timestamps are removed for brevity).
 
 ```bash
 Starting Docker Flow: Swarm Listener
@@ -102,15 +103,67 @@ Sending a service removed notification to http://proxy:8080/v1/docker-flow-proxy
 
 As you can see, the last output entry was the acknowledgment that the listener detected that the service was removed and that the notification was sent.
 
-## Environment Variables
+## Sending Notification Requests To Multiple Destinations
+
+*Docker Flow Swarm Listener* accepts multiple notification URLs as well. That can come in handy when you want to send notification requests to multiple services at the same time.
+
+We'll start by recreating the `go-demo` service we removed a few moments ago.
+
+```bash
+docker service create --name go-demo \
+  -e DB=go-demo-db \
+  --network proxy \
+  -l com.df.notify=true \
+  -l com.df.servicePath=/demo \
+  -l com.df.port=8080 \
+  vfarcic/go-demo
+```
+
+The environment variables `DF_NOTIFY_CREATE_SERVICE_URL` and `DF_NOTIFY_REMOVE_SERVICE_URL` allow multiple values separated with comma (*,*). We can, for example, configure the `swarm-listener` service to send notifications both to the *proxy* and the *go-demo* services. Since the `swarm-listener` service is already running, we'll update it with the new values.
+
+```bash
+docker service update \
+    --env-add DF_NOTIFY_CREATE_SERVICE_URL=http://proxy:8080/v1/docker-flow-proxy/reconfigure,http://go-demo:8080/demo/hello \
+    --env-add DF_NOTIFY_REMOVE_SERVICE_URL=http://proxy:8080/v1/docker-flow-proxy/remove,http://go-demo:8080/demo/hello \
+    swarm-listener
+```
+
+Since `docker service update` command stops the running containers and start new ones, we'll have to look for the ID one more time.
+
+```bash
+NODE=$(docker service ps swarm-listener | tail -n 1 | awk '{print $4}')
+
+eval $(docker-machine env $NODE)
+
+ID=$(docker ps -q -f ancestor=vfarcic/docker-flow-swarm-listener)
+```
+
+Now we can consult the logs and confirm that the request was sent to both addresses.
+
+```bash
+docker logs $ID
+```
+
+The output is as follows (timestamps are removed for brevity).
+
+```bash
+Starting Docker Flow: Swarm Listener
+Starting iterations
+Sending service created notification to http://proxy:8080/v1/docker-flow-proxy/reconfigure?port=8080&serviceName=go-demo&servicePath=%2Fdemo
+Sending service created notification to http://go-demo:8080/demo/hello?port=8080&serviceName=go-demo&servicePath=%2Fdemo
+```
+
+As you can see, the notification requests were sent both to the `proxy` and `go-demo` addresses.
+
+## Configuring Docker Flow Proxy
 
 The following environment variables can be used when creating the `swarm listener` service.
 
-|Name               |Description                                               |Default Value|
-|-------------------|----------------------------------------------------------|-------------|
-|DF_DOCKER_HOST     |Path to the Docker socket                   |unix:///var/run/docker.sock|
-|DF_NOTIFY_CREATE_SERVICE_URL|The URL that will be used to send notification requests when a service is created||
-|DF_NOTIFY_REMOVE_SERVICE_URL|The URL that will be used to send notification requests when a service is removed||
-|DF_INTERVAL        |Interval (in seconds) between service discovery requests  |5            |
-|DF_RETRY           |Number of notification request retries                    |50           |
-|DF_RETRY_INTERVAL  |Interval (in seconds) between notification request retries|5            |
+|Name               |Description                                               |Default Value|Example|
+|-------------------|----------------------------------------------------------|-------------|-------|
+|DF_DOCKER_HOST     |Path to the Docker socket                   |unix:///var/run/docker.sock| |
+|DF_NOTIFY_CREATE_SERVICE_URL|Comma separated list of URLs that will be used to send notification requests when a service is created.|url1,url2|
+|DF_NOTIFY_REMOVE_SERVICE_URL|Comma separated list of URLs that will be used to send notification requests when a service is removed.|url1,url2|
+|DF_INTERVAL        |Interval (in seconds) between service discovery requests  |5            |10|
+|DF_RETRY           |Number of notification request retries                    |50           |100|
+|DF_RETRY_INTERVAL  |Interval (in seconds) between notification request retries|5            |10|

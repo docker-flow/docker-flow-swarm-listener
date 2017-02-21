@@ -21,8 +21,8 @@ var dockerApiVersion string = "v1.22"
 
 type Service struct {
 	Host                   string
-	NotifyCreateServiceUrl string
-	NotifyRemoveServiceUrl string
+	NotifyCreateServiceUrl []string
+	NotifyRemoveServiceUrl []string
 	Services               map[string]swarm.Service
 	ServiceLastUpdatedAt   time.Time
 	DockerClient           *client.Client
@@ -103,12 +103,6 @@ func (m *Service) NotifyServicesCreate(services []swarm.Service, retries, interv
 	errs := []error{}
 	for _, s := range services {
 		if _, ok := s.Spec.Labels["com.df.notify"]; ok {
-			urlObj, err := url.Parse(m.NotifyCreateServiceUrl)
-			if err != nil {
-				logPrintf("ERROR: %s", err.Error())
-				errs = append(errs, err)
-				break
-			}
 			parameters := url.Values{}
 			parameters.Add("serviceName", s.Spec.Name)
 			for k, v := range s.Spec.Labels {
@@ -116,27 +110,35 @@ func (m *Service) NotifyServicesCreate(services []swarm.Service, retries, interv
 					parameters.Add(strings.TrimPrefix(k, "com.df."), v)
 				}
 			}
-			urlObj.RawQuery = parameters.Encode()
-			fullUrl := urlObj.String()
-			logPrintf("Sending service created notification to %s", fullUrl)
-			for i := 1; i <= retries; i++ {
-				resp, err := http.Get(fullUrl)
-				if err == nil && resp.StatusCode == http.StatusOK {
+			for _, addr := range m.NotifyCreateServiceUrl {
+				urlObj, err := url.Parse(addr)
+				if err != nil {
+					logPrintf("ERROR: %s", err.Error())
+					errs = append(errs, err)
 					break
-				} else if i < retries {
-					if interval > 0 {
-						t := time.NewTicker(time.Second * time.Duration(interval))
-						<-t.C
-					}
-				} else {
-					if err != nil {
-						logPrintf("ERROR: %s", err.Error())
-						errs = append(errs, err)
-					} else if resp.StatusCode != http.StatusOK {
-						body, _ := ioutil.ReadAll(resp.Body)
-						msg := fmt.Errorf("Request %s returned status code %d\n%s", fullUrl, resp.StatusCode, string(body[:]))
-						logPrintf("ERROR: %s", msg)
-						errs = append(errs, msg)
+				}
+				urlObj.RawQuery = parameters.Encode()
+				fullUrl := urlObj.String()
+				logPrintf("Sending service created notification to %s", fullUrl)
+				for i := 1; i <= retries; i++ {
+					resp, err := http.Get(fullUrl)
+					if err == nil && resp.StatusCode == http.StatusOK {
+						break
+					} else if i < retries {
+						if interval > 0 {
+							t := time.NewTicker(time.Second * time.Duration(interval))
+							<-t.C
+						}
+					} else {
+						if err != nil {
+							logPrintf("ERROR: %s", err.Error())
+							errs = append(errs, err)
+						} else if resp.StatusCode != http.StatusOK {
+							body, _ := ioutil.ReadAll(resp.Body)
+							msg := fmt.Errorf("Request %s returned status code %d\n%s", fullUrl, resp.StatusCode, string(body[:]))
+							logPrintf("ERROR: %s", msg)
+							errs = append(errs, msg)
+						}
 					}
 				}
 			}
@@ -151,36 +153,38 @@ func (m *Service) NotifyServicesCreate(services []swarm.Service, retries, interv
 func (m *Service) NotifyServicesRemove(services []string, retries, interval int) error {
 	errs := []error{}
 	for _, v := range services {
-		urlObj, err := url.Parse(m.NotifyRemoveServiceUrl)
-		if err != nil {
-			logPrintf("ERROR: %s", err.Error())
-			errs = append(errs, err)
-			break
-		}
 		parameters := url.Values{}
 		parameters.Add("serviceName", v)
 		parameters.Add("distribute", "true")
-		urlObj.RawQuery = parameters.Encode()
-		fullUrl := urlObj.String()
-		logPrintf("Sending service removed notification to %s", fullUrl)
-		for i := 1; i <= retries; i++ {
-			resp, err := http.Get(fullUrl)
-			if err == nil && resp.StatusCode == http.StatusOK {
-				delete(m.Services, v)
+		for _, addr := range m.NotifyRemoveServiceUrl {
+			urlObj, err := url.Parse(addr)
+			if err != nil {
+				logPrintf("ERROR: %s", err.Error())
+				errs = append(errs, err)
 				break
-			} else if i < retries {
-				if interval > 0 {
-					t := time.NewTicker(time.Second * time.Duration(interval))
-					<-t.C
-				}
-			} else {
-				if err != nil {
-					logPrintf("ERROR: %s", err.Error())
-					errs = append(errs, err)
-				} else if resp.StatusCode != http.StatusOK {
-					msg := fmt.Errorf("Request %s returned status code %d", fullUrl, resp.StatusCode)
-					logPrintf("ERROR: %s", msg)
-					errs = append(errs, msg)
+			}
+			urlObj.RawQuery = parameters.Encode()
+			fullUrl := urlObj.String()
+			logPrintf("Sending service removed notification to %s", fullUrl)
+			for i := 1; i <= retries; i++ {
+				resp, err := http.Get(fullUrl)
+				if err == nil && resp.StatusCode == http.StatusOK {
+					delete(m.Services, v)
+					break
+				} else if i < retries {
+					if interval > 0 {
+						t := time.NewTicker(time.Second * time.Duration(interval))
+						<-t.C
+					}
+				} else {
+					if err != nil {
+						logPrintf("ERROR: %s", err.Error())
+						errs = append(errs, err)
+					} else if resp.StatusCode != http.StatusOK {
+						msg := fmt.Errorf("Request %s returned status code %d", fullUrl, resp.StatusCode)
+						logPrintf("ERROR: %s", msg)
+						errs = append(errs, msg)
+					}
 				}
 			}
 		}
@@ -191,7 +195,7 @@ func (m *Service) NotifyServicesRemove(services []string, retries, interval int)
 	return nil
 }
 
-func NewService(host, notifyCreateServiceUrl, notifyRemoveServiceUrl string) *Service {
+func NewService(host string, notifyCreateServiceUrl, notifyRemoveServiceUrl []string) *Service {
 	defaultHeaders := map[string]string{"User-Agent": "engine-api-cli-1.0"}
 	dc, err := client.NewClient(host, dockerApiVersion, nil, defaultHeaders)
 	if err != nil {
@@ -207,25 +211,26 @@ func NewService(host, notifyCreateServiceUrl, notifyRemoveServiceUrl string) *Se
 }
 
 func NewServiceFromEnv() *Service {
-	var notifyCreateServiceUrl, notifyRemoveServiceUrl string
+	var notifyCreateServiceUrl []string
+	var notifyRemoveServiceUrl []string
 	host := "unix:///var/run/docker.sock"
 
 	if len(os.Getenv("DF_DOCKER_HOST")) > 0 {
 		host = os.Getenv("DF_DOCKER_HOST")
 	}
 	if len(os.Getenv("DF_NOTIFY_CREATE_SERVICE_URL")) > 0 {
-		notifyCreateServiceUrl = os.Getenv("DF_NOTIFY_CREATE_SERVICE_URL")
-	} else if len(os.Getenv("DF_NOTIF_CREATE_SERVICE_URL")) > 0 {
-		notifyCreateServiceUrl = os.Getenv("DF_NOTIF_CREATE_SERVICE_URL")
+		notifyCreateServiceUrl = strings.Split(os.Getenv("DF_NOTIFY_CREATE_SERVICE_URL"), ",")
+	} else if len(os.Getenv("DF_NOTIF_CREATE_SERVICE_URL")) > 0 { // Deprecated since dec. 2016
+		notifyCreateServiceUrl = strings.Split(os.Getenv("DF_NOTIF_CREATE_SERVICE_URL"), ",")
 	} else {
-		notifyCreateServiceUrl = os.Getenv("DF_NOTIFICATION_URL")
+		notifyCreateServiceUrl = strings.Split(os.Getenv("DF_NOTIFICATION_URL"), ",")
 	}
 	if len(os.Getenv("DF_NOTIFY_REMOVE_SERVICE_URL")) > 0 {
-		notifyRemoveServiceUrl = os.Getenv("DF_NOTIFY_REMOVE_SERVICE_URL")
-	} else if len(os.Getenv("DF_NOTIF_REMOVE_SERVICE_URL")) > 0 {
-		notifyRemoveServiceUrl = os.Getenv("DF_NOTIF_REMOVE_SERVICE_URL")
+		notifyRemoveServiceUrl = strings.Split(os.Getenv("DF_NOTIFY_REMOVE_SERVICE_URL"), ",")
+	} else if len(os.Getenv("DF_NOTIF_REMOVE_SERVICE_URL")) > 0 { // Deprecated since dec. 2016
+		notifyRemoveServiceUrl = strings.Split(os.Getenv("DF_NOTIF_REMOVE_SERVICE_URL"), ",")
 	} else {
-		notifyRemoveServiceUrl = os.Getenv("DF_NOTIFICATION_URL")
+		notifyRemoveServiceUrl = strings.Split(os.Getenv("DF_NOTIFICATION_URL"), ",")
 	}
 	return NewService(host, notifyCreateServiceUrl, notifyRemoveServiceUrl)
 }

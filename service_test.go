@@ -37,7 +37,7 @@ func TestServiceUnitTestSuite(t *testing.T) {
 // GetServices
 
 func (s *ServiceTestSuite) Test_GetServices_ReturnsServices() {
-	services := NewService("unix:///var/run/docker.sock", "", "")
+	services := NewService("unix:///var/run/docker.sock", []string{}, []string{})
 
 	actual, _ := services.GetServices()
 
@@ -57,7 +57,7 @@ func (s *ServiceTestSuite) Test_GetServices_ReturnsServices() {
 //}
 
 func (s *ServiceTestSuite) Test_GetServices_ReturnsError_WhenServiceListFails() {
-	services := NewService("unix:///this/socket/does/not/exist", "", "")
+	services := NewService("unix:///this/socket/does/not/exist", []string{}, []string{})
 
 	_, err := services.GetServices()
 
@@ -67,7 +67,7 @@ func (s *ServiceTestSuite) Test_GetServices_ReturnsError_WhenServiceListFails() 
 // GetNewServices
 
 func (s *ServiceTestSuite) Test_GetNewServices_ReturnsAllServices_WhenExecutedForTheFirstTime() {
-	service := NewService("unix:///var/run/docker.sock", "", "")
+	service := NewService("unix:///var/run/docker.sock", []string{}, []string{})
 	service.ServiceLastUpdatedAt = time.Time{}
 	services, _ := service.GetServices()
 
@@ -77,7 +77,7 @@ func (s *ServiceTestSuite) Test_GetNewServices_ReturnsAllServices_WhenExecutedFo
 }
 
 func (s *ServiceTestSuite) Test_GetNewServices_ReturnsOnlyNewServices() {
-	service := NewService("unix:///var/run/docker.sock", "", "")
+	service := NewService("unix:///var/run/docker.sock", []string{}, []string{})
 	services, _ := service.GetServices()
 
 	service.GetNewServices(services)
@@ -88,7 +88,7 @@ func (s *ServiceTestSuite) Test_GetNewServices_ReturnsOnlyNewServices() {
 }
 
 func (s *ServiceTestSuite) Test_GetNewServices_AddsServices() {
-	service := NewService("unix:///var/run/docker.sock", "", "")
+	service := NewService("unix:///var/run/docker.sock", []string{}, []string{})
 	services, _ := service.GetServices()
 
 	service.GetNewServices(services)
@@ -101,7 +101,7 @@ func (s *ServiceTestSuite) Test_GetNewServices_AddsUpdatedServices_WhenLabelIsAd
 	defer func() {
 		exec.Command("docker", "service", "update", "--label-rm", "com.df.something", "util-1").Output()
 	}()
-	service := NewService("unix:///var/run/docker.sock", "", "")
+	service := NewService("unix:///var/run/docker.sock", []string{}, []string{})
 	services, _ := service.GetServices()
 
 	exec.Command("docker", "service", "update", "--label-add", "com.df.something=else", "util-1").Output()
@@ -113,7 +113,7 @@ func (s *ServiceTestSuite) Test_GetNewServices_AddsUpdatedServices_WhenLabelIsAd
 }
 
 func (s *ServiceTestSuite) Test_GetNewServices_DoesNotAddUpdatedServices_WhenComDfLabelsDidNotChange() {
-	service := NewService("unix:///var/run/docker.sock", "", "")
+	service := NewService("unix:///var/run/docker.sock", []string{}, []string{})
 	services, _ := service.GetServices()
 
 	exec.Command("docker", "service", "update", "--label-add", "something=else", "util-1").Output()
@@ -126,7 +126,7 @@ func (s *ServiceTestSuite) Test_GetNewServices_DoesNotAddUpdatedServices_WhenCom
 
 func (s *ServiceTestSuite) Test_GetNewServices_AddsUpdatedServices_WhenLabelIsRemoved() {
 	exec.Command("docker", "service", "update", "--label-add", "com.df.something=else", "util-1").Output()
-	service := NewService("unix:///var/run/docker.sock", "", "")
+	service := NewService("unix:///var/run/docker.sock", []string{}, []string{})
 	services, _ := service.GetServices()
 
 	exec.Command("docker", "service", "update", "--label-rm", "com.df.something", "util-1").Output()
@@ -142,7 +142,7 @@ func (s *ServiceTestSuite) Test_GetNewServices_AddsUpdatedServices_WhenLabelIsUp
 		exec.Command("docker", "service", "update", "--label-rm", "com.df.something", "util-1").Output()
 	}()
 	exec.Command("docker", "service", "update", "--label-add", "com.df.something=else", "util-1").Output()
-	service := NewService("unix:///var/run/docker.sock", "", "")
+	service := NewService("unix:///var/run/docker.sock", []string{}, []string{})
 	services, _ := service.GetServices()
 
 	exec.Command("docker", "service", "update", "--label-add", "com.df.something=little-piggy", "util-1").Output()
@@ -156,7 +156,7 @@ func (s *ServiceTestSuite) Test_GetNewServices_AddsUpdatedServices_WhenLabelIsUp
 // GetRemovedServices
 
 func (s *ServiceTestSuite) Test_GetRemovedServices_ReturnsNamesOfRemovedServices() {
-	service := NewService("unix:///var/run/docker.sock", "", "")
+	service := NewService("unix:///var/run/docker.sock", []string{}, []string{})
 	services, _ := service.GetServices()
 	service.Services["removed-service-1"] = swarm.Service{}
 	service.Services["removed-service-2"] = swarm.Service{}
@@ -182,7 +182,7 @@ func (s *ServiceTestSuite) Test_NotifyServicesCreate_SendsRequests() {
 func (s *ServiceTestSuite) Test_NotifyServicesCreate_ReturnsError_WhenUrlCannotBeParsed() {
 	labels := make(map[string]string)
 	labels["com.df.notify"] = "true"
-	services := NewService("unix:///var/run/docker.sock", "%%%", "")
+	services := NewService("unix:///var/run/docker.sock", []string{"%%%"}, []string{})
 	err := services.NotifyServicesCreate(s.getSwarmServices(labels), 1, 0)
 
 	s.Error(err)
@@ -202,7 +202,7 @@ func (s *ServiceTestSuite) Test_NotifyServicesCreate_ReturnsError_WhenHttpStatus
 	labels := make(map[string]string)
 	labels["com.df.notify"] = "true"
 
-	services := NewService("unix:///var/run/docker.sock", httpSrv.URL, "")
+	services := NewService("unix:///var/run/docker.sock", []string{httpSrv.URL}, []string{})
 	err := services.NotifyServicesCreate(s.getSwarmServices(labels), 1, 0)
 
 	s.Error(err)
@@ -212,7 +212,7 @@ func (s *ServiceTestSuite) Test_NotifyServicesCreate_ReturnsError_WhenHttpReques
 	labels := make(map[string]string)
 	labels["com.df.notify"] = "true"
 
-	service := NewService("unix:///var/run/docker.sock", "this-does-not-exist", "")
+	service := NewService("unix:///var/run/docker.sock", []string{"this-does-not-exist"}, []string{})
 	err := service.NotifyServicesCreate(s.getSwarmServices(labels), 1, 0)
 
 	s.Error(err)
@@ -232,7 +232,7 @@ func (s *ServiceTestSuite) Test_NotifyServicesCreate_RetriesRequests() {
 		attempt = attempt + 1
 	}))
 
-	service := NewService("unix:///var/run/docker.sock", httpSrv.URL, "")
+	service := NewService("unix:///var/run/docker.sock", []string{httpSrv.URL}, []string{})
 	err := service.NotifyServicesCreate(s.getSwarmServices(labels), 3, 0)
 
 	s.NoError(err)
@@ -245,7 +245,7 @@ func (s *ServiceTestSuite) Test_NotifyServicesRemove_SendsRequests() {
 }
 
 func (s *ServiceTestSuite) Test_NotifyServicesRemove_ReturnsError_WhenUrlCannotBeParsed() {
-	services := NewService("unix:///var/run/docker.sock", "", "%%%")
+	services := NewService("unix:///var/run/docker.sock", []string{}, []string{"%%%"})
 	err := services.NotifyServicesRemove(s.removedServices, 1, 0)
 
 	s.Error(err)
@@ -256,14 +256,14 @@ func (s *ServiceTestSuite) Test_NotifyServicesRemove_ReturnsError_WhenHttpStatus
 		w.WriteHeader(http.StatusNotFound)
 	}))
 
-	services := NewService("unix:///var/run/docker.sock", "", httpSrv.URL)
+	services := NewService("unix:///var/run/docker.sock", []string{}, []string{httpSrv.URL})
 	err := services.NotifyServicesRemove(s.removedServices, 1, 0)
 
 	s.Error(err)
 }
 
 func (s *ServiceTestSuite) Test_NotifyServicesRemove_ReturnsError_WhenHttpRequestReturnsError() {
-	service := NewService("unix:///var/run/docker.sock", "", "this-does-not-exist")
+	service := NewService("unix:///var/run/docker.sock", []string{}, []string{"this-does-not-exist"})
 	err := service.NotifyServicesRemove(s.removedServices, 1, 0)
 
 	s.Error(err)
@@ -283,7 +283,7 @@ func (s *ServiceTestSuite) Test_NotifyServicesRemove_RetriesRequests() {
 		attempt = attempt + 1
 	}))
 
-	service := NewService("unix:///var/run/docker.sock", "", httpSrv.URL)
+	service := NewService("unix:///var/run/docker.sock", []string{}, []string{httpSrv.URL})
 	err := service.NotifyServicesRemove(s.removedServices, 3, 0)
 
 	s.NoError(err)
@@ -294,17 +294,25 @@ func (s *ServiceTestSuite) Test_NotifyServicesRemove_RetriesRequests() {
 func (s *ServiceTestSuite) Test_NewService_SetsHost() {
 	expected := "this-is-a-host"
 
-	service := NewService(expected, "", "")
+	service := NewService(expected, []string{}, []string{})
 
 	s.Equal(expected, service.Host)
 }
 
-func (s *ServiceTestSuite) Test_NewService_SetsNotifUrl() {
-	expected := "this-is-a-notification-url"
+func (s *ServiceTestSuite) Test_NewService_SetsNotifyCreateUrl() {
+	expected := []string{"this-is-a-url", "this-is-a-different-url"}
 
-	service := NewService("", expected, "")
+	service := NewService("", expected, []string{})
 
 	s.Equal(expected, service.NotifyCreateServiceUrl)
+}
+
+func (s *ServiceTestSuite) Test_NewService_SetsNotifyRemoveUrl() {
+	expected := []string{"this-is-a-url", "this-is-a-different-url"}
+
+	service := NewService("", []string{}, expected)
+
+	s.Equal(expected, service.NotifyRemoveServiceUrl)
 }
 
 // NewServiceFromEnv
@@ -330,37 +338,44 @@ func (s *ServiceTestSuite) Test_NewServiceFromEnv_SetsHostToSocket_WhenEnvIsNotP
 	s.Equal("unix:///var/run/docker.sock", service.Host)
 }
 
-func (s *ServiceTestSuite) Test_NewServiceFromEnv_SetsNotifUrl() {
-	host := os.Getenv("DF_NOTIFICATION_URL")
-	defer func() { os.Setenv("DF_NOTIFICATION_URL", host) }()
-	expected := "this-is-a-notification-url"
-	os.Setenv("DF_NOTIFICATION_URL", expected)
+func (s *ServiceTestSuite) Test_NewServiceFromEnv_SetsNotifyCreateUrlFromEnvVars() {
+	tests := []struct {
+		envKey string
+	}{
+		{"DF_NOTIFY_CREATE_SERVICE_URL"},
+		{"DF_NOTIF_CREATE_SERVICE_URL"},
+		{"DF_NOTIFICATION_URL"},
+	}
+	for _, t := range tests {
+		host := os.Getenv(t.envKey)
+		expected := []string{"this-is-a-url", "this-is-a-different-url"}
+		os.Setenv(t.envKey, strings.Join(expected, ","))
 
-	service := NewServiceFromEnv()
+		service := NewServiceFromEnv()
 
-	s.Equal(expected, service.NotifyCreateServiceUrl)
+		s.Equal(expected, service.NotifyCreateServiceUrl)
+		os.Setenv(t.envKey, host)
+	}
 }
 
-func (s *ServiceTestSuite) Test_NewServiceFromEnv_SetsNotifyCreateServiceUrl() {
-	host := os.Getenv("DF_NOTIFY_CREATE_SERVICE_URL")
-	defer func() { os.Setenv("DF_NOTIFY_CREATE_SERVICE_URL", host) }()
-	expected := "this-is-a-notification-url"
-	os.Setenv("DF_NOTIFY_CREATE_SERVICE_URL", expected)
+func (s *ServiceTestSuite) Test_NewServiceFromEnv_SetsNotifyRemoveUrlFromEnvVars() {
+	tests := []struct {
+		envKey string
+	}{
+		{"DF_NOTIFY_REMOVE_SERVICE_URL"},
+		{"DF_NOTIF_REMOVE_SERVICE_URL"},
+		{"DF_NOTIFICATION_URL"},
+	}
+	for _, t := range tests {
+		host := os.Getenv(t.envKey)
+		expected := []string{"this-is-a-url", "this-is-a-different-url"}
+		os.Setenv(t.envKey, strings.Join(expected, ","))
 
-	service := NewServiceFromEnv()
+		service := NewServiceFromEnv()
 
-	s.Equal(expected, service.NotifyCreateServiceUrl)
-}
-
-func (s *ServiceTestSuite) Test_NewServiceFromEnv_SetsNotifyRemoveServiceUrl() {
-	host := os.Getenv("DF_NOTIFY_REMOVE_SERVICE_URL")
-	defer func() { os.Setenv("DF_NOTIFY_REMOVE_SERVICE_URL", host) }()
-	expected := "this-is-a-notification-url"
-	os.Setenv("DF_NOTIFY_REMOVE_SERVICE_URL", expected)
-
-	service := NewServiceFromEnv()
-
-	s.Equal(expected, service.NotifyRemoveServiceUrl)
+		s.Equal(expected, service.NotifyRemoveServiceUrl, "Failed to fetch information from the env. var. %s.", t.envKey)
+		os.Setenv(t.envKey, host)
+	}
 }
 
 // Util
@@ -385,7 +400,7 @@ func (s *ServiceTestSuite) verifyNotifyServiceCreate(labels map[string]string, e
 	defer func() { httpSrv.Close() }()
 	url := fmt.Sprintf("%s/v1/docker-flow-proxy/reconfigure", httpSrv.URL)
 
-	services := NewService("unix:///var/run/docker.sock", url, "")
+	services := NewService("unix:///var/run/docker.sock", []string{url}, []string{})
 	err := services.NotifyServicesCreate(s.getSwarmServices(labels), 1, 0)
 
 	s.NoError(err)
@@ -415,7 +430,7 @@ func (s *ServiceTestSuite) verifyNotifyServiceRemove(expectSent bool, expectQuer
 	defer func() { httpSrv.Close() }()
 	url := fmt.Sprintf("%s/v1/docker-flow-proxy/remove", httpSrv.URL)
 
-	service := NewService("unix:///var/run/docker.sock", "", url)
+	service := NewService("unix:///var/run/docker.sock", []string{}, []string{url})
 	service.Services[s.removedServices[0]] = swarm.Service{}
 	err := service.NotifyServicesRemove(s.removedServices, 1, 0)
 
