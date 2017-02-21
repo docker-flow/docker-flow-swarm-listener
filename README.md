@@ -6,6 +6,8 @@ The project listens to Docker Swarm events and sends requests when a change occu
 * [Sending Notification Requests To Multiple Destinations](#sending-notification-requests-to-multiple-destinations)
 * [Configuring Docker Flow Swarm Listener](#configuring-docker-flow-proxy)
 
+Please join the #df-swarm-listener Slack channel in [DevOps20](http://slack.devops20toolkit.com/) if you have any questions, suggestions, or problems.
+
 ## Sending Notification Requests On Service Creation and Removal
 
 The example that follows will use the *Swarm Listener* to reconfigure the [Docker Flow: Proxy](https://github.com/vfarcic/docker-flow-proxy) whenever a new service is created.
@@ -167,3 +169,5 @@ The following environment variables can be used when creating the `swarm listene
 |DF_INTERVAL        |Interval (in seconds) between service discovery requests  |5            |10|
 |DF_RETRY           |Number of notification request retries                    |50           |100|
 |DF_RETRY_INTERVAL  |Interval (in seconds) between notification request retries|5            |10|
+
+<a href='https://ko-fi.com/A655LRB' target='_blank'><img height='36' style='border:0px;height:36px;' src='https://az743702.vo.msecnd.net/cdn/kofi2.png?v=0' border='0' alt='Buy Me a Coffee at ko-fi.com' /></a>
