@@ -23,7 +23,7 @@ after_success:
   - 'if [ "$TRAVIS_PULL_REQUEST" = "false" ]; docker push vfarcic/docker-flow-swarm-listener:${VERSION}; fi'
   - 'if [ "$TRAVIS_PULL_REQUEST" = "false" ]; docker push vfarcic/docker-flow-swarm-listener; fi'
   - 'if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then docker-compose run --rm docs; fi'
-  - 'if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then docker build -t vfarcic/docker-flow-proxy-docs -f Dockerfile.docs .; fi'
+  - 'if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then docker build -t vfarcic/docker-flow-swarm-listener-docs -f Dockerfile.docs .; fi'
   - 'if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then docker tag vfarcic/docker-flow-swarm-listener-docs vfarcic/docker-flow-swarm-listener-docs:${VERSION}; fi'
   - 'if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then docker push vfarcic/docker-flow-swarm-listener-docs:${VERSION}; fi'
   - 'if [ "$TRAVIS_PULL_REQUEST" = "false" ]; then docker push vfarcic/docker-flow-swarm-listener-docs; fi'
