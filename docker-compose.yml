@@ -1,0 +1,10 @@
+version: '2'
+
+
+services:
+
+  docs:
+    image: cilerler/mkdocs
+    volumes:
+      - .:/docs
+    command: bash -c "pip install pygments && pip install pymdown-extensions && mkdocs build"

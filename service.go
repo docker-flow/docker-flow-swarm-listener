@@ -62,7 +62,7 @@ func (m *Service) GetNewServices(services []swarm.Service) ([]swarm.Service, err
 					}
 				}
 				// Check whether a label was removed
-				for k, _ := range service.Spec.Labels {
+				for k := range service.Spec.Labels {
 					if _, ok := s.Spec.Labels[k]; !ok {
 						updated = true
 					}
@@ -93,7 +93,7 @@ func (m *Service) GetRemovedServices(services []swarm.Service) []string {
 		}
 	}
 	rs := []string{}
-	for k, _ := range tmpMap {
+	for k := range tmpMap {
 		rs = append(rs, k)
 	}
 	return rs
