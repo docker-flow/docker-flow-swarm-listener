@@ -1,15 +1,15 @@
 package main
 
 import (
+	"./service"
 	"fmt"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 	"net/http"
+	"strings"
 	"testing"
 	"time"
-	"strings"
-	"./service"
 )
 
 type ServerTestSuite struct {
@@ -64,7 +64,7 @@ func (s *ServerTestSuite) Test_ServeHTTP_SetsContentTypeToJSON_WhenUrlIsNotifySe
 	}
 	req, _ := http.NewRequest("GET", "/v1/docker-flow-swarm-listener/notify-services", nil)
 	notifMock := NotificationMock{
-		NotifyServicesCreateMock: func(services []swarm.Service, retries, interval int) error {
+		ServicesCreateMock: func(services []swarm.Service, retries, interval int) error {
 			return nil
 		},
 	}
@@ -83,7 +83,7 @@ func (s *ServerTestSuite) Test_ServeHTTP_ReturnsStatusOK_WhenUrlIsNotifyServices
 	req, _ := http.NewRequest("GET", "/v1/docker-flow-swarm-listener/notify-services", nil)
 	rw := getResponseWriterMock()
 	notifMock := NotificationMock{
-		NotifyServicesCreateMock: func(services []swarm.Service, retries, interval int) error {
+		ServicesCreateMock: func(services []swarm.Service, retries, interval int) error {
 			return nil
 		},
 	}
@@ -122,7 +122,7 @@ func (s *ServerTestSuite) Test_ServeHTTP_InvokesNotifyServicesCreate_WhenUrlIsNo
 	actualRetries := 0
 	actualInterval := 0
 	notifMock := NotificationMock{
-		NotifyServicesCreateMock: func(services []swarm.Service, retries, interval int) error {
+		ServicesCreateMock: func(services []swarm.Service, retries, interval int) error {
 			actualServices = services
 			actualRetries = retries
 			actualInterval = interval
@@ -236,15 +236,14 @@ func getServicerMock(skipMethod string) *ServicerMock {
 }
 
 type NotificationMock struct {
-	NotifyServicesCreateMock func(services []swarm.Service, retries, interval int) error
-	NotifyServicesRemoveMock func(remove []string, retries, interval int) error
+	ServicesCreateMock func(services []swarm.Service, retries, interval int) error
+	ServicesRemoveMock func(remove []string, retries, interval int) error
 }
 
-func (m NotificationMock) NotifyServicesCreate(services []swarm.Service, retries, interval int) error {
-	return m.NotifyServicesCreateMock(services, retries, interval)
+func (m NotificationMock) ServicesCreate(services []swarm.Service, retries, interval int) error {
+	return m.ServicesCreateMock(services, retries, interval)
 }
 
-func (m NotificationMock) NotifyServicesRemove(remove []string, retries, interval int) error {
-	return m.NotifyServicesRemoveMock(remove, retries, interval)
+func (m NotificationMock) ServicesRemove(remove []string, retries, interval int) error {
+	return m.ServicesRemoveMock(remove, retries, interval)
 }
-

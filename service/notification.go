@@ -1,19 +1,19 @@
 package service
 
 import (
+	"fmt"
+	"github.com/docker/docker/api/types/swarm"
+	"io/ioutil"
+	"net/http"
+	"net/url"
 	"os"
 	"strings"
-	"github.com/docker/docker/api/types/swarm"
-	"net/url"
-	"net/http"
 	"time"
-	"io/ioutil"
-	"fmt"
 )
 
 type Notifier interface {
-	NotifyServicesCreate(services []swarm.Service, retries, interval int) error
-	NotifyServicesRemove(services []string, retries, interval int) error
+	ServicesCreate(services []swarm.Service, retries, interval int) error
+	ServicesRemove(services []string, retries, interval int) error
 }
 
 type Notification struct {
@@ -48,7 +48,7 @@ func NewNotificationFromEnv() *Notification {
 	return NewNotification(createServiceAddr, removeServiceAddr)
 }
 
-func (m *Notification) NotifyServicesCreate(services []swarm.Service, retries, interval int) error {
+func (m *Notification) ServicesCreate(services []swarm.Service, retries, interval int) error {
 	errs := []error{}
 	for _, s := range services {
 		if _, ok := s.Spec.Labels["com.df.notify"]; ok {
@@ -99,7 +99,7 @@ func (m *Notification) NotifyServicesCreate(services []swarm.Service, retries, i
 	return nil
 }
 
-func (m *Notification) NotifyServicesRemove(remove []string, retries, interval int) error {
+func (m *Notification) ServicesRemove(remove []string, retries, interval int) error {
 	errs := []error{}
 	for _, v := range remove {
 		parameters := url.Values{}
@@ -143,4 +143,3 @@ func (m *Notification) NotifyServicesRemove(remove []string, retries, interval i
 	}
 	return nil
 }
-

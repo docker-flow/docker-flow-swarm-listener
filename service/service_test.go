@@ -11,7 +11,7 @@ import (
 
 type ServiceTestSuite struct {
 	suite.Suite
-	serviceName     string
+	serviceName string
 }
 
 func TestServiceUnitTestSuite(t *testing.T) {

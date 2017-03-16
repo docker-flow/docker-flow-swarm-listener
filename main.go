@@ -1,8 +1,8 @@
 package main
 
 import (
-	"time"
 	"./service"
+	"time"
 )
 
 func main() {
@@ -18,9 +18,9 @@ func main() {
 		for {
 			allServices, _ := s.GetServices()
 			newServices, _ := s.GetNewServices(allServices)
-			n.NotifyServicesCreate(newServices, args.Retry, args.RetryInterval)
+			n.ServicesCreate(newServices, args.Retry, args.RetryInterval)
 			removedServices := s.GetRemovedServices(allServices)
-			n.NotifyServicesRemove(removedServices, args.Retry, args.RetryInterval)
+			n.ServicesRemove(removedServices, args.Retry, args.RetryInterval)
 			time.Sleep(time.Second * time.Duration(args.Interval))
 		}
 	}

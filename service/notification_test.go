@@ -1,14 +1,14 @@
 package service
 
 import (
+	"fmt"
+	"github.com/docker/docker/api/types/swarm"
 	"github.com/stretchr/testify/suite"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
-	"net/http/httptest"
-	"net/http"
-	"fmt"
-	"github.com/docker/docker/api/types/swarm"
 )
 
 type NotificationTestSuite struct {
@@ -83,9 +83,9 @@ func (s *NotificationTestSuite) Test_NewNotificationFromEnv_SetsNotifyRemoveUrlF
 	}
 }
 
-// NotifyServicesCreate
+// NervicesCreate
 
-func (s *NotificationTestSuite) Test_NotifyServicesCreate_SendsRequests() {
+func (s *NotificationTestSuite) Test_NervicesCreate_SendsRequests() {
 	labels := make(map[string]string)
 	labels["com.df.notify"] = "true"
 	labels["com.df.distribute"] = "true"
@@ -94,23 +94,23 @@ func (s *NotificationTestSuite) Test_NotifyServicesCreate_SendsRequests() {
 	s.verifyNotifyServiceCreate(labels, true, fmt.Sprintf("distribute=true&serviceName=%s", "my-service"))
 }
 
-func (s *NotificationTestSuite) Test_NotifyServicesCreate_ReturnsError_WhenUrlCannotBeParsed() {
+func (s *NotificationTestSuite) Test_NervicesCreate_ReturnsError_WhenUrlCannotBeParsed() {
 	labels := make(map[string]string)
 	labels["com.df.notify"] = "true"
 	n := NewNotification([]string{"%%%"}, []string{})
-	err := n.NotifyServicesCreate(s.getSwarmServices(labels), 1, 0)
+	err := n.ServicesCreate(s.getSwarmServices(labels), 1, 0)
 
 	s.Error(err)
 }
 
-func (s *NotificationTestSuite) Test_NotifyServicesCreate_DoesNotSendRequest_WhenDfNotifyIsNotDefined() {
+func (s *NotificationTestSuite) Test_ServicesCreate_DoesNotSendRequest_WhenDfNotifyIsNotDefined() {
 	labels := make(map[string]string)
 	labels["DF_key1"] = "value1"
 
 	s.verifyNotifyServiceCreate(labels, false, "")
 }
 
-func (s *NotificationTestSuite) Test_NotifyServicesCreate_ReturnsError_WhenHttpStatusIsNot200() {
+func (s *NotificationTestSuite) Test_ServicesCreate_ReturnsError_WhenHttpStatusIsNot200() {
 	httpSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 	}))
@@ -118,22 +118,22 @@ func (s *NotificationTestSuite) Test_NotifyServicesCreate_ReturnsError_WhenHttpS
 	labels["com.df.notify"] = "true"
 
 	n := NewNotification([]string{httpSrv.URL}, []string{})
-	err := n.NotifyServicesCreate(s.getSwarmServices(labels), 1, 0)
+	err := n.ServicesCreate(s.getSwarmServices(labels), 1, 0)
 
 	s.Error(err)
 }
 
-func (s *NotificationTestSuite) Test_NotifyServicesCreate_ReturnsError_WhenHttpRequestReturnsError() {
+func (s *NotificationTestSuite) Test_ServicesCreate_ReturnsError_WhenHttpRequestReturnsError() {
 	labels := make(map[string]string)
 	labels["com.df.notify"] = "true"
 
 	n := NewNotification([]string{"this-does-not-exist"}, []string{})
-	err := n.NotifyServicesCreate(s.getSwarmServices(labels), 1, 0)
+	err := n.ServicesCreate(s.getSwarmServices(labels), 1, 0)
 
 	s.Error(err)
 }
 
-func (s *NotificationTestSuite) Test_NotifyServicesCreate_RetriesRequests() {
+func (s *NotificationTestSuite) Test_ServicesCreate_RetriesRequests() {
 	attempt := 0
 	labels := make(map[string]string)
 	labels["com.df.notify"] = "true"
@@ -148,47 +148,47 @@ func (s *NotificationTestSuite) Test_NotifyServicesCreate_RetriesRequests() {
 	}))
 
 	n := NewNotification([]string{httpSrv.URL}, []string{})
-	err := n.NotifyServicesCreate(s.getSwarmServices(labels), 3, 0)
+	err := n.ServicesCreate(s.getSwarmServices(labels), 3, 0)
 
 	s.NoError(err)
 }
 
-// NotifyServicesRemove
+// ServicesRemove
 
-func (s *NotificationTestSuite) Test_NotifyServicesRemove_SendsRequests() {
+func (s *NotificationTestSuite) Test_ServicesRemove_SendsRequests() {
 	Services = make(map[string]swarm.Service)
 	s.verifyNotifyServiceRemove(true, fmt.Sprintf("distribute=true&serviceName=%s", "my-removed-service-1"))
 }
 
-func (s *NotificationTestSuite) Test_NotifyServicesRemove_ReturnsError_WhenUrlCannotBeParsed() {
+func (s *NotificationTestSuite) Test_ServicesRemove_ReturnsError_WhenUrlCannotBeParsed() {
 	Services = make(map[string]swarm.Service)
 	n := NewNotification([]string{}, []string{"%%%"})
-	err := n.NotifyServicesRemove([]string{"my-removed-service-1"}, 1, 0)
+	err := n.ServicesRemove([]string{"my-removed-service-1"}, 1, 0)
 
 	s.Error(err)
 }
 
-func (s *NotificationTestSuite) Test_NotifyServicesRemove_ReturnsError_WhenHttpStatusIsNot200() {
+func (s *NotificationTestSuite) Test_ServicesRemove_ReturnsError_WhenHttpStatusIsNot200() {
 	Services = make(map[string]swarm.Service)
 	httpSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 	}))
 
 	n := NewNotification([]string{}, []string{httpSrv.URL})
-	err := n.NotifyServicesRemove([]string{"my-removed-service-1"}, 1, 0)
+	err := n.ServicesRemove([]string{"my-removed-service-1"}, 1, 0)
 
 	s.Error(err)
 }
 
-func (s *NotificationTestSuite) Test_NotifyServicesRemove_ReturnsError_WhenHttpRequestReturnsError() {
+func (s *NotificationTestSuite) Test_ServicesRemove_ReturnsError_WhenHttpRequestReturnsError() {
 	Services = make(map[string]swarm.Service)
 	n := NewNotification([]string{}, []string{"this-does-not-exist"})
-	err := n.NotifyServicesRemove([]string{"my-removed-service-1"}, 1, 0)
+	err := n.ServicesRemove([]string{"my-removed-service-1"}, 1, 0)
 
 	s.Error(err)
 }
 
-func (s *NotificationTestSuite) Test_NotifyServicesRemove_RetriesRequests() {
+func (s *NotificationTestSuite) Test_ServicesRemove_RetriesRequests() {
 	attempt := 0
 	labels := make(map[string]string)
 	labels["com.df.notify"] = "true"
@@ -203,7 +203,7 @@ func (s *NotificationTestSuite) Test_NotifyServicesRemove_RetriesRequests() {
 	}))
 
 	n := NewNotification([]string{}, []string{httpSrv.URL})
-	err := n.NotifyServicesRemove([]string{"my-removed-service-1"}, 3, 0)
+	err := n.ServicesRemove([]string{"my-removed-service-1"}, 3, 0)
 
 	s.NoError(err)
 }
@@ -245,7 +245,7 @@ func (s *NotificationTestSuite) verifyNotifyServiceCreate(labels map[string]stri
 	url := fmt.Sprintf("%s/v1/docker-flow-proxy/reconfigure", httpSrv.URL)
 
 	n := NewNotification([]string{url}, []string{})
-	err := n.NotifyServicesCreate(s.getSwarmServices(labels), 1, 0)
+	err := n.ServicesCreate(s.getSwarmServices(labels), 1, 0)
 
 	s.NoError(err)
 	s.Equal(expectSent, actualSent)
@@ -276,7 +276,7 @@ func (s *NotificationTestSuite) verifyNotifyServiceRemove(expectSent bool, expec
 	n := NewNotification([]string{}, []string{url})
 
 	Services["my-removed-service-1"] = swarm.Service{}
-	err := n.NotifyServicesRemove([]string{"my-removed-service-1"}, 1, 0)
+	err := n.ServicesRemove([]string{"my-removed-service-1"}, 1, 0)
 
 	s.NoError(err)
 	s.Equal(expectSent, actualSent)

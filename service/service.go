@@ -14,9 +14,9 @@ import (
 var Services map[string]swarm.Service
 
 type Service struct {
-	Host                   string
-	ServiceLastUpdatedAt   time.Time
-	DockerClient           *client.Client
+	Host                 string
+	ServiceLastUpdatedAt time.Time
+	DockerClient         *client.Client
 }
 
 type Servicer interface {
@@ -96,8 +96,8 @@ func NewService(host string) *Service {
 	}
 	Services = make(map[string]swarm.Service)
 	return &Service{
-		Host: host,
-		DockerClient:           dc,
+		Host:         host,
+		DockerClient: dc,
 	}
 }
 
