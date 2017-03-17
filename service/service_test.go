@@ -30,9 +30,10 @@ func TestServiceUnitTestSuite(t *testing.T) {
 // GetServices
 
 func (s *ServiceTestSuite) Test_GetServices_ReturnsServices() {
-	services := NewService("unix:///var/run/docker.sock")
+	service := NewService("unix:///var/run/docker.sock")
 
-	actual, _ := services.GetServices()
+	services, _ := service.GetServices()
+	actual := *services
 
 	s.Equal(1, len(actual))
 	s.Equal("util-1", actual[0].Spec.Name)
@@ -66,7 +67,7 @@ func (s *ServiceTestSuite) Test_GetNewServices_ReturnsAllServices_WhenExecutedFo
 
 	actual, _ := service.GetNewServices(services)
 
-	s.Equal(1, len(actual))
+	s.Equal(1, len(*actual))
 }
 
 func (s *ServiceTestSuite) Test_GetNewServices_ReturnsOnlyNewServices() {
@@ -77,7 +78,7 @@ func (s *ServiceTestSuite) Test_GetNewServices_ReturnsOnlyNewServices() {
 	services, _ = service.GetServices()
 	actual, _ := service.GetNewServices(services)
 
-	s.Equal(0, len(actual))
+	s.Equal(0, len(*actual))
 }
 
 func (s *ServiceTestSuite) Test_GetNewServices_AddsServices() {
@@ -102,7 +103,7 @@ func (s *ServiceTestSuite) Test_GetNewServices_AddsUpdatedServices_WhenLabelIsAd
 	services, _ = service.GetServices()
 	actual, _ := service.GetNewServices(services)
 
-	s.Equal(1, len(actual))
+	s.Equal(1, len(*actual))
 }
 
 func (s *ServiceTestSuite) Test_GetNewServices_DoesNotAddUpdatedServices_WhenComDfLabelsDidNotChange() {
@@ -114,7 +115,7 @@ func (s *ServiceTestSuite) Test_GetNewServices_DoesNotAddUpdatedServices_WhenCom
 	services, _ = service.GetServices()
 	actual, _ := service.GetNewServices(services)
 
-	s.Equal(0, len(actual))
+	s.Equal(0, len(*actual))
 }
 
 func (s *ServiceTestSuite) Test_GetNewServices_AddsUpdatedServices_WhenLabelIsRemoved() {
@@ -127,7 +128,7 @@ func (s *ServiceTestSuite) Test_GetNewServices_AddsUpdatedServices_WhenLabelIsRe
 	services, _ = service.GetServices()
 	actual, _ := service.GetNewServices(services)
 
-	s.Equal(1, len(actual))
+	s.Equal(1, len(*actual))
 }
 
 func (s *ServiceTestSuite) Test_GetNewServices_AddsUpdatedServices_WhenLabelIsUpdated() {
@@ -143,7 +144,7 @@ func (s *ServiceTestSuite) Test_GetNewServices_AddsUpdatedServices_WhenLabelIsUp
 	services, _ = service.GetServices()
 	actual, _ := service.GetNewServices(services)
 
-	s.Equal(1, len(actual))
+	s.Equal(1, len(*actual))
 }
 
 // GetRemovedServices
@@ -156,9 +157,9 @@ func (s *ServiceTestSuite) Test_GetRemovedServices_ReturnsNamesOfRemovedServices
 
 	actual := service.GetRemovedServices(services)
 
-	s.Equal(2, len(actual))
-	s.Contains(actual, "removed-service-1")
-	s.Contains(actual, "removed-service-2")
+	s.Equal(2, len(*actual))
+	s.Contains(*actual, "removed-service-1")
+	s.Contains(*actual, "removed-service-2")
 }
 
 // NewService

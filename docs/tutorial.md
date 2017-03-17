@@ -59,24 +59,21 @@ Please note that we declared the label `com.df.notify`. Only services with this 
 
 Before proceeding, we should wait until all the services are up and running. Please use the `docker service ls` command to check the status.
 
-Please output the *Docker Flow: Swarm Listener* logs. You'll need to find the node the listener is running in, change your client to use Docker Engine running on that node, and, then, execute `docker logs` command. If you're using Docker Machine, the commands are as follows.
+Please output the *Docker Flow: Swarm Listener* logs. If you're using Docker Machine, the command are as follows.
 
 ```bash
-NODE=$(docker service ps swarm-listener | tail -n 1 | awk '{print $4}')
-
-eval $(docker-machine env $NODE)
-
-ID=$(docker ps -q -f ancestor=vfarcic/docker-flow-swarm-listener)
-
-docker logs $ID
+docker service logs swarm-listener
 ```
 
-We found the ID of the container and displayed the logs. The output is as follows.
+''' warning
+    At the time of this writing, `docker service logs` command is still in experimental stage. It might not work if you used your own cluster without experimental features enabled.
+
+The output is as follows (timestamps are removed for brevity).
 
 ```
 Starting Docker Flow: Swarm Listener
 Starting iterations
-Sending a service created notification to http://proxy:8080/v1/docker-flow-proxy/reconfigure?serviceName=go-demo&port=8080&servicePath=/demo
+Sending service created notification to http://proxy:8080/v1/docker-flow-proxy/reconfigure?port=8080&serviceName=go-demo&servicePath=%2Fdemo
 ```
 
 As you can see, the listener detected that the `go-demo` service has the label `com.df.notify` and sent the notification request. The address of the notification request is the value of the environment variable `DF_NOTIFY_CREATE_SERVICE_URL` declared in the `swarm-listener` service. The parameters are a combination of the service name and all the labels prefixed with `DF_`.
@@ -88,7 +85,7 @@ Let's see what happens if a service is removed.
 ```bash
 docker service rm go-demo
 
-docker logs $ID
+docker service logs swarm-listener
 ```
 
 The output of the `docker logs` commands is as follows (timestamps are removed for brevity).
@@ -96,8 +93,8 @@ The output of the `docker logs` commands is as follows (timestamps are removed f
 ```bash
 Starting Docker Flow: Swarm Listener
 Starting iterations
-Sending a service created notification to http://proxy:8080/v1/docker-flow-proxy/reconfigure?serviceName=go-demo&port=8080&servicePath=/demo
-Sending a service removed notification to http://proxy:8080/v1/docker-flow-proxy/remove?serviceName=go-demo
+Sending service created notification to http://proxy:8080/v1/docker-flow-proxy/reconfigure?port=8080&serviceName=go-demo&servicePath=%2Fdemo
+Sending service removed notification to http://proxy:8080/v1/docker-flow-proxy/remove?distribute=true&serviceName=go-demo
 ```
 
 As you can see, the last output entry was the acknowledgment that the listener detected that the service was removed and that the notification was sent.
@@ -127,20 +124,10 @@ docker service update \
     swarm-listener
 ```
 
-Since `docker service update` command stops the running containers and start new ones, we'll have to look for the ID one more time.
-
-```bash
-NODE=$(docker service ps swarm-listener | tail -n 1 | awk '{print $4}')
-
-eval $(docker-machine env $NODE)
-
-ID=$(docker ps -q -f ancestor=vfarcic/docker-flow-swarm-listener)
-```
-
 Now we can consult the logs and confirm that the request was sent to both addresses.
 
 ```bash
-docker logs $ID
+docker service logs swarm-listener
 ```
 
 The output is as follows (timestamps are removed for brevity).

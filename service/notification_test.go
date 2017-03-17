@@ -163,7 +163,7 @@ func (s *NotificationTestSuite) Test_ServicesRemove_SendsRequests() {
 func (s *NotificationTestSuite) Test_ServicesRemove_ReturnsError_WhenUrlCannotBeParsed() {
 	Services = make(map[string]swarm.Service)
 	n := NewNotification([]string{}, []string{"%%%"})
-	err := n.ServicesRemove([]string{"my-removed-service-1"}, 1, 0)
+	err := n.ServicesRemove(&[]string{"my-removed-service-1"}, 1, 0)
 
 	s.Error(err)
 }
@@ -175,7 +175,7 @@ func (s *NotificationTestSuite) Test_ServicesRemove_ReturnsError_WhenHttpStatusI
 	}))
 
 	n := NewNotification([]string{}, []string{httpSrv.URL})
-	err := n.ServicesRemove([]string{"my-removed-service-1"}, 1, 0)
+	err := n.ServicesRemove(&[]string{"my-removed-service-1"}, 1, 0)
 
 	s.Error(err)
 }
@@ -183,7 +183,7 @@ func (s *NotificationTestSuite) Test_ServicesRemove_ReturnsError_WhenHttpStatusI
 func (s *NotificationTestSuite) Test_ServicesRemove_ReturnsError_WhenHttpRequestReturnsError() {
 	Services = make(map[string]swarm.Service)
 	n := NewNotification([]string{}, []string{"this-does-not-exist"})
-	err := n.ServicesRemove([]string{"my-removed-service-1"}, 1, 0)
+	err := n.ServicesRemove(&[]string{"my-removed-service-1"}, 1, 0)
 
 	s.Error(err)
 }
@@ -203,14 +203,14 @@ func (s *NotificationTestSuite) Test_ServicesRemove_RetriesRequests() {
 	}))
 
 	n := NewNotification([]string{}, []string{httpSrv.URL})
-	err := n.ServicesRemove([]string{"my-removed-service-1"}, 3, 0)
+	err := n.ServicesRemove(&[]string{"my-removed-service-1"}, 3, 0)
 
 	s.NoError(err)
 }
 
 // Util
 
-func (s *NotificationTestSuite) getSwarmServices(labels map[string]string) []swarm.Service {
+func (s *NotificationTestSuite) getSwarmServices(labels map[string]string) *[]swarm.Service {
 	ann := swarm.Annotations{
 		Name:   "my-service",
 		Labels: labels,
@@ -221,7 +221,7 @@ func (s *NotificationTestSuite) getSwarmServices(labels map[string]string) []swa
 	serv := swarm.Service{
 		Spec: spec,
 	}
-	return []swarm.Service{serv}
+	return &[]swarm.Service{serv}
 }
 
 func (s *NotificationTestSuite) verifyNotifyServiceCreate(labels map[string]string, expectSent bool, expectQuery string) {
@@ -276,7 +276,7 @@ func (s *NotificationTestSuite) verifyNotifyServiceRemove(expectSent bool, expec
 	n := NewNotification([]string{}, []string{url})
 
 	Services["my-removed-service-1"] = swarm.Service{}
-	err := n.ServicesRemove([]string{"my-removed-service-1"}, 1, 0)
+	err := n.ServicesRemove(&[]string{"my-removed-service-1"}, 1, 0)
 
 	s.NoError(err)
 	s.Equal(expectSent, actualSent)

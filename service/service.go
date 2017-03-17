@@ -20,25 +20,27 @@ type Service struct {
 }
 
 type Servicer interface {
-	GetServices() ([]swarm.Service, error)
-	GetNewServices(services []swarm.Service) ([]swarm.Service, error)
+	GetServices() (*[]swarm.Service, error)
+	GetNewServices(services *[]swarm.Service) (*[]swarm.Service, error)
+	GetRemovedServices(services *[]swarm.Service) *[]string
 }
 
-func (m *Service) GetServices() ([]swarm.Service, error) {
+func (m *Service) GetServices() (*[]swarm.Service, error) {
 	filter := filters.NewArgs()
+	// TODO: Add alerts filter
 	filter.Add("label", "com.df.notify=true")
 	services, err := m.DockerClient.ServiceList(context.Background(), types.ServiceListOptions{Filters: filter})
 	if err != nil {
 		logPrintf(err.Error())
-		return []swarm.Service{}, err
+		return &[]swarm.Service{}, err
 	}
-	return services, nil
+	return &services, nil
 }
 
-func (m *Service) GetNewServices(services []swarm.Service) ([]swarm.Service, error) {
+func (m *Service) GetNewServices(services *[]swarm.Service) (*[]swarm.Service, error) {
 	newServices := []swarm.Service{}
 	tmpUpdatedAt := m.ServiceLastUpdatedAt
-	for _, s := range services {
+	for _, s := range *services {
 		if tmpUpdatedAt.Nanosecond() == 0 || s.Meta.UpdatedAt.After(tmpUpdatedAt) {
 			updated := false
 			if service, ok := Services[s.Spec.Name]; ok {
@@ -68,15 +70,15 @@ func (m *Service) GetNewServices(services []swarm.Service) ([]swarm.Service, err
 			}
 		}
 	}
-	return newServices, nil
+	return &newServices, nil
 }
 
-func (m *Service) GetRemovedServices(services []swarm.Service) []string {
+func (m *Service) GetRemovedServices(services *[]swarm.Service) *[]string {
 	tmpMap := make(map[string]swarm.Service)
 	for k, v := range Services {
 		tmpMap[k] = v
 	}
-	for _, v := range services {
+	for _, v := range *services {
 		if _, ok := Services[v.Spec.Name]; ok {
 			delete(tmpMap, v.Spec.Name)
 		}
@@ -85,7 +87,7 @@ func (m *Service) GetRemovedServices(services []swarm.Service) []string {
 	for k := range tmpMap {
 		rs = append(rs, k)
 	}
-	return rs
+	return &rs
 }
 
 func NewService(host string) *Service {

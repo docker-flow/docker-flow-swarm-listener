@@ -12,13 +12,14 @@ import (
 )
 
 type Notifier interface {
-	ServicesCreate(services []swarm.Service, retries, interval int) error
-	ServicesRemove(services []string, retries, interval int) error
+	ServicesCreate(services *[]swarm.Service, retries, interval int) error
+	ServicesRemove(services *[]string, retries, interval int) error
 }
 
 type Notification struct {
 	NotifyCreateServiceUrl []string
 	NotifyRemoveServiceUrl []string
+
 }
 
 func NewNotification(createServiceAddr, removeServiceAddr []string) *Notification {
@@ -48,9 +49,9 @@ func NewNotificationFromEnv() *Notification {
 	return NewNotification(createServiceAddr, removeServiceAddr)
 }
 
-func (m *Notification) ServicesCreate(services []swarm.Service, retries, interval int) error {
+func (m *Notification) ServicesCreate(services *[]swarm.Service, retries, interval int) error {
 	errs := []error{}
-	for _, s := range services {
+	for _, s := range *services {
 		if _, ok := s.Spec.Labels["com.df.notify"]; ok {
 			parameters := url.Values{}
 			parameters.Add("serviceName", s.Spec.Name)
@@ -99,9 +100,9 @@ func (m *Notification) ServicesCreate(services []swarm.Service, retries, interva
 	return nil
 }
 
-func (m *Notification) ServicesRemove(remove []string, retries, interval int) error {
+func (m *Notification) ServicesRemove(remove *[]string, retries, interval int) error {
 	errs := []error{}
-	for _, v := range remove {
+	for _, v := range *remove {
 		parameters := url.Values{}
 		parameters.Add("serviceName", v)
 		parameters.Add("distribute", "true")

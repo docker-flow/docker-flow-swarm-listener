@@ -64,7 +64,7 @@ func (s *ServerTestSuite) Test_ServeHTTP_SetsContentTypeToJSON_WhenUrlIsNotifySe
 	}
 	req, _ := http.NewRequest("GET", "/v1/docker-flow-swarm-listener/notify-services", nil)
 	notifMock := NotificationMock{
-		ServicesCreateMock: func(services []swarm.Service, retries, interval int) error {
+		ServicesCreateMock: func(services *[]swarm.Service, retries, interval int) error {
 			return nil
 		},
 	}
@@ -83,7 +83,7 @@ func (s *ServerTestSuite) Test_ServeHTTP_ReturnsStatusOK_WhenUrlIsNotifyServices
 	req, _ := http.NewRequest("GET", "/v1/docker-flow-swarm-listener/notify-services", nil)
 	rw := getResponseWriterMock()
 	notifMock := NotificationMock{
-		ServicesCreateMock: func(services []swarm.Service, retries, interval int) error {
+		ServicesCreateMock: func(services *[]swarm.Service, retries, interval int) error {
 			return nil
 		},
 	}
@@ -122,8 +122,8 @@ func (s *ServerTestSuite) Test_ServeHTTP_InvokesNotifyServicesCreate_WhenUrlIsNo
 	actualRetries := 0
 	actualInterval := 0
 	notifMock := NotificationMock{
-		ServicesCreateMock: func(services []swarm.Service, retries, interval int) error {
-			actualServices = services
+		ServicesCreateMock: func(services *[]swarm.Service, retries, interval int) error {
+			actualServices = *services
 			actualRetries = retries
 			actualInterval = interval
 			return nil
@@ -198,24 +198,20 @@ func (m *ServicerMock) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	m.Called(w, req)
 }
 
-func (m *ServicerMock) GetServices() ([]swarm.Service, error) {
+func (m *ServicerMock) GetServices() (*[]swarm.Service, error) {
 	args := m.Called()
-	return args.Get(0).([]swarm.Service), args.Error(1)
+	s := args.Get(0).([]swarm.Service)
+	return &s, args.Error(1)
 }
 
-func (m *ServicerMock) GetNewServices(services []swarm.Service) ([]swarm.Service, error) {
+func (m *ServicerMock) GetNewServices(services *[]swarm.Service) (*[]swarm.Service, error) {
 	args := m.Called()
-	return args.Get(0).([]swarm.Service), args.Error(1)
+	return args.Get(0).(*[]swarm.Service), args.Error(1)
 }
 
-func (m *ServicerMock) NotifyServicesCreate(services []swarm.Service, retries, interval int) error {
-	args := m.Called(services, retries, interval)
-	return args.Error(0)
-}
-
-func (m *ServicerMock) NotifyServicesRemove(services []string, retries, interval int) error {
-	args := m.Called(services, retries, interval)
-	return args.Error(0)
+func (m *ServicerMock) GetRemovedServices(services *[]swarm.Service) *[]string {
+	args := m.Called(services)
+	return args.Get(0).(*[]string)
 }
 
 func getServicerMock(skipMethod string) *ServicerMock {
@@ -226,24 +222,21 @@ func getServicerMock(skipMethod string) *ServicerMock {
 	if !strings.EqualFold("GetNewServices", skipMethod) {
 		mockObj.On("GetNewServices", mock.Anything).Return([]swarm.Service{}, nil)
 	}
-	if !strings.EqualFold("NotifyServicesCreate", skipMethod) {
-		mockObj.On("NotifyServicesCreate", mock.Anything, mock.Anything, mock.Anything).Return(nil)
-	}
-	if !strings.EqualFold("NotifyServicesRemove", skipMethod) {
-		mockObj.On("NotifyServicesRemove", mock.Anything, mock.Anything, mock.Anything).Return(nil)
+	if !strings.EqualFold("GetRemovedServices", skipMethod) {
+		mockObj.On("GetRemovedServices", mock.Anything).Return(&[]string{})
 	}
 	return mockObj
 }
 
 type NotificationMock struct {
-	ServicesCreateMock func(services []swarm.Service, retries, interval int) error
-	ServicesRemoveMock func(remove []string, retries, interval int) error
+	ServicesCreateMock func(services *[]swarm.Service, retries, interval int) error
+	ServicesRemoveMock func(remove *[]string, retries, interval int) error
 }
 
-func (m NotificationMock) ServicesCreate(services []swarm.Service, retries, interval int) error {
+func (m NotificationMock) ServicesCreate(services *[]swarm.Service, retries, interval int) error {
 	return m.ServicesCreateMock(services, retries, interval)
 }
 
-func (m NotificationMock) ServicesRemove(remove []string, retries, interval int) error {
+func (m NotificationMock) ServicesRemove(remove *[]string, retries, interval int) error {
 	return m.ServicesRemoveMock(remove, retries, interval)
 }

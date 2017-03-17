@@ -24,4 +24,5 @@ func main() {
 			time.Sleep(time.Second * time.Duration(args.Interval))
 		}
 	}
+	// TODO: Add alerts
 }
