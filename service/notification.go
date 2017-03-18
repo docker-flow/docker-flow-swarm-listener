@@ -6,46 +6,24 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 	"time"
 )
 
-type Notifier interface {
-	ServicesCreate(services *[]swarm.Service, retries, interval int) error
-	ServicesRemove(services *[]string, retries, interval int) error
-}
-
 type Notification struct {
-	NotifyCreateServiceUrl []string
-	NotifyRemoveServiceUrl []string
-
+	CreateServiceAddr []string
+	RemoveServiceAddr []string
 }
 
 func NewNotification(createServiceAddr, removeServiceAddr []string) *Notification {
 	return &Notification{
-		NotifyCreateServiceUrl: createServiceAddr,
-		NotifyRemoveServiceUrl: removeServiceAddr,
+		CreateServiceAddr: createServiceAddr,
+		RemoveServiceAddr: removeServiceAddr,
 	}
 }
 
 func NewNotificationFromEnv() *Notification {
-	var createServiceAddr []string
-	var removeServiceAddr []string
-	if len(os.Getenv("DF_NOTIFY_CREATE_SERVICE_URL")) > 0 {
-		createServiceAddr = strings.Split(os.Getenv("DF_NOTIFY_CREATE_SERVICE_URL"), ",")
-	} else if len(os.Getenv("DF_NOTIF_CREATE_SERVICE_URL")) > 0 { // Deprecated since dec. 2016
-		createServiceAddr = strings.Split(os.Getenv("DF_NOTIF_CREATE_SERVICE_URL"), ",")
-	} else {
-		createServiceAddr = strings.Split(os.Getenv("DF_NOTIFICATION_URL"), ",")
-	}
-	if len(os.Getenv("DF_NOTIFY_REMOVE_SERVICE_URL")) > 0 {
-		removeServiceAddr = strings.Split(os.Getenv("DF_NOTIFY_REMOVE_SERVICE_URL"), ",")
-	} else if len(os.Getenv("DF_NOTIF_REMOVE_SERVICE_URL")) > 0 { // Deprecated since dec. 2016
-		removeServiceAddr = strings.Split(os.Getenv("DF_NOTIF_REMOVE_SERVICE_URL"), ",")
-	} else {
-		removeServiceAddr = strings.Split(os.Getenv("DF_NOTIFICATION_URL"), ",")
-	}
+	createServiceAddr, removeServiceAddr := getSenderAddressesFromEnvVars("notification", "notify", "notif")
 	return NewNotification(createServiceAddr, removeServiceAddr)
 }
 
@@ -60,7 +38,7 @@ func (m *Notification) ServicesCreate(services *[]swarm.Service, retries, interv
 					parameters.Add(strings.TrimPrefix(k, "com.df."), v)
 				}
 			}
-			for _, addr := range m.NotifyCreateServiceUrl {
+			for _, addr := range m.CreateServiceAddr {
 				urlObj, err := url.Parse(addr)
 				if err != nil {
 					logPrintf("ERROR: %s", err.Error())
@@ -106,7 +84,7 @@ func (m *Notification) ServicesRemove(remove *[]string, retries, interval int) e
 		parameters := url.Values{}
 		parameters.Add("serviceName", v)
 		parameters.Add("distribute", "true")
-		for _, addr := range m.NotifyRemoveServiceUrl {
+		for _, addr := range m.RemoveServiceAddr {
 			urlObj, err := url.Parse(addr)
 			if err != nil {
 				logPrintf("ERROR: %s", err.Error())

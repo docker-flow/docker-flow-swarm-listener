@@ -16,7 +16,7 @@ type Server interface {
 
 type Serve struct {
 	Service      service.Servicer
-	Notification service.Notifier
+	Notification service.Sender
 }
 
 func (m *Serve) Run() error {
@@ -39,9 +39,9 @@ func (m *Serve) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func NewServe(s service.Servicer, n service.Notifier) *Serve {
+func NewServe(service service.Servicer, notification service.Sender) *Serve {
 	return &Serve{
-		Service:      s,
-		Notification: n,
+		Service:      service,
+		Notification: notification,
 	}
 }

@@ -25,20 +25,20 @@ func TestNotificationUnitTestSuite(t *testing.T) {
 
 // NewNotification
 
-func (s *NotificationTestSuite) Test_NewNotification_SetsNotifyCreateUrl() {
+func (s *NotificationTestSuite) Test_NewNotification_SetsCreateUrl() {
 	expected := []string{"this-is-a-url", "this-is-a-different-url"}
 
-	n := NewNotification(expected, []string{})
+	actual := NewNotification(expected, []string{})
 
-	s.Equal(expected, n.NotifyCreateServiceUrl)
+	s.Equal(expected, actual.CreateServiceAddr)
 }
 
-func (s *NotificationTestSuite) Test_NewNotification_SetsNotifyRemoveUrl() {
+func (s *NotificationTestSuite) Test_NewNotification_SetsRemoveUrl() {
 	expected := []string{"this-is-a-url", "this-is-a-different-url"}
 
-	n := NewNotification([]string{}, expected)
+	actual := NewNotification([]string{}, expected)
 
-	s.Equal(expected, n.NotifyRemoveServiceUrl)
+	s.Equal(expected, actual.RemoveServiceAddr)
 }
 
 // NewNotificationFromEnv
@@ -56,9 +56,9 @@ func (s *NotificationTestSuite) Test_NewNotificationFromEnv_SetsNotifyCreateUrlF
 		expected := []string{"this-is-a-url", "this-is-a-different-url"}
 		os.Setenv(t.envKey, strings.Join(expected, ","))
 
-		n := NewNotificationFromEnv()
+		actual := NewNotificationFromEnv()
 
-		s.Equal(expected, n.NotifyCreateServiceUrl)
+		s.Equal(expected, actual.CreateServiceAddr)
 		os.Setenv(t.envKey, host)
 	}
 }
@@ -78,14 +78,14 @@ func (s *NotificationTestSuite) Test_NewNotificationFromEnv_SetsNotifyRemoveUrlF
 
 		n := NewNotificationFromEnv()
 
-		s.Equal(expected, n.NotifyRemoveServiceUrl, "Failed to fetch information from the env. var. %s.", t.envKey)
+		s.Equal(expected, n.RemoveServiceAddr, "Failed to fetch information from the env. var. %s.", t.envKey)
 		os.Setenv(t.envKey, host)
 	}
 }
 
-// NervicesCreate
+// ServicesCreate
 
-func (s *NotificationTestSuite) Test_NervicesCreate_SendsRequests() {
+func (s *NotificationTestSuite) Test_ServicesCreate_SendsRequests() {
 	labels := make(map[string]string)
 	labels["com.df.notify"] = "true"
 	labels["com.df.distribute"] = "true"
@@ -94,7 +94,7 @@ func (s *NotificationTestSuite) Test_NervicesCreate_SendsRequests() {
 	s.verifyNotifyServiceCreate(labels, true, fmt.Sprintf("distribute=true&serviceName=%s", "my-service"))
 }
 
-func (s *NotificationTestSuite) Test_NervicesCreate_ReturnsError_WhenUrlCannotBeParsed() {
+func (s *NotificationTestSuite) Test_ServicesCreate_ReturnsError_WhenUrlCannotBeParsed() {
 	labels := make(map[string]string)
 	labels["com.df.notify"] = "true"
 	n := NewNotification([]string{"%%%"}, []string{})
