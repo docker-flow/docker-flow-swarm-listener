@@ -86,20 +86,13 @@ func (s *AlertTestSuite) Test_NewAlertFromEnv_SetsNotifyRemoveUrlFromEnvVars() {
 // AlertCreate
 
 func (s *AlertTestSuite) Test_ServicesCreate_SendsRequests() {
-	labels := make(map[string]string)
-	labels["com.df.alert"] = "true"
-	labels["com.df.alert.name"] = "Mem"
-	spec1 := swarm.ServiceSpec{}
-	spec1.Name = "my_service-1"
-	spec1.Labels = labels
-	service1 := swarm.Service{
-		Spec: spec1,
-	}
-	services := []swarm.Service{service1}
+
 	actualMethod := ""
-	actualBody := []AlertBody{}
+	actualBody := AlertBody{}
 	expectedBody := AlertBody{
 		Name: "myservice1Mem",
+		If:   "An if statement",
+		For:  "For statement",
 	}
 	httpSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		defer r.Body.Close()
@@ -107,78 +100,142 @@ func (s *AlertTestSuite) Test_ServicesCreate_SendsRequests() {
 		body, _ := ioutil.ReadAll(r.Body)
 		alertBody := AlertBody{}
 		json.Unmarshal(body, &alertBody)
-		actualBody = append(actualBody, alertBody)
+		actualBody = alertBody
 
 	}))
-	defer func() { httpSrv.Close() }()
+	defer httpSrv.Close()
 	addr := fmt.Sprintf("%s/v1/docker-flow-proxy/reconfigure", httpSrv.URL)
 
-	l := NewAlert([]string{addr}, []string{})
-	l.ServicesCreate(&services, 0, 0)
+	actual := NewAlert([]string{addr}, []string{})
+	actual.ServicesCreate(&[]swarm.Service{s.getTestService()}, 0, 0)
 
 	s.Equal("PUT", actualMethod)
-	s.Contains(actualBody, expectedBody)
+	s.Equal(actualBody, expectedBody)
 }
 
-//func (s *AlertTestSuite) Test_ServicesCreate_ReturnsError_WhenUrlCannotBeParsed() {
-//	labels := make(map[string]string)
-//	labels["com.df.notify"] = "true"
-//	n := NewAlert([]string{"%%%"}, []string{})
-//	err := n.ServicesCreate(s.getSwarmServices(labels), 1, 0)
-//
-//	s.Error(err)
-//}
-//
-//func (s *AlertTestSuite) Test_ServicesCreate_DoesNotSendRequest_WhenDfNotifyIsNotDefined() {
-//	labels := make(map[string]string)
-//	labels["DF_key1"] = "value1"
-//
-//	s.verifyNotifyServiceCreate(labels, false, "")
-//}
-//
-//func (s *AlertTestSuite) Test_ServicesCreate_ReturnsError_WhenHttpStatusIsNot200() {
-//	httpSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-//		w.WriteHeader(http.StatusNotFound)
-//	}))
-//	labels := make(map[string]string)
-//	labels["com.df.notify"] = "true"
-//
-//	n := NewAlert([]string{httpSrv.URL}, []string{})
-//	err := n.ServicesCreate(s.getSwarmServices(labels), 1, 0)
-//
-//	s.Error(err)
-//}
-//
-//func (s *AlertTestSuite) Test_ServicesCreate_ReturnsError_WhenHttpRequestReturnsError() {
-//	labels := make(map[string]string)
-//	labels["com.df.notify"] = "true"
-//
-//	n := NewAlert([]string{"this-does-not-exist"}, []string{})
-//	err := n.ServicesCreate(s.getSwarmServices(labels), 1, 0)
-//
-//	s.Error(err)
-//}
-//
-//func (s *AlertTestSuite) Test_ServicesCreate_RetriesRequests() {
-//	attempt := 0
-//	labels := make(map[string]string)
-//	labels["com.df.notify"] = "true"
-//	httpSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-//		if attempt < 2 {
-//			w.WriteHeader(http.StatusNotFound)
-//		} else {
-//			w.WriteHeader(http.StatusOK)
-//			w.Header().Set("Content-Type", "application/json")
-//		}
-//		attempt = attempt + 1
-//	}))
-//
-//	n := NewAlert([]string{httpSrv.URL}, []string{})
-//	err := n.ServicesCreate(s.getSwarmServices(labels), 3, 0)
-//
-//	s.NoError(err)
-//}
-//
+func (s *AlertTestSuite) Test_ServicesCreate_ReturnsError_WhenUrlCannotBeParsed() {
+	actual := NewAlert([]string{"%%%"}, []string{})
+	err := actual.ServicesCreate(&[]swarm.Service{s.getTestService()}, 1, 0)
+
+	s.Error(err)
+}
+
+func (s *AlertTestSuite) Test_ServicesCreate_DoesNotSendRequest_WhenAlertNameIsNotDefined() {
+	spec1 := swarm.ServiceSpec{}
+	spec1.Name = "my_service-1"
+	spec1.Labels = map[string]string {"com.df.alert.if": "An If statement"}
+	service1 := swarm.Service{
+		Spec: spec1,
+	}
+	services := []swarm.Service{service1}
+	called := false
+	httpSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+	}))
+	defer httpSrv.Close()
+	addr := fmt.Sprintf("%s/v1/docker-flow-proxy/reconfigure", httpSrv.URL)
+
+	actual := NewAlert([]string{addr}, []string{})
+	actual.ServicesCreate(&services, 0, 0)
+
+	s.False(called)
+}
+
+func (s *AlertTestSuite) Test_ServicesCreate_DoesNotSendRequest_WhenAlertIfIsNotDefined() {
+	spec1 := swarm.ServiceSpec{}
+	spec1.Name = "my_service-1"
+	spec1.Labels = map[string]string {"com.df.alert.name": "my-alert"}
+	service1 := swarm.Service{
+		Spec: spec1,
+	}
+	services := []swarm.Service{service1}
+	called := false
+	httpSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		called = true
+	}))
+	defer httpSrv.Close()
+	addr := fmt.Sprintf("%s/v1/docker-flow-proxy/reconfigure", httpSrv.URL)
+
+	actual := NewAlert([]string{addr}, []string{})
+	actual.ServicesCreate(&services, 0, 0)
+
+	s.False(called)
+}
+
+func (s *AlertTestSuite) Test_ServicesCreate_ReturnsError_WhenHttpStatusIsNot200() {
+	httpSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+
+	actual := NewAlert([]string{httpSrv.URL}, []string{})
+	err := actual.ServicesCreate(&[]swarm.Service{s.getTestService()}, 1, 0)
+
+	s.Error(err)
+}
+
+func (s *AlertTestSuite) Test_ServicesCreate_ReturnsError_WhenHttpRequestReturnsError() {
+	actual := NewAlert([]string{"this-does-not-exist"}, []string{})
+	err := actual.ServicesCreate(&[]swarm.Service{s.getTestService()}, 1, 0)
+
+	s.Error(err)
+}
+
+func (s *AlertTestSuite) Test_ServicesCreate_RetriesRequests() {
+	attempt := 0
+	httpSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if attempt < 1 {
+			w.WriteHeader(http.StatusNotFound)
+		} else {
+			w.WriteHeader(http.StatusOK)
+			w.Header().Set("Content-Type", "application/json")
+		}
+		attempt += 1
+	}))
+	defer httpSrv.Close()
+
+	actual := NewAlert([]string{httpSrv.URL}, []string{})
+	err := actual.ServicesCreate(&[]swarm.Service{s.getTestService()}, 3, 1)
+
+	s.NoError(err)
+}
+
+func (s *AlertTestSuite) Test_ServicesCreate_SendsMultipleAlerts() {
+	spec := swarm.ServiceSpec{}
+	spec.Labels = make(map[string]string)
+	spec.Name = "my-service_1"
+	service := swarm.Service{
+		Spec: spec,
+	}
+	expectedBodies := []AlertBody{}
+	actualBodies := []AlertBody{}
+	for i := 1; i <= 2; i++ {
+		service.Spec.Labels[fmt.Sprintf("com.df.alert.%d.name", i)] = fmt.Sprintf("name-%d", i)
+		service.Spec.Labels[fmt.Sprintf("com.df.alert.%d.if", i)] = fmt.Sprintf("if-%d", i)
+		service.Spec.Labels[fmt.Sprintf("com.df.alert.%d.for", i)] = fmt.Sprintf("for-%d", i)
+		expectedBodies = append(expectedBodies, AlertBody{
+			Name: "myservice1" + service.Spec.Labels[fmt.Sprintf("com.df.alert.%d.name", i)],
+			If:   service.Spec.Labels[fmt.Sprintf("com.df.alert.%d.if", i)],
+			For:  service.Spec.Labels[fmt.Sprintf("com.df.alert.%d.for", i)],
+		})
+	}
+	httpSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		defer r.Body.Close()
+		body, _ := ioutil.ReadAll(r.Body)
+		alertBody := AlertBody{}
+		json.Unmarshal(body, &alertBody)
+		actualBodies = append(actualBodies, alertBody)
+
+	}))
+	defer httpSrv.Close()
+	addr := fmt.Sprintf("%s/v1/docker-flow-proxy/reconfigure", httpSrv.URL)
+
+	actual := NewAlert([]string{addr}, []string{})
+	actual.ServicesCreate(&[]swarm.Service{service}, 0, 0)
+
+	s.Len(actualBodies, 2)
+	s.Equal(expectedBodies, actualBodies)
+}
+
 //// ServicesRemove
 //
 //func (s *AlertTestSuite) Test_ServicesRemove_SendsRequests() {
@@ -234,21 +291,20 @@ func (s *AlertTestSuite) Test_ServicesCreate_SendsRequests() {
 //	s.NoError(err)
 //}
 //
-//// Util
-//
-//func (s *AlertTestSuite) getSwarmServices(labels map[string]string) *[]swarm.Service {
-//	ann := swarm.Annotations{
-//		Name:   "my-service",
-//		Labels: labels,
-//	}
-//	spec := swarm.ServiceSpec{
-//		Annotations: ann,
-//	}
-//	serv := swarm.Service{
-//		Spec: spec,
-//	}
-//	return &[]swarm.Service{serv}
-//}
+// Util
+
+func (s *AlertTestSuite) getTestService() swarm.Service {
+	labels := make(map[string]string)
+	labels["com.df.alert.name"] = "Mem"
+	labels["com.df.alert.if"] = "An if statement"
+	labels["com.df.alert.for"] = "For statement"
+	spec := swarm.ServiceSpec{}
+	spec.Name = "my_service-1"
+	spec.Labels = labels
+	return swarm.Service{
+		Spec: spec,
+	}
+}
 
 //func (s *AlertTestSuite) verifyNotifyServiceRemove(expectSent bool, expectQuery string) {
 //	actualSent := false

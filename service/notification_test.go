@@ -138,17 +138,17 @@ func (s *NotificationTestSuite) Test_ServicesCreate_RetriesRequests() {
 	labels := make(map[string]string)
 	labels["com.df.notify"] = "true"
 	httpSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if attempt < 2 {
+		if attempt < 1 {
 			w.WriteHeader(http.StatusNotFound)
 		} else {
 			w.WriteHeader(http.StatusOK)
 			w.Header().Set("Content-Type", "application/json")
 		}
-		attempt = attempt + 1
+		attempt += 1
 	}))
 
 	n := NewNotification([]string{httpSrv.URL}, []string{})
-	err := n.ServicesCreate(s.getSwarmServices(labels), 3, 0)
+	err := n.ServicesCreate(s.getSwarmServices(labels), 2, 1)
 
 	s.NoError(err)
 }

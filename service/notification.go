@@ -64,7 +64,7 @@ func (m *Notification) ServicesCreate(services *[]swarm.Service, retries, interv
 						} else if resp.StatusCode != http.StatusOK {
 							body, _ := ioutil.ReadAll(resp.Body)
 							msg := fmt.Errorf("Request %s returned status code %d\n%s", fullUrl, resp.StatusCode, string(body[:]))
-							logPrintf("ERROR: %s", msg)
+							logPrintf("ERROR: %s", msg.Error())
 							errs = append(errs, msg)
 						}
 					}
