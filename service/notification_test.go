@@ -18,8 +18,12 @@ type NotificationTestSuite struct {
 func TestNotificationUnitTestSuite(t *testing.T) {
 	s := new(NotificationTestSuite)
 	logPrintfOrig := logPrintf
-	defer func() { logPrintf = logPrintfOrig }()
+	defer func() {
+		logPrintf = logPrintfOrig
+		os.Unsetenv("DF_NOTIFY_LABEL")
+	}()
 	logPrintf = func(format string, v ...interface{}) {}
+	os.Setenv("DF_NOTIFY_LABEL", "com.df.notify")
 	suite.Run(t, s)
 }
 
@@ -88,6 +92,19 @@ func (s *NotificationTestSuite) Test_NewNotificationFromEnv_SetsNotifyRemoveUrlF
 func (s *NotificationTestSuite) Test_ServicesCreate_SendsRequests() {
 	labels := make(map[string]string)
 	labels["com.df.notify"] = "true"
+	labels["com.df.distribute"] = "true"
+	labels["label.without.correct.prefix"] = "something"
+
+	s.verifyNotifyServiceCreate(labels, true, fmt.Sprintf("distribute=true&serviceName=%s", "my-service"))
+}
+
+func (s *NotificationTestSuite) Test_ServicesCreate_UsesLabelFromEnvVars() {
+	notifyLabelOrig := os.Getenv("DF_NOTIFY_LABEL")
+	defer func() { os.Setenv("DF_NOTIFY_LABEL", notifyLabelOrig) }()
+	os.Setenv("DF_NOTIFY_LABEL", "com.df.something")
+
+	labels := make(map[string]string)
+	labels["com.df.something"] = "true"
 	labels["com.df.distribute"] = "true"
 	labels["label.without.correct.prefix"] = "something"
 

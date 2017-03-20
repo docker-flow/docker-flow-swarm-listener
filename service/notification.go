@@ -8,6 +8,7 @@ import (
 	"net/url"
 	"strings"
 	"time"
+	"os"
 )
 
 type Notification struct {
@@ -30,11 +31,11 @@ func NewNotificationFromEnv() *Notification {
 func (m *Notification) ServicesCreate(services *[]swarm.Service, retries, interval int) error {
 	errs := []error{}
 	for _, s := range *services {
-		if _, ok := s.Spec.Labels["com.df.notify"]; ok {
+		if _, ok := s.Spec.Labels[os.Getenv("DF_NOTIFY_LABEL")]; ok {
 			parameters := url.Values{}
 			parameters.Add("serviceName", s.Spec.Name)
 			for k, v := range s.Spec.Labels {
-				if strings.HasPrefix(k, "com.df") && k != "com.df.notify" {
+				if strings.HasPrefix(k, "com.df") && k != os.Getenv("DF_NOTIFY_LABEL") {
 					parameters.Add(strings.TrimPrefix(k, "com.df."), v)
 				}
 			}

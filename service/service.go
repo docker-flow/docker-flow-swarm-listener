@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 	"time"
+	"fmt"
 )
 
 var Services map[string]swarm.Service
@@ -28,7 +29,7 @@ type Servicer interface {
 func (m *Service) GetServices() (*[]swarm.Service, error) {
 	filter := filters.NewArgs()
 	// TODO: Add alerts filter
-	filter.Add("label", "com.df.notify=true")
+	filter.Add("label", fmt.Sprintf("%s=true", os.Getenv("DF_NOTIFY_LABEL")))
 	services, err := m.DockerClient.ServiceList(context.Background(), types.ServiceListOptions{Filters: filter})
 	if err != nil {
 		logPrintf(err.Error())

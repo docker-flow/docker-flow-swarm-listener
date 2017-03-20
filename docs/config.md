@@ -6,6 +6,7 @@ The following environment variables can be used when creating the `swarm-listene
 |-------------------|----------------------------------------------------------|-------------|-------|
 |DF_DOCKER_HOST     |Path to the Docker socket                   |unix:///var/run/docker.sock|       |
 |DF_NOTIFY_CREATE_SERVICE_URL|Comma separated list of URLs that will be used to send notification requests when a service is created.|url1,url2|
+|DF_NOTIFY_LABEL    |Label that is used to distinguish whether a service should trigger a notification|com.df.notify|com.df.notifyDev|
 |DF_NOTIFY_REMOVE_SERVICE_URL|Comma separated list of URLs that will be used to send notification requests when a service is removed.|url1,url2|
 |DF_INTERVAL        |Interval (in seconds) between service discovery requests  |5            |10     |
 |DF_RETRY           |Number of notification request retries                    |50           |100    |

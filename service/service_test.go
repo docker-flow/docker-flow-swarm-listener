@@ -19,8 +19,12 @@ func TestServiceUnitTestSuite(t *testing.T) {
 	s.serviceName = "my-service"
 
 	logPrintfOrig := logPrintf
-	defer func() { logPrintf = logPrintfOrig }()
+	defer func() {
+		logPrintf = logPrintfOrig
+		os.Unsetenv("DF_NOTIFY_LABEL")
+	}()
 	logPrintf = func(format string, v ...interface{}) {}
+	os.Setenv("DF_NOTIFY_LABEL", "com.df.notify")
 
 	createTestServices()
 	suite.Run(t, s)
