@@ -1,6 +1,7 @@
 package main
 
 import (
+	"./service"
 	"net/http"
 )
 
@@ -14,7 +15,8 @@ type Server interface {
 }
 
 type Serve struct {
-	Service Servicer
+	Service      service.Servicer
+	Notification service.Sender
 }
 
 func (m *Serve) Run() error {
@@ -29,7 +31,7 @@ func (m *Serve) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	switch req.URL.Path {
 	case "/v1/docker-flow-swarm-listener/notify-services":
 		services, _ := m.Service.GetServices()
-		go m.Service.NotifyServicesCreate(services, 10, 5)
+		go m.Notification.ServicesCreate(services, 10, 5)
 		// TODO: Add response message
 		w.WriteHeader(http.StatusOK)
 	default:
@@ -37,8 +39,9 @@ func (m *Serve) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
-func NewServe(service Servicer) *Serve {
+func NewServe(service service.Servicer, notification service.Sender) *Serve {
 	return &Serve{
-		Service: service,
+		Service:      service,
+		Notification: notification,
 	}
 }

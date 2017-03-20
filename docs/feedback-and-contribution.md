@@ -47,9 +47,11 @@ docker run --rm \
     -v $PWD:/usr/src/myapp \
     -w /usr/src/myapp \
     -v go:/go golang:1.6 \
-    bash -c "go get -d -v -t && CGO_ENABLED=0 GOOS=linux go build -v -o docker-flow-swarm-listener
+    bash -c "go get -d -v -t && CGO_ENABLED=0 GOOS=linux go build -v -o docker-flow-swarm-listener"
 
-docker image build -t $DOCKER_HUB_USER/docker-flow-swarm-listener .
+docker image build -t $DOCKER_HUB_USER/docker-flow-swarm-listener:beta .
+
+docker image push $DOCKER_HUB_USER/docker-flow-swarm-listener:beta
 ```
 
 ### Pull Request

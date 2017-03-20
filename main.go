@@ -1,25 +1,28 @@
 package main
 
 import (
+	"./service"
 	"time"
 )
 
 func main() {
 	logPrintf("Starting Docker Flow: Swarm Listener")
-	service := NewServiceFromEnv()
-	serve := NewServe(service)
+	s := service.NewServiceFromEnv()
+	n := service.NewNotificationFromEnv()
+	serve := NewServe(s, n)
 	go serve.Run()
 
 	args := GetArgs()
-	if len(service.NotifyCreateServiceUrl) > 0 {
+	if len(n.CreateServiceAddr) > 0 {
 		logPrintf("Starting iterations")
 		for {
-			allServices, _ := service.GetServices()
-			newServices, _ := service.GetNewServices(allServices)
-			service.NotifyServicesCreate(newServices, args.Retry, args.RetryInterval)
-			removedServices := service.GetRemovedServices(allServices)
-			service.NotifyServicesRemove(removedServices, args.Retry, args.RetryInterval)
+			allServices, _ := s.GetServices()
+			newServices, _ := s.GetNewServices(allServices)
+			n.ServicesCreate(newServices, args.Retry, args.RetryInterval)
+			removedServices := s.GetRemovedServices(allServices)
+			n.ServicesRemove(removedServices, args.Retry, args.RetryInterval)
 			time.Sleep(time.Second * time.Duration(args.Interval))
 		}
 	}
+	// TODO: Add alerts
 }
