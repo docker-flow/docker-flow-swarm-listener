@@ -24,6 +24,25 @@ type Servicer interface {
 	GetServices() (*[]swarm.Service, error)
 	GetNewServices(services *[]swarm.Service) (*[]swarm.Service, error)
 	GetRemovedServices(services *[]swarm.Service) *[]string
+	GetServicesParameters(services *[]swarm.Service) *[]map[string]string
+}
+
+
+func (m *Service) GetServicesParameters(services *[]swarm.Service) *[]map[string]string {
+	var parameters = []map[string]string{}
+	for _, s := range *services {
+		if _, ok := s.Spec.Labels[os.Getenv("DF_NOTIFY_LABEL")]; ok {
+			var sParams = make(map[string]string)
+			sParams["serviceName"] = s.Spec.Name
+			for k, v := range s.Spec.Labels {
+				if strings.HasPrefix(k, "com.df") && k != os.Getenv("DF_NOTIFY_LABEL") {
+					sParams[strings.TrimPrefix(k, "com.df.")] = v
+				}
+			}
+			parameters = append(parameters, sParams)
+		}
+	}
+	return &parameters
 }
 
 func (m *Service) GetServices() (*[]swarm.Service, error) {

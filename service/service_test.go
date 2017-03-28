@@ -166,6 +166,34 @@ func (s *ServiceTestSuite) Test_GetRemovedServices_ReturnsNamesOfRemovedServices
 	s.Contains(*actual, "removed-service-2")
 }
 
+// GetServicesParameters
+
+func (s *ServiceTestSuite) Test_GetRemovedServices_GetServicesParameters() {
+	service := NewService("unix:///var/run/docker.sock")
+	srvs := []swarm.Service{
+		{
+			Spec: swarm.ServiceSpec{
+				Annotations: swarm.Annotations{
+					Name: "demo",
+					Labels: map[string]string{
+						"com.df.notify":      "true",
+						"com.df.servicePath": "/demo",
+						"com.df.distribute":  "true",
+
+					},
+				},
+			},
+		},
+	}
+	paramsList := service.GetServicesParameters(&srvs)
+	expected := []map[string]string{
+		{"serviceName":        "demo",
+			"servicePath": "/demo",
+			"distribute":  "true", },
+	}
+	s.Equal(&expected, paramsList)
+}
+
 // NewService
 
 func (s *ServiceTestSuite) Test_NewService_SetsHost() {

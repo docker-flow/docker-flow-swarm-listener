@@ -10,6 +10,7 @@ import (
 	"strings"
 	"testing"
 	"time"
+	"encoding/json"
 )
 
 type ServerTestSuite struct {
@@ -94,6 +95,33 @@ func (s *ServerTestSuite) Test_ServeHTTP_ReturnsStatusOK_WhenUrlIsNotifyServices
 	rw.AssertCalled(s.T(), "WriteHeader", 200)
 }
 
+func (s *ServerTestSuite) Test_ServeHTTP_ReturnsStatusOK_WhenUrlIsGetServices() {
+
+	servicerMock := getServicerMock("GetServicesParameters")
+	mapParam := []map[string]string{
+		{"serviceName":        "demo",
+			"notify":      "true",
+			"servicePath": "/demo",
+			"distribute":  "true", },
+	}
+	servicerMock.On("GetServicesParameters",mock.Anything).Return(&mapParam)
+	req, _ := http.NewRequest("GET", "/v1/docker-flow-swarm-listener/get-services", nil)
+	rw := getResponseWriterMock()
+	notifMock := NotificationMock{}
+	srv := NewServe(servicerMock, notifMock)
+	srv.ServeHTTP(rw, req)
+
+	rw.AssertCalled(s.T(), "WriteHeader", 200)
+	//rw.Called(s.T(), "Write", mock.Anything)
+
+	call := rw.GetLastMethodCall("Write")
+	value, _ := call.Arguments.Get(0).([]byte)
+	rsp := []map[string]string{}
+	json.Unmarshal(value, &rsp)
+	s.Equal(&mapParam, &rsp)
+
+}
+
 func (s *ServerTestSuite) Test_ServeHTTP_ReturnsStatusNotFound_WhenUrlIsUnknown() {
 	var actual string
 	httpWriterSetContentType = func(w http.ResponseWriter, value string) {
@@ -163,6 +191,15 @@ type ResponseWriterMock struct {
 	mock.Mock
 }
 
+func (m *ResponseWriterMock) GetLastMethodCall(methodName string) *mock.Call {
+	for _, call := range m.Calls {
+		if call.Method == methodName {
+			return &call
+		}
+	}
+	return nil
+}
+
 func (m *ResponseWriterMock) Header() http.Header {
 	m.Called()
 	return make(map[string][]string)
@@ -214,6 +251,11 @@ func (m *ServicerMock) GetRemovedServices(services *[]swarm.Service) *[]string {
 	return args.Get(0).(*[]string)
 }
 
+func (m *ServicerMock) GetServicesParameters(services *[]swarm.Service) *[]map[string]string {
+	args := m.Called(services)
+	return args.Get(0).(*[]map[string]string)
+}
+
 func getServicerMock(skipMethod string) *ServicerMock {
 	mockObj := new(ServicerMock)
 	if !strings.EqualFold("GetServices", skipMethod) {
@@ -224,6 +266,9 @@ func getServicerMock(skipMethod string) *ServicerMock {
 	}
 	if !strings.EqualFold("GetRemovedServices", skipMethod) {
 		mockObj.On("GetRemovedServices", mock.Anything).Return(&[]string{})
+	}
+	if !strings.EqualFold("GetServicesParameters", skipMethod) {
+		mockObj.On("GetServicesParameters", mock.Anything).Return(&[]map[string]string{})
 	}
 	return mockObj
 }
