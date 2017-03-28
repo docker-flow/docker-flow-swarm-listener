@@ -2,6 +2,7 @@ package main
 
 import (
 	"./service"
+	"encoding/json"
 	"net/http"
 )
 
@@ -34,6 +35,17 @@ func (m *Serve) ServeHTTP(w http.ResponseWriter, req *http.Request) {
 		go m.Notification.ServicesCreate(services, 10, 5)
 		// TODO: Add response message
 		w.WriteHeader(http.StatusOK)
+	case "/v1/docker-flow-swarm-listener/get-services":
+		services, _ := m.Service.GetServices()
+		parameters := m.Service.GetServicesParameters(services)
+		bytes, error := json.Marshal(parameters)
+		if error != nil {
+			logPrintf("ERROR: Unable to prepare response: %s", error)
+			w.WriteHeader(http.StatusInternalServerError)
+		} else {
+			w.Write(bytes)
+			w.WriteHeader(http.StatusOK)
+		}
 	default:
 		w.WriteHeader(http.StatusNotFound)
 	}
