@@ -140,6 +140,19 @@ func (s *NotificationTestSuite) Test_ServicesCreate_ReturnsError_WhenHttpStatusI
 	s.Error(err)
 }
 
+func (s *NotificationTestSuite) Test_ServicesCreate_DoesNotReturnError_WhenHttpStatusIs409() {
+	httpSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusConflict)
+	}))
+	labels := make(map[string]string)
+	labels["com.df.notify"] = "true"
+
+	n := NewNotification([]string{httpSrv.URL}, []string{})
+	err := n.ServicesCreate(s.getSwarmServices(labels), 1, 0)
+
+	s.NoError(err)
+}
+
 func (s *NotificationTestSuite) Test_ServicesCreate_ReturnsError_WhenHttpRequestReturnsError() {
 	labels := make(map[string]string)
 	labels["com.df.notify"] = "true"
