@@ -51,7 +51,7 @@ func (m *Notification) ServicesCreate(services *[]swarm.Service, retries, interv
 				logPrintf("Sending service created notification to %s", fullUrl)
 				for i := 1; i <= retries; i++ {
 					resp, err := http.Get(fullUrl)
-					if err == nil && resp.StatusCode == http.StatusOK {
+					if err == nil && (resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusConflict) {
 						break
 					} else if i < retries {
 						if interval > 0 {
