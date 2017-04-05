@@ -29,57 +29,57 @@ func NewNotificationFromEnv() *Notification {
 }
 
 func (m *Notification) ServicesCreate(services *[]swarm.Service, retries, interval int) error {
-	errs := []error{}
 	for _, s := range *services {
 		if _, ok := s.Spec.Labels[os.Getenv("DF_NOTIFY_LABEL")]; ok {
-			parameters := url.Values{}
-			parameters.Add("serviceName", s.Spec.Name)
+			params := url.Values{}
+			params.Add("serviceName", s.Spec.Name)
 			for k, v := range s.Spec.Labels {
 				if strings.HasPrefix(k, "com.df") && k != os.Getenv("DF_NOTIFY_LABEL") {
-					parameters.Add(strings.TrimPrefix(k, "com.df."), v)
+					params.Add(strings.TrimPrefix(k, "com.df."), v)
 				}
 			}
 			for _, addr := range m.CreateServiceAddr {
-				urlObj, err := url.Parse(addr)
+				go func() {
+					m.sendCreateServiceRequest(addr, params, retries, interval)
+				}()
+			}
+		}
+	}
+	return nil
+}
+
+func (m *Notification) sendCreateServiceRequest(addr string, params url.Values, retries, interval int) {
+	urlObj, err := url.Parse(addr)
+	if err != nil {
+		logPrintf("ERROR: %s", err.Error())
+		return
+	} else {
+		urlObj.RawQuery = params.Encode()
+		fullUrl := urlObj.String()
+		logPrintf("Sending service created notification to %s", fullUrl)
+		for i := 1; i <= retries; i++ {
+			resp, err := http.Get(fullUrl)
+			if err == nil && (resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusConflict) {
+				break
+			} else if i < retries {
+				if interval > 0 {
+					t := time.NewTicker(time.Second * time.Duration(interval))
+					<-t.C
+				}
+			} else {
 				if err != nil {
 					logPrintf("ERROR: %s", err.Error())
-					errs = append(errs, err)
-					break
-				}
-				urlObj.RawQuery = parameters.Encode()
-				fullUrl := urlObj.String()
-				logPrintf("Sending service created notification to %s", fullUrl)
-				for i := 1; i <= retries; i++ {
-					resp, err := http.Get(fullUrl)
-					if err == nil && (resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusConflict) {
-						break
-					} else if i < retries {
-						if interval > 0 {
-							t := time.NewTicker(time.Second * time.Duration(interval))
-							<-t.C
-						}
-					} else {
-						if err != nil {
-							logPrintf("ERROR: %s", err.Error())
-							errs = append(errs, err)
-						} else if resp.StatusCode == http.StatusConflict {
-							body, _ := ioutil.ReadAll(resp.Body)
-							logPrintf(fmt.Sprintf("Request %s returned status code %d\n%s", fullUrl, resp.StatusCode, string(body[:])))
-						} else if resp.StatusCode != http.StatusOK {
-							body, _ := ioutil.ReadAll(resp.Body)
-							msg := fmt.Errorf("Request %s returned status code %d\n%s", fullUrl, resp.StatusCode, string(body[:]))
-							logPrintf("ERROR: %s", msg.Error())
-							errs = append(errs, msg)
-						}
-					}
+				} else if resp.StatusCode == http.StatusConflict {
+					body, _ := ioutil.ReadAll(resp.Body)
+					logPrintf(fmt.Sprintf("Request %s returned status code %d\n%s", fullUrl, resp.StatusCode, string(body[:])))
+				} else if resp.StatusCode != http.StatusOK {
+					body, _ := ioutil.ReadAll(resp.Body)
+					msg := fmt.Errorf("Request %s returned status code %d\n%s", fullUrl, resp.StatusCode, string(body[:]))
+					logPrintf("ERROR: %s", msg.Error())
 				}
 			}
 		}
 	}
-	if len(errs) > 0 {
-		return fmt.Errorf("At least one request produced errors. Please consult logs for more details.")
-	}
-	return nil
 }
 
 func (m *Notification) ServicesRemove(remove *[]string, retries, interval int) error {

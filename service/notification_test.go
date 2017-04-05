@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 	"testing"
+	"time"
 )
 
 type NotificationTestSuite struct {
@@ -111,13 +112,26 @@ func (s *NotificationTestSuite) Test_ServicesCreate_UsesLabelFromEnvVars() {
 	s.verifyNotifyServiceCreate(labels, true, fmt.Sprintf("distribute=true&serviceName=%s", "my-service"))
 }
 
-func (s *NotificationTestSuite) Test_ServicesCreate_ReturnsError_WhenUrlCannotBeParsed() {
+func (s *NotificationTestSuite) Test_ServicesCreate_LogsError_WhenUrlCannotBeParsed() {
 	labels := make(map[string]string)
 	labels["com.df.notify"] = "true"
-	n := NewNotification([]string{"%%%"}, []string{})
-	err := n.ServicesCreate(s.getSwarmServices(labels), 1, 0)
+	msg := ""
+	logPrintfOrig := logPrintf
+	defer func(){ logPrintf = logPrintfOrig }()
+	logPrintf = func(format string, v ...interface{}) {
+		msg = format
+	}
 
-	s.Error(err)
+	n := NewNotification([]string{"%%%"}, []string{})
+	n.ServicesCreate(s.getSwarmServices(labels), 1, 0)
+
+	for i:=0; i < 100; i++ {
+		if strings.HasPrefix(msg, "ERROR") {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	s.True(strings.HasPrefix(msg, "ERROR"))
 }
 
 func (s *NotificationTestSuite) Test_ServicesCreate_DoesNotSendRequest_WhenDfNotifyIsNotDefined() {
@@ -127,17 +141,29 @@ func (s *NotificationTestSuite) Test_ServicesCreate_DoesNotSendRequest_WhenDfNot
 	s.verifyNotifyServiceCreate(labels, false, "")
 }
 
-func (s *NotificationTestSuite) Test_ServicesCreate_ReturnsError_WhenHttpStatusIsNot200() {
+func (s *NotificationTestSuite) Test_ServicesCreate_LogsError_WhenHttpStatusIsNot200() {
 	httpSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 	}))
 	labels := make(map[string]string)
 	labels["com.df.notify"] = "true"
+	msg := ""
+	logPrintfOrig := logPrintf
+	defer func(){ logPrintf = logPrintfOrig }()
+	logPrintf = func(format string, v ...interface{}) {
+		msg = format
+	}
 
 	n := NewNotification([]string{httpSrv.URL}, []string{})
-	err := n.ServicesCreate(s.getSwarmServices(labels), 1, 0)
+	n.ServicesCreate(s.getSwarmServices(labels), 1, 0)
 
-	s.Error(err)
+	for i:=0; i < 100; i++ {
+		if strings.HasPrefix(msg, "ERROR") {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	s.True(strings.HasPrefix(msg, "ERROR"))
 }
 
 func (s *NotificationTestSuite) Test_ServicesCreate_DoesNotReturnError_WhenHttpStatusIs409() {
@@ -153,14 +179,26 @@ func (s *NotificationTestSuite) Test_ServicesCreate_DoesNotReturnError_WhenHttpS
 	s.NoError(err)
 }
 
-func (s *NotificationTestSuite) Test_ServicesCreate_ReturnsError_WhenHttpRequestReturnsError() {
+func (s *NotificationTestSuite) Test_ServicesCreate_LogsError_WhenHttpRequestReturnsError() {
 	labels := make(map[string]string)
 	labels["com.df.notify"] = "true"
+	logPrintfOrig := logPrintf
+	defer func(){ logPrintf = logPrintfOrig }()
+	msg := ""
+	logPrintf = func(format string, v ...interface{}) {
+		msg = format
+	}
 
 	n := NewNotification([]string{"this-does-not-exist"}, []string{})
-	err := n.ServicesCreate(s.getSwarmServices(labels), 1, 0)
+	n.ServicesCreate(s.getSwarmServices(labels), 1, 0)
 
-	s.Error(err)
+	for i:=0; i < 100; i++ {
+		if strings.HasPrefix(msg, "ERROR") {
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	s.True(strings.HasPrefix(msg, "ERROR"))
 }
 
 func (s *NotificationTestSuite) Test_ServicesCreate_RetriesRequests() {
@@ -275,12 +313,16 @@ func (s *NotificationTestSuite) verifyNotifyServiceCreate(labels map[string]stri
 	url := fmt.Sprintf("%s/v1/docker-flow-proxy/reconfigure", httpSrv.URL)
 
 	n := NewNotification([]string{url}, []string{})
-	err := n.ServicesCreate(s.getSwarmServices(labels), 1, 0)
-
-	s.NoError(err)
-	s.Equal(expectSent, actualSent)
-	if expectSent {
-		s.Equal(expectQuery, actualQuery)
+	var err error
+	for i:=0; i<100; i++ {
+		time.Sleep(10 * time.Millisecond)
+		if err = n.ServicesCreate(s.getSwarmServices(labels), 1, 0); err == nil && expectSent == actualSent {
+			if expectSent {
+				s.Equal(expectQuery, actualQuery)
+			}
+		} else {
+			break
+		}
 	}
 }
 
