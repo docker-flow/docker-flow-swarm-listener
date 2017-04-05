@@ -39,9 +39,7 @@ func (m *Notification) ServicesCreate(services *[]swarm.Service, retries, interv
 				}
 			}
 			for _, addr := range m.CreateServiceAddr {
-				go func() {
-					m.sendCreateServiceRequest(addr, params, retries, interval)
-				}()
+				go m.sendCreateServiceRequest(addr, params, retries, interval)
 			}
 		}
 	}

@@ -96,7 +96,57 @@ func (s *NotificationTestSuite) Test_ServicesCreate_SendsRequests() {
 	labels["com.df.distribute"] = "true"
 	labels["label.without.correct.prefix"] = "something"
 
-	s.verifyNotifyServiceCreate(labels, true, fmt.Sprintf("distribute=true&serviceName=%s", "my-service"))
+//	s.verifyNotifyServiceCreate(labels, true, fmt.Sprintf("distribute=true&serviceName=%s", "my-service"))
+
+	actualSent1 := false
+	actualSent2 := false
+	actualQuery1 := ""
+	actualQuery2 := ""
+	httpSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		actualPath := r.URL.Path
+		if r.Method == "GET" {
+			switch actualPath {
+			case "/v1/docker-flow-proxy/reconfigure":
+				w.WriteHeader(http.StatusOK)
+				w.Header().Set("Content-Type", "application/json")
+				actualQuery1 = r.URL.RawQuery
+				actualSent1 = true
+			case "/something/else":
+				w.WriteHeader(http.StatusOK)
+				w.Header().Set("Content-Type", "application/json")
+				actualQuery2 = r.URL.RawQuery
+				actualSent2 = true
+			default:
+				w.WriteHeader(http.StatusNotFound)
+			}
+		}
+	}))
+	defer func() { httpSrv.Close() }()
+	url1 := fmt.Sprintf("%s/v1/docker-flow-proxy/reconfigure", httpSrv.URL)
+	url2 := fmt.Sprintf("%s/something/else", httpSrv.URL)
+
+	n := NewNotification([]string{url1, url2}, []string{})
+	n.ServicesCreate(s.getSwarmServices(labels), 1, 0)
+	passed := false
+	for i := 0; i < 100; i++ {
+		if actualSent1 {
+			s.Equal("distribute=true&serviceName=my-service", actualQuery1)
+			passed = true
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	s.True(passed)
+	passed = false
+	for i := 0; i < 100; i++ {
+		if actualSent2 {
+			s.Equal("distribute=true&serviceName=my-service", actualQuery2)
+			passed = true
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	s.True(passed)
 }
 
 func (s *NotificationTestSuite) Test_ServicesCreate_UsesLabelFromEnvVars() {
@@ -132,13 +182,6 @@ func (s *NotificationTestSuite) Test_ServicesCreate_LogsError_WhenUrlCannotBePar
 		time.Sleep(10 * time.Millisecond)
 	}
 	s.True(strings.HasPrefix(msg, "ERROR"))
-}
-
-func (s *NotificationTestSuite) Test_ServicesCreate_DoesNotSendRequest_WhenDfNotifyIsNotDefined() {
-	labels := make(map[string]string)
-	labels["DF_key1"] = "value1"
-
-	s.verifyNotifyServiceCreate(labels, false, "")
 }
 
 func (s *NotificationTestSuite) Test_ServicesCreate_LogsError_WhenHttpStatusIsNot200() {
@@ -313,17 +356,18 @@ func (s *NotificationTestSuite) verifyNotifyServiceCreate(labels map[string]stri
 	url := fmt.Sprintf("%s/v1/docker-flow-proxy/reconfigure", httpSrv.URL)
 
 	n := NewNotification([]string{url}, []string{})
-	var err error
-	for i:=0; i<100; i++ {
-		time.Sleep(10 * time.Millisecond)
-		if err = n.ServicesCreate(s.getSwarmServices(labels), 1, 0); err == nil && expectSent == actualSent {
-			if expectSent {
-				s.Equal(expectQuery, actualQuery)
-			}
-		} else {
+	n.ServicesCreate(s.getSwarmServices(labels), 1, 0)
+
+	passed := false
+	for i := 0; i < 100; i++ {
+		if actualSent {
+			s.Equal(expectQuery, actualQuery)
+			passed = true
 			break
 		}
+		time.Sleep(10 * time.Millisecond)
 	}
+	s.True(passed)
 }
 
 func (s *NotificationTestSuite) verifyNotifyServiceRemove(expectSent bool, expectQuery string) {
