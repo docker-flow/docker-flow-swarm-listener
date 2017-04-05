@@ -60,6 +60,7 @@ func (m *Notification) sendCreateServiceRequest(addr string, params url.Values, 
 			if err == nil && (resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusConflict) {
 				break
 			} else if i < retries {
+				logPrintf("Retrying service created notification to %s", fullUrl)
 				if interval > 0 {
 					t := time.NewTicker(time.Second * time.Duration(interval))
 					<-t.C
