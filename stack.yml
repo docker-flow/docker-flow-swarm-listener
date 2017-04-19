@@ -3,7 +3,7 @@ version: "3"
 services:
 
   swarm-listener:
-    image: vfarcic/docker-flow-swarm-listener
+    image: vfarcic/docker-flow-swarm-listener:{TAG:-latest}
     networks:
       - proxy
     volumes:
@@ -19,7 +19,7 @@ services:
           memory: 50M
 
   docs:
-    image: vfarcic/docker-flow-swarm-listener-docs
+    image: vfarcic/docker-flow-swarm-listener-docs:{TAG:-latest}
     networks:
       - proxy
     deploy:
