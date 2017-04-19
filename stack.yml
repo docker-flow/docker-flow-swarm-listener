@@ -14,6 +14,9 @@ services:
     deploy:
       placement:
         constraints: [node.role == manager]
+      resources:
+        reservations:
+          memory: 50M
 
   docs:
     image: vfarcic/docker-flow-swarm-listener-docs
@@ -27,6 +30,9 @@ services:
         - com.df.serviceDomain=swarmlistener.dockerflow.com,sl.dockerflow.com
         - com.df.servicePath=/
       replicas: 2
+      resources:
+        reservations:
+          memory: 50M
 
 networks:
   proxy:
