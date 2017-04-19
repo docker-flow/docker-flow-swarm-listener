@@ -11,7 +11,7 @@ pipeline {
         sh 'docker tag vfarcic/docker-flow-swarm-listener vfarcic/docker-flow-swarm-listener:beta'
         sh "docker login -u ${env.DOCKER_USERNAME} -p ${env.DOCKER_PASSWORD}"
         sh 'docker push vfarcic/docker-flow-swarm-listener:beta'
-        sh "docker tag vfarcic/docker-flow-swarm-listener vfarcic/docker-flow-swarm-listener:2.${env.BUILD_NUMBER}"
+        sh "docker tag vfarcic/docker-flow-swarm-listener vfarcic/docker-flow-swarm-listener:beta.2.${env.BUILD_NUMBER}"
         sh "docker push vfarcic/docker-flow-swarm-listener:beta.2.${env.BUILD_NUMBER}"
         // sh 'docker push vfarcic/docker-flow-swarm-listener'
         stash name: "stack", includes: "stack.yml"
@@ -21,7 +21,7 @@ pipeline {
       steps {
         sh 'docker run -t -v $PWD:/docs cilerler/mkdocs bash -c "pip install pygments && pip install pymdown-extensions && mkdocs build"'
         sh 'docker build -t vfarcic/docker-flow-swarm-listener-docs -f Dockerfile.docs .'
-        sh "docker tag vfarcic/docker-flow-swarm-listener-docs vfarcic/docker-flow-swarm-listener-docs:2.${env.BUILD_NUMBER}"
+        sh "docker tag vfarcic/docker-flow-swarm-listener-docs vfarcic/docker-flow-swarm-listener-docs:beta.2.${env.BUILD_NUMBER}"
         sh "docker push vfarcic/docker-flow-swarm-listener-docs:beta.2.${env.BUILD_NUMBER}"
         // sh 'docker push vfarcic/docker-flow-swarm-listener-docs'
       }
@@ -32,7 +32,7 @@ pipeline {
       }
       steps {
         unstash "stack"
-        sh 'TAG=beta.2.${env.BUILD_NUMBER} docker stack deploy -c swarm-listener.yml swarm-listener'
+        sh "TAG=beta.2.${env.BUILD_NUMBER} docker stack deploy -c stack.yml swarm-listener"
       }
     }
   }
