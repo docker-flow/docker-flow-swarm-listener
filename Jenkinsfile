@@ -5,7 +5,6 @@ pipeline {
   stages {
     stage("build-proxy") {
       steps {
-        git "https://github.com/vfarcic/docker-flow-swarm-listener.git"
         sh 'docker run --rm -v $PWD:/usr/src/myapp -w /usr/src/myapp -v go:/go golang:1.6 bash -c "go get -d -v -t && CGO_ENABLED=0 GOOS=linux go build -v -o docker-flow-swarm-listener"'
         sh 'docker build -t vfarcic/docker-flow-swarm-listener .'
         sh 'docker tag vfarcic/docker-flow-swarm-listener vfarcic/docker-flow-swarm-listener:beta'
