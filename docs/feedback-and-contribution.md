@@ -46,7 +46,7 @@ export DOCKER_HUB_USER=[...] # Change to your user in hub.docker.com
 docker run --rm \
     -v $PWD:/usr/src/myapp \
     -w /usr/src/myapp \
-    -v go:/go golang:1.6 \
+    -v go:/go golang:1.7 \
     bash -c "go get -d -v -t && CGO_ENABLED=0 GOOS=linux go build -v -o docker-flow-swarm-listener"
 
 docker image build -t $DOCKER_HUB_USER/docker-flow-swarm-listener:beta .
