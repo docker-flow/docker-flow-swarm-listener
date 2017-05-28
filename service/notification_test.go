@@ -264,6 +264,26 @@ func (s *NotificationTestSuite) Test_ServicesCreate_RetriesRequests() {
 	s.NoError(err)
 }
 
+func (s *NotificationTestSuite) Test_ServicesCreate_StopsSendingNotifications_WhenServiceIsRemoved() {
+	attempt := 0
+	labels := make(map[string]string)
+	labels["com.df.notify"] = "true"
+	httpSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+		attempt++
+		println(attempt)
+		if attempt == 1 {
+			delete(Services, "my-service")
+		}
+	}))
+
+	n := NewNotification([]string{httpSrv.URL}, []string{})
+	n.ServicesCreate(s.getSwarmServices(labels), 5, 0)
+
+	time.Sleep(2 * time.Millisecond)
+	s.Equal(1, attempt)
+}
+
 // ServicesRemove
 
 func (s *NotificationTestSuite) Test_ServicesRemove_SendsRequests() {
@@ -329,10 +349,12 @@ func (s *NotificationTestSuite) getSwarmServices(labels map[string]string) *[]sw
 	spec := swarm.ServiceSpec{
 		Annotations: ann,
 	}
-	serv := swarm.Service{
+	srv := swarm.Service{
 		Spec: spec,
 	}
-	return &[]swarm.Service{serv}
+	Services = map[string]swarm.Service{}
+	Services[ann.Name] = srv
+	return &[]swarm.Service{srv}
 }
 
 func (s *NotificationTestSuite) verifyNotifyServiceCreate(labels map[string]string, expectSent bool, expectQuery string) {

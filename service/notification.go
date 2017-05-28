@@ -39,14 +39,14 @@ func (m *Notification) ServicesCreate(services *[]swarm.Service, retries, interv
 				}
 			}
 			for _, addr := range m.CreateServiceAddr {
-				go m.sendCreateServiceRequest(addr, params, retries, interval)
+				go m.sendCreateServiceRequest(s.Spec.Name, addr, params, retries, interval)
 			}
 		}
 	}
 	return nil
 }
 
-func (m *Notification) sendCreateServiceRequest(addr string, params url.Values, retries, interval int) {
+func (m *Notification) sendCreateServiceRequest(serviceName, addr string, params url.Values, retries, interval int) {
 	urlObj, err := url.Parse(addr)
 	if err != nil {
 		logPrintf("ERROR: %s", err.Error())
@@ -56,6 +56,10 @@ func (m *Notification) sendCreateServiceRequest(addr string, params url.Values, 
 		fullUrl := urlObj.String()
 		logPrintf("Sending service created notification to %s", fullUrl)
 		for i := 1; i <= retries; i++ {
+			if _, ok := Services[serviceName]; !ok {
+				logPrintf("Service %s was removed. Service created notifications are stopped.", serviceName)
+				break
+			}
 			resp, err := http.Get(fullUrl)
 			if err == nil && (resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusConflict) {
 				break
