@@ -12,6 +12,12 @@ services:
       - DF_NOTIFY_CREATE_SERVICE_URL=http://proxy:8080/v1/docker-flow-proxy/reconfigure
       - DF_NOTIFY_REMOVE_SERVICE_URL=http://proxy:8080/v1/docker-flow-proxy/remove
     deploy:
+      labels:
+        - com.df.notify=true
+        - com.df.distribute=true
+        - com.df.alertName=memlimit
+        - com.df.alertIf=@service_mem_limit:0.8
+        - com.df.alertFor=30s
       placement:
         constraints: [node.role == manager]
       resources:
@@ -31,6 +37,9 @@ services:
         - com.df.port=80
         - com.df.serviceDomain=swarmlistener.dockerflow.com,sl.dockerflow.com
         - com.df.servicePath=/
+        - com.df.alertName=memlimit
+        - com.df.alertIf=@service_mem_limit:0.8
+        - com.df.alertFor=30s
       replicas: 2
       resources:
         reservations:
