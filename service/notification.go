@@ -81,6 +81,7 @@ func (m *Notification) sendCreateServiceRequest(serviceName, addr string, params
 					logPrintf("ERROR: %s", msg.Error())
 				}
 			}
+
 			resp.Body.Close()
 		}
 	}
