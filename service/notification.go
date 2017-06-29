@@ -81,8 +81,9 @@ func (m *Notification) sendCreateServiceRequest(serviceName, addr string, params
 					logPrintf("ERROR: %s", msg.Error())
 				}
 			}
-
-			resp.Body.Close()
+			if resp != nil && resp.Body != nil {
+				resp.Body.Close()
+			}
 		}
 	}
 }
@@ -123,7 +124,9 @@ func (m *Notification) ServicesRemove(remove *[]string, retries, interval int) e
 						errs = append(errs, msg)
 					}
 				}
-				resp.Body.Close()
+				if resp != nil && resp.Body != nil {
+					resp.Body.Close()
+				}
 			}
 		}
 	}

@@ -314,6 +314,7 @@ func (s *NotificationTestSuite) Test_ServicesRemove_ReturnsError_WhenHttpStatusI
 func (s *NotificationTestSuite) Test_ServicesRemove_ReturnsError_WhenHttpRequestReturnsError() {
 	Services = make(map[string]swarm.Service)
 	n := NewNotification([]string{}, []string{"this-does-not-exist"})
+	println("000")
 	err := n.ServicesRemove(&[]string{"my-removed-service-1"}, 1, 0)
 
 	s.Error(err)
