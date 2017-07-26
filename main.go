@@ -19,24 +19,22 @@ func main() {
 		logPrintf("Starting iterations")
 		for {
 			allServices, err := s.GetServices()
-			recordWhenError("GetServices", err)
+			if err != nil { recordError("GetServices") }
 			newServices, err := s.GetNewServices(allServices)
-			recordWhenError("GetNewServices", err)
+			if err != nil { recordError("GetNewServices") }
 			err = n.ServicesCreate(newServices, args.Retry, args.RetryInterval)
-			recordWhenError("ServicesCreate", err)
+			if err != nil { recordError("ServicesCreate") }
 			removedServices := s.GetRemovedServices(allServices)
 			err = n.ServicesRemove(removedServices, args.Retry, args.RetryInterval)
-			recordWhenError("ServicesRemove", err)
+			if err != nil { recordError("ServicesRemove") }
 			time.Sleep(time.Second * time.Duration(args.Interval))
 		}
 	}
 }
 
-func recordWhenError(operation string, err error) {
-	if err != nil {
-		metrics.ErrorCounter.With(prometheus.Labels{
-			"service":   metrics.ServiceName,
-			"operation": operation,
-		}).Inc()
-	}
+func recordError(operation string) {
+	metrics.ErrorCounter.With(prometheus.Labels{
+		"service":   metrics.ServiceName,
+		"operation": operation,
+	}).Inc()
 }
