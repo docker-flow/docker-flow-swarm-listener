@@ -56,9 +56,9 @@ func (s *ServerTestSuite) Test_Run_ReturnsError_WhenHTTPListenAndServeFails() {
 	s.Error(actual)
 }
 
-// ServeHTTP
+// NotifyServices
 
-func (s *ServerTestSuite) Test_ServeHTTP_SetsContentTypeToJSON_WhenUrlIsNotifyServices() {
+func (s *ServerTestSuite) Test_NotifyServices_SetsContentTypeToJSON() {
 	var actual string
 	httpWriterSetContentType = func(w http.ResponseWriter, value string) {
 		actual = value
@@ -71,73 +71,12 @@ func (s *ServerTestSuite) Test_ServeHTTP_SetsContentTypeToJSON_WhenUrlIsNotifySe
 	}
 
 	srv := NewServe(getServicerMock(""), notifMock)
-	srv.ServeHTTP(getResponseWriterMock(), req)
+	srv.NotifyServices(getResponseWriterMock(), req)
 
 	s.Equal("application/json", actual)
 }
 
-func (s *ServerTestSuite) Test_ServeHTTP_ReturnsStatusOK_WhenUrlIsNotifyServices() {
-	var actual string
-	httpWriterSetContentType = func(w http.ResponseWriter, value string) {
-		actual = value
-	}
-	req, _ := http.NewRequest("GET", "/v1/docker-flow-swarm-listener/notify-services", nil)
-	rw := getResponseWriterMock()
-	notifMock := NotificationMock{
-		ServicesCreateMock: func(services *[]swarm.Service, retries, interval int) error {
-			return nil
-		},
-	}
-
-	srv := NewServe(getServicerMock(""), notifMock)
-	srv.ServeHTTP(rw, req)
-
-	rw.AssertCalled(s.T(), "WriteHeader", 200)
-}
-
-func (s *ServerTestSuite) Test_ServeHTTP_ReturnsStatusOK_WhenUrlIsGetServices() {
-
-	servicerMock := getServicerMock("GetServicesParameters")
-	mapParam := []map[string]string{
-		{"serviceName":        "demo",
-			"notify":      "true",
-			"servicePath": "/demo",
-			"distribute":  "true", },
-	}
-	servicerMock.On("GetServicesParameters",mock.Anything).Return(&mapParam)
-	req, _ := http.NewRequest("GET", "/v1/docker-flow-swarm-listener/get-services", nil)
-	rw := getResponseWriterMock()
-	notifMock := NotificationMock{}
-	srv := NewServe(servicerMock, notifMock)
-	srv.ServeHTTP(rw, req)
-
-	rw.AssertCalled(s.T(), "WriteHeader", 200)
-	//rw.Called(s.T(), "Write", mock.Anything)
-
-	call := rw.GetLastMethodCall("Write")
-	value, _ := call.Arguments.Get(0).([]byte)
-	rsp := []map[string]string{}
-	json.Unmarshal(value, &rsp)
-	s.Equal(&mapParam, &rsp)
-
-}
-
-func (s *ServerTestSuite) Test_ServeHTTP_ReturnsStatusNotFound_WhenUrlIsUnknown() {
-	var actual string
-	httpWriterSetContentType = func(w http.ResponseWriter, value string) {
-		actual = value
-	}
-	req, _ := http.NewRequest("GET", "/v1/docker-flow-swarm-listener/this-api-does-not-exist", nil)
-	rw := getResponseWriterMock()
-	notifMock := NotificationMock{}
-
-	srv := NewServe(getServicerMock(""), notifMock)
-	srv.ServeHTTP(rw, req)
-
-	rw.AssertCalled(s.T(), "WriteHeader", 404)
-}
-
-func (s *ServerTestSuite) Test_ServeHTTP_InvokesNotifyServicesCreate_WhenUrlIsNotifyservices() {
+func (s *ServerTestSuite) Test_NotifyServices_InvokesServicesCreate() {
 	servicerMock := getServicerMock("GetServices")
 	service1 := swarm.Service{
 		ID: "my-service-id-1",
@@ -159,12 +98,39 @@ func (s *ServerTestSuite) Test_ServeHTTP_InvokesNotifyServicesCreate_WhenUrlIsNo
 	}
 
 	srv := NewServe(servicerMock, notifMock)
-	srv.ServeHTTP(rw, req)
+	srv.NotifyServices(rw, req)
 
 	time.Sleep(1 * time.Millisecond)
 	s.Equal(expectedServices, actualServices)
 	s.Equal(10, actualRetries)
 	s.Equal(5, actualInterval)
+}
+
+
+// GetServices
+
+func (s *ServerTestSuite) Test_GetServices_ReturnsServices() {
+
+	servicerMock := getServicerMock("GetServicesParameters")
+	mapParam := []map[string]string{
+		{"serviceName":        "demo",
+			"notify":      "true",
+			"servicePath": "/demo",
+			"distribute":  "true", },
+	}
+	servicerMock.On("GetServicesParameters",mock.Anything).Return(&mapParam)
+	req, _ := http.NewRequest("GET", "/v1/docker-flow-swarm-listener/get-services", nil)
+	rw := getResponseWriterMock()
+	notifMock := NotificationMock{}
+	srv := NewServe(servicerMock, notifMock)
+	srv.GetServices(rw, req)
+
+	call := rw.GetLastMethodCall("Write")
+	value, _ := call.Arguments.Get(0).([]byte)
+	rsp := []map[string]string{}
+	json.Unmarshal(value, &rsp)
+	s.Equal(&mapParam, &rsp)
+
 }
 
 // NewServe
