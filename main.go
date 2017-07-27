@@ -4,7 +4,6 @@ import (
 	"./service"
 	"time"
 	"./metrics"
-	"github.com/prometheus/client_golang/prometheus"
 )
 
 func main() {
@@ -19,22 +18,22 @@ func main() {
 		logPrintf("Starting iterations")
 		for {
 			allServices, err := s.GetServices()
-			if err != nil { recordError("GetServices") }
+			if err != nil { metrics.RecordError("GetServices") }
 			newServices, err := s.GetNewServices(allServices)
-			if err != nil { recordError("GetNewServices") }
-			err = n.ServicesCreate(newServices, args.Retry, args.RetryInterval)
-			if err != nil { recordError("ServicesCreate") }
+			if err != nil { metrics.RecordError("GetNewServices") }
+			err = n.ServicesCreate(
+				newServices,
+				args.Retry,
+				args.RetryInterval,
+			)
+			if err != nil {
+				metrics.RecordError("ServicesCreate")
+			}
 			removedServices := s.GetRemovedServices(allServices)
 			err = n.ServicesRemove(removedServices, args.Retry, args.RetryInterval)
-			if err != nil { recordError("ServicesRemove") }
+			if err != nil { metrics.RecordError("ServicesRemove") }
 			time.Sleep(time.Second * time.Duration(args.Interval))
 		}
 	}
 }
 
-func recordError(operation string) {
-	metrics.ErrorCounter.With(prometheus.Labels{
-		"service":   metrics.ServiceName,
-		"operation": operation,
-	}).Inc()
-}

@@ -4,8 +4,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus"
 )
 
-var ServiceName = "swarm_listener"
-var ErrorCounter = prometheus.NewCounterVec(
+var serviceName = "swarm_listener"
+var errorCounter = prometheus.NewCounterVec(
 	prometheus.CounterOpts{
 		Subsystem: "docker_flow",
 		Name: "error",
@@ -15,6 +15,12 @@ var ErrorCounter = prometheus.NewCounterVec(
 )
 
 func init() {
-	prometheus.MustRegister(ErrorCounter)
+	prometheus.MustRegister(errorCounter)
 }
 
+func RecordError(operation string) {
+	errorCounter.With(prometheus.Labels{
+		"service":   serviceName,
+		"operation": operation,
+	}).Inc()
+}
