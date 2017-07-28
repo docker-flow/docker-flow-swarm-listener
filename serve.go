@@ -46,7 +46,7 @@ func (m *Serve) GetServices(w http.ResponseWriter, req *http.Request) {
 	bytes, error := json.Marshal(parameters)
 	if error != nil {
 		logPrintf("ERROR: Unable to prepare response: %s", error)
-		metrics.RecordError("serve.GetServices")
+		metrics.RecordError("serveGetServices")
 		w.WriteHeader(http.StatusInternalServerError)
 	} else {
 		w.Write(bytes)

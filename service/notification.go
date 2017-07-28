@@ -51,7 +51,7 @@ func (m *Notification) sendCreateServiceRequest(serviceName, addr string, params
 	urlObj, err := url.Parse(addr)
 	if err != nil {
 		logPrintf("ERROR: %s", err.Error())
-		metrics.RecordError("service.notification.ServicesCreate")
+		metrics.RecordError("notificationSendCreateServiceRequest")
 		return
 	} else {
 		urlObj.RawQuery = params.Encode()
@@ -74,16 +74,16 @@ func (m *Notification) sendCreateServiceRequest(serviceName, addr string, params
 			} else {
 				if err != nil {
 					logPrintf("ERROR: %s", err.Error())
-					metrics.RecordError("service.notification.sendCreateServiceRequest")
+					metrics.RecordError("notificationSendCreateServiceRequest")
 				} else if resp.StatusCode == http.StatusConflict {
 					body, _ := ioutil.ReadAll(resp.Body)
 					logPrintf(fmt.Sprintf("Request %s returned status code %d\n%s", fullUrl, resp.StatusCode, string(body[:])))
-					metrics.RecordError("service.notification.sendCreateServiceRequest")
+					metrics.RecordError("notificationSendCreateServiceRequest")
 				} else if resp.StatusCode != http.StatusOK {
 					body, _ := ioutil.ReadAll(resp.Body)
 					msg := fmt.Errorf("Request %s returned status code %d\n%s", fullUrl, resp.StatusCode, string(body[:]))
 					logPrintf("ERROR: %s", msg.Error())
-					metrics.RecordError("service.notification.sendCreateServiceRequest")
+					metrics.RecordError("notificationSendCreateServiceRequest")
 				}
 			}
 			if resp != nil && resp.Body != nil {
@@ -122,12 +122,12 @@ func (m *Notification) ServicesRemove(remove *[]string, retries, interval int) e
 				} else {
 					if err != nil {
 						logPrintf("ERROR: %s", err.Error())
-						metrics.RecordError("service.notification.ServicesRemove")
+						metrics.RecordError("notificationServicesRemove")
 						errs = append(errs, err)
 					} else if resp.StatusCode != http.StatusOK {
 						msg := fmt.Errorf("Request %s returned status code %d", fullUrl, resp.StatusCode)
 						logPrintf("ERROR: %s", msg)
-						metrics.RecordError("service.notification.ServicesRemove")
+						metrics.RecordError("notificationServicesRemove")
 						errs = append(errs, msg)
 					}
 				}
