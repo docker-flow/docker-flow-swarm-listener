@@ -14,8 +14,17 @@ var errorCounter = prometheus.NewCounterVec(
 	[]string{"service", "operation"},
 )
 
+var serviceGauge = prometheus.NewGaugeVec(
+	prometheus.GaugeOpts{
+		Subsystem: "docker_flow",
+		Name: "service_count",
+		Help: "Service gauge",
+	},
+	[]string{"service"},
+)
+
 func init() {
-	prometheus.MustRegister(errorCounter)
+	prometheus.MustRegister(errorCounter, serviceGauge)
 }
 
 func RecordError(operation string) {
@@ -23,4 +32,10 @@ func RecordError(operation string) {
 		"service":   serviceName,
 		"operation": operation,
 	}).Inc()
+}
+
+func RecordService(count int) {
+	serviceGauge.With(prometheus.Labels{
+		"service":   serviceName,
+	}).Set(float64(count))
 }

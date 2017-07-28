@@ -2,7 +2,6 @@ package service
 
 import (
 	"fmt"
-	"github.com/docker/docker/api/types/swarm"
 	"io/ioutil"
 	"net/http"
 	"net/url"
@@ -29,7 +28,7 @@ func NewNotificationFromEnv() *Notification {
 	return NewNotification(createServiceAddr, removeServiceAddr)
 }
 
-func (m *Notification) ServicesCreate(services *[]swarm.Service, retries, interval int) error {
+func (m *Notification) ServicesCreate(services *[]SwarmService, retries, interval int) error {
 	for _, s := range *services {
 		if _, ok := s.Spec.Labels[os.Getenv("DF_NOTIFY_LABEL")]; ok {
 			params := url.Values{}

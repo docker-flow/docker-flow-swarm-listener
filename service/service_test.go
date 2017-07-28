@@ -156,8 +156,8 @@ func (s *ServiceTestSuite) Test_GetNewServices_AddsUpdatedServices_WhenLabelIsUp
 func (s *ServiceTestSuite) Test_GetRemovedServices_ReturnsNamesOfRemovedServices() {
 	service := NewService("unix:///var/run/docker.sock")
 	services, _ := service.GetServices()
-	Services["removed-service-1"] = swarm.Service{}
-	Services["removed-service-2"] = swarm.Service{}
+	Services["removed-service-1"] = SwarmService{}
+	Services["removed-service-2"] = SwarmService{}
 
 	actual := service.GetRemovedServices(services)
 
@@ -170,21 +170,20 @@ func (s *ServiceTestSuite) Test_GetRemovedServices_ReturnsNamesOfRemovedServices
 
 func (s *ServiceTestSuite) Test_GetRemovedServices_GetServicesParameters() {
 	service := NewService("unix:///var/run/docker.sock")
-	srvs := []swarm.Service{
-		{
-			Spec: swarm.ServiceSpec{
-				Annotations: swarm.Annotations{
-					Name: "demo",
-					Labels: map[string]string{
-						"com.df.notify":      "true",
-						"com.df.servicePath": "/demo",
-						"com.df.distribute":  "true",
+	srv := swarm.Service{
+		Spec: swarm.ServiceSpec{
+			Annotations: swarm.Annotations{
+				Name: "demo",
+				Labels: map[string]string{
+					"com.df.notify":      "true",
+					"com.df.servicePath": "/demo",
+					"com.df.distribute":  "true",
 
-					},
 				},
 			},
 		},
 	}
+	srvs := []SwarmService{SwarmService{srv}}
 	paramsList := service.GetServicesParameters(&srvs)
 	expected := []map[string]string{
 		{"serviceName":        "demo",

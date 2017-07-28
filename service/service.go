@@ -3,7 +3,6 @@ package service
 import (
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
-	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
 	"golang.org/x/net/context"
 	"os"
@@ -12,7 +11,7 @@ import (
 	"fmt"
 )
 
-var Services map[string]swarm.Service
+var Services map[string]SwarmService
 
 type Service struct {
 	Host                 string
@@ -21,14 +20,14 @@ type Service struct {
 }
 
 type Servicer interface {
-	GetServices() (*[]swarm.Service, error)
-	GetNewServices(services *[]swarm.Service) (*[]swarm.Service, error)
-	GetRemovedServices(services *[]swarm.Service) *[]string
-	GetServicesParameters(services *[]swarm.Service) *[]map[string]string
+	GetServices() (*[]SwarmService, error)
+	GetNewServices(services *[]SwarmService) (*[]SwarmService, error)
+	GetRemovedServices(services *[]SwarmService) *[]string
+	GetServicesParameters(services *[]SwarmService) *[]map[string]string
 }
 
 
-func (m *Service) GetServicesParameters(services *[]swarm.Service) *[]map[string]string {
+func (m *Service) GetServicesParameters(services *[]SwarmService) *[]map[string]string {
 	var parameters = []map[string]string{}
 	for _, s := range *services {
 		if _, ok := s.Spec.Labels[os.Getenv("DF_NOTIFY_LABEL")]; ok {
@@ -45,19 +44,23 @@ func (m *Service) GetServicesParameters(services *[]swarm.Service) *[]map[string
 	return &parameters
 }
 
-func (m *Service) GetServices() (*[]swarm.Service, error) {
+func (m *Service) GetServices() (*[]SwarmService, error) {
 	filter := filters.NewArgs()
 	filter.Add("label", fmt.Sprintf("%s=true", os.Getenv("DF_NOTIFY_LABEL")))
 	services, err := m.DockerClient.ServiceList(context.Background(), types.ServiceListOptions{Filters: filter})
 	if err != nil {
 		logPrintf(err.Error())
-		return &[]swarm.Service{}, err
+		return &[]SwarmService{}, err
 	}
-	return &services, nil
+	swarmServices := []SwarmService{}
+	for _, s := range services {
+		swarmServices = append(swarmServices, SwarmService{s})
+	}
+	return &swarmServices, nil
 }
 
-func (m *Service) GetNewServices(services *[]swarm.Service) (*[]swarm.Service, error) {
-	newServices := []swarm.Service{}
+func (m *Service) GetNewServices(services *[]SwarmService) (*[]SwarmService, error) {
+	newServices := []SwarmService{}
 	tmpUpdatedAt := m.ServiceLastUpdatedAt
 	for _, s := range *services {
 		if tmpUpdatedAt.Nanosecond() == 0 || s.Meta.UpdatedAt.After(tmpUpdatedAt) {
@@ -92,8 +95,8 @@ func (m *Service) GetNewServices(services *[]swarm.Service) (*[]swarm.Service, e
 	return &newServices, nil
 }
 
-func (m *Service) GetRemovedServices(services *[]swarm.Service) *[]string {
-	tmpMap := make(map[string]swarm.Service)
+func (m *Service) GetRemovedServices(services *[]SwarmService) *[]string {
+	tmpMap := make(map[string]SwarmService)
 	for k, v := range Services {
 		tmpMap[k] = v
 	}
@@ -115,7 +118,7 @@ func NewService(host string) *Service {
 	if err != nil {
 		logPrintf(err.Error())
 	}
-	Services = make(map[string]swarm.Service)
+	Services = make(map[string]SwarmService)
 	return &Service{
 		Host:         host,
 		DockerClient: dc,

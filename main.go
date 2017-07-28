@@ -31,6 +31,7 @@ func main() {
 			}
 			removedServices := s.GetRemovedServices(allServices)
 			err = n.ServicesRemove(removedServices, args.Retry, args.RetryInterval)
+			metrics.RecordService(len(service.Services))
 			if err != nil { metrics.RecordError("ServicesRemove") }
 			time.Sleep(time.Second * time.Duration(args.Interval))
 		}
