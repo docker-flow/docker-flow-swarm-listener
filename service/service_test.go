@@ -178,17 +178,16 @@ func (s *ServiceTestSuite) Test_GetRemovedServices_GetServicesParameters() {
 					"com.df.notify":      "true",
 					"com.df.servicePath": "/demo",
 					"com.df.distribute":  "true",
-
 				},
 			},
 		},
 	}
-	srvs := []SwarmService{SwarmService{srv}}
+	srvs := []SwarmService{{srv}}
 	paramsList := service.GetServicesParameters(&srvs)
 	expected := []map[string]string{
-		{"serviceName":        "demo",
+		{"serviceName": "demo",
 			"servicePath": "/demo",
-			"distribute":  "true", },
+			"distribute":  "true"},
 	}
 	s.Equal(&expected, paramsList)
 }

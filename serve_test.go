@@ -2,6 +2,7 @@ package main
 
 import (
 	"./service"
+	"encoding/json"
 	"fmt"
 	"github.com/docker/docker/api/types/swarm"
 	"github.com/stretchr/testify/mock"
@@ -10,7 +11,6 @@ import (
 	"strings"
 	"testing"
 	"time"
-	"encoding/json"
 )
 
 type ServerTestSuite struct {
@@ -81,7 +81,7 @@ func (s *ServerTestSuite) Test_NotifyServices_InvokesServicesCreate() {
 	service1 := swarm.Service{
 		ID: "my-service-id-1",
 	}
-	expectedServices := []service.SwarmService{service.SwarmService{service1}}
+	expectedServices := []service.SwarmService{{service1}}
 	servicerMock.On("GetServices").Return(expectedServices, nil)
 	req, _ := http.NewRequest("GET", "/v1/docker-flow-swarm-listener/notify-services", nil)
 	rw := getResponseWriterMock()
@@ -108,19 +108,18 @@ func (s *ServerTestSuite) Test_NotifyServices_InvokesServicesCreate() {
 	s.Equal(5, actualInterval)
 }
 
-
 // GetServices
 
 func (s *ServerTestSuite) Test_GetServices_ReturnsServices() {
 
 	servicerMock := getServicerMock("GetServicesParameters")
 	mapParam := []map[string]string{
-		{"serviceName":        "demo",
+		{"serviceName": "demo",
 			"notify":      "true",
 			"servicePath": "/demo",
-			"distribute":  "true", },
+			"distribute":  "true"},
 	}
-	servicerMock.On("GetServicesParameters",mock.Anything).Return(&mapParam)
+	servicerMock.On("GetServicesParameters", mock.Anything).Return(&mapParam)
 	req, _ := http.NewRequest("GET", "/v1/docker-flow-swarm-listener/get-services", nil)
 	rw := getResponseWriterMock()
 	notifMock := NotificationMock{}

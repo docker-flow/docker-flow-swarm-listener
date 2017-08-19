@@ -4,8 +4,8 @@ import (
 	"./metrics"
 	"./service"
 	"encoding/json"
-	"net/http"
 	"github.com/prometheus/client_golang/prometheus"
+	"net/http"
 )
 
 var httpListenAndServe = http.ListenAndServe

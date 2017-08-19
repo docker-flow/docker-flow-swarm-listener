@@ -8,8 +8,8 @@ var serviceName = "swarm_listener"
 var errorCounter = prometheus.NewCounterVec(
 	prometheus.CounterOpts{
 		Subsystem: "docker_flow",
-		Name: "error",
-		Help: "Error counter",
+		Name:      "error",
+		Help:      "Error counter",
 	},
 	[]string{"service", "operation"},
 )
@@ -17,8 +17,8 @@ var errorCounter = prometheus.NewCounterVec(
 var serviceGauge = prometheus.NewGaugeVec(
 	prometheus.GaugeOpts{
 		Subsystem: "docker_flow",
-		Name: "service_count",
-		Help: "Service gauge",
+		Name:      "service_count",
+		Help:      "Service gauge",
 	},
 	[]string{"service"},
 )
@@ -36,6 +36,6 @@ func RecordError(operation string) {
 
 func RecordService(count int) {
 	serviceGauge.With(prometheus.Labels{
-		"service":   serviceName,
+		"service": serviceName,
 	}).Set(float64(count))
 }

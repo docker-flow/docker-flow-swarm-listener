@@ -1,6 +1,7 @@
 package service
 
 import (
+	"fmt"
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
@@ -8,7 +9,6 @@ import (
 	"os"
 	"strings"
 	"time"
-	"fmt"
 )
 
 var Services map[string]SwarmService
@@ -25,7 +25,6 @@ type Servicer interface {
 	GetRemovedServices(services *[]SwarmService) *[]string
 	GetServicesParameters(services *[]SwarmService) *[]map[string]string
 }
-
 
 func (m *Service) GetServicesParameters(services *[]SwarmService) *[]map[string]string {
 	var parameters = []map[string]string{}

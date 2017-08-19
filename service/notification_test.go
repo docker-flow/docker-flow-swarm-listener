@@ -33,7 +33,7 @@ func TestNotificationUnitTestSuite(t *testing.T) {
 func (s *NotificationTestSuite) Test_NewNotification_SetsCreateUrl() {
 	expected := []string{"this-is-a-url", "this-is-a-different-url"}
 
-	actual := NewNotification(expected, []string{})
+	actual := newNotification(expected, []string{})
 
 	s.Equal(expected, actual.CreateServiceAddr)
 }
@@ -41,7 +41,7 @@ func (s *NotificationTestSuite) Test_NewNotification_SetsCreateUrl() {
 func (s *NotificationTestSuite) Test_NewNotification_SetsRemoveUrl() {
 	expected := []string{"this-is-a-url", "this-is-a-different-url"}
 
-	actual := NewNotification([]string{}, expected)
+	actual := newNotification([]string{}, expected)
 
 	s.Equal(expected, actual.RemoveServiceAddr)
 }
@@ -123,7 +123,7 @@ func (s *NotificationTestSuite) Test_ServicesCreate_SendsRequests() {
 	url1 := fmt.Sprintf("%s/v1/docker-flow-proxy/reconfigure", httpSrv.URL)
 	url2 := fmt.Sprintf("%s/something/else", httpSrv.URL)
 
-	n := NewNotification([]string{url1, url2}, []string{})
+	n := newNotification([]string{url1, url2}, []string{})
 	n.ServicesCreate(s.getSwarmServices(labels), 1, 0)
 	passed := false
 	for i := 0; i < 100; i++ {
@@ -165,15 +165,15 @@ func (s *NotificationTestSuite) Test_ServicesCreate_LogsError_WhenUrlCannotBePar
 	labels["com.df.notify"] = "true"
 	msg := ""
 	logPrintfOrig := logPrintf
-	defer func(){ logPrintf = logPrintfOrig }()
+	defer func() { logPrintf = logPrintfOrig }()
 	logPrintf = func(format string, v ...interface{}) {
 		msg = format
 	}
 
-	n := NewNotification([]string{"%%%"}, []string{})
+	n := newNotification([]string{"%%%"}, []string{})
 	n.ServicesCreate(s.getSwarmServices(labels), 1, 0)
 
-	for i:=0; i < 100; i++ {
+	for i := 0; i < 100; i++ {
 		if strings.HasPrefix(msg, "ERROR") {
 			break
 		}
@@ -190,15 +190,15 @@ func (s *NotificationTestSuite) Test_ServicesCreate_LogsError_WhenHttpStatusIsNo
 	labels["com.df.notify"] = "true"
 	msg := ""
 	logPrintfOrig := logPrintf
-	defer func(){ logPrintf = logPrintfOrig }()
+	defer func() { logPrintf = logPrintfOrig }()
 	logPrintf = func(format string, v ...interface{}) {
 		msg = format
 	}
 
-	n := NewNotification([]string{httpSrv.URL}, []string{})
+	n := newNotification([]string{httpSrv.URL}, []string{})
 	n.ServicesCreate(s.getSwarmServices(labels), 1, 0)
 
-	for i:=0; i < 100; i++ {
+	for i := 0; i < 100; i++ {
 		if strings.HasPrefix(msg, "ERROR") {
 			break
 		}
@@ -214,7 +214,7 @@ func (s *NotificationTestSuite) Test_ServicesCreate_DoesNotReturnError_WhenHttpS
 	labels := make(map[string]string)
 	labels["com.df.notify"] = "true"
 
-	n := NewNotification([]string{httpSrv.URL}, []string{})
+	n := newNotification([]string{httpSrv.URL}, []string{})
 	err := n.ServicesCreate(s.getSwarmServices(labels), 1, 0)
 
 	s.NoError(err)
@@ -224,16 +224,16 @@ func (s *NotificationTestSuite) Test_ServicesCreate_LogsError_WhenHttpRequestRet
 	labels := make(map[string]string)
 	labels["com.df.notify"] = "true"
 	logPrintfOrig := logPrintf
-	defer func(){ logPrintf = logPrintfOrig }()
+	defer func() { logPrintf = logPrintfOrig }()
 	msg := ""
 	logPrintf = func(format string, v ...interface{}) {
 		msg = format
 	}
 
-	n := NewNotification([]string{"this-does-not-exist"}, []string{})
+	n := newNotification([]string{"this-does-not-exist"}, []string{})
 	n.ServicesCreate(s.getSwarmServices(labels), 1, 0)
 
-	for i:=0; i < 100; i++ {
+	for i := 0; i < 100; i++ {
 		if strings.HasPrefix(msg, "ERROR") {
 			break
 		}
@@ -256,7 +256,7 @@ func (s *NotificationTestSuite) Test_ServicesCreate_RetriesRequests() {
 		attempt += 1
 	}))
 
-	n := NewNotification([]string{httpSrv.URL}, []string{})
+	n := newNotification([]string{httpSrv.URL}, []string{})
 	err := n.ServicesCreate(s.getSwarmServices(labels), 2, 1)
 
 	s.NoError(err)
@@ -275,7 +275,7 @@ func (s *NotificationTestSuite) Test_ServicesCreate_StopsSendingNotifications_Wh
 		}
 	}))
 
-	n := NewNotification([]string{httpSrv.URL}, []string{})
+	n := newNotification([]string{httpSrv.URL}, []string{})
 	n.ServicesCreate(s.getSwarmServices(labels), 5, 0)
 
 	time.Sleep(2 * time.Millisecond)
@@ -291,7 +291,7 @@ func (s *NotificationTestSuite) Test_ServicesRemove_SendsRequests() {
 
 func (s *NotificationTestSuite) Test_ServicesRemove_ReturnsError_WhenUrlCannotBeParsed() {
 	Services = make(map[string]SwarmService)
-	n := NewNotification([]string{}, []string{"%%%"})
+	n := newNotification([]string{}, []string{"%%%"})
 	err := n.ServicesRemove(&[]string{"my-removed-service-1"}, 1, 0)
 
 	s.Error(err)
@@ -303,7 +303,7 @@ func (s *NotificationTestSuite) Test_ServicesRemove_ReturnsError_WhenHttpStatusI
 		w.WriteHeader(http.StatusNotFound)
 	}))
 
-	n := NewNotification([]string{}, []string{httpSrv.URL})
+	n := newNotification([]string{}, []string{httpSrv.URL})
 	err := n.ServicesRemove(&[]string{"my-removed-service-1"}, 1, 0)
 
 	s.Error(err)
@@ -311,7 +311,7 @@ func (s *NotificationTestSuite) Test_ServicesRemove_ReturnsError_WhenHttpStatusI
 
 func (s *NotificationTestSuite) Test_ServicesRemove_ReturnsError_WhenHttpRequestReturnsError() {
 	Services = make(map[string]SwarmService)
-	n := NewNotification([]string{}, []string{"this-does-not-exist"})
+	n := newNotification([]string{}, []string{"this-does-not-exist"})
 	println("000")
 	err := n.ServicesRemove(&[]string{"my-removed-service-1"}, 1, 0)
 
@@ -332,7 +332,7 @@ func (s *NotificationTestSuite) Test_ServicesRemove_RetriesRequests() {
 		attempt = attempt + 1
 	}))
 
-	n := NewNotification([]string{}, []string{httpSrv.URL})
+	n := newNotification([]string{}, []string{httpSrv.URL})
 	err := n.ServicesRemove(&[]string{"my-removed-service-1"}, 3, 0)
 
 	s.NoError(err)
@@ -377,7 +377,7 @@ func (s *NotificationTestSuite) verifyNotifyServiceCreate(labels map[string]stri
 	defer func() { httpSrv.Close() }()
 	url := fmt.Sprintf("%s/v1/docker-flow-proxy/reconfigure", httpSrv.URL)
 
-	n := NewNotification([]string{url}, []string{})
+	n := newNotification([]string{url}, []string{})
 	n.ServicesCreate(s.getSwarmServices(labels), 1, 0)
 
 	passed := false
@@ -411,7 +411,7 @@ func (s *NotificationTestSuite) verifyNotifyServiceRemove(expectSent bool, expec
 	}))
 	defer func() { httpSrv.Close() }()
 	url := fmt.Sprintf("%s/v1/docker-flow-proxy/remove", httpSrv.URL)
-	n := NewNotification([]string{}, []string{url})
+	n := newNotification([]string{}, []string{url})
 
 	Services["my-removed-service-1"] = SwarmService{}
 	err := n.ServicesRemove(&[]string{"my-removed-service-1"}, 1, 0)
