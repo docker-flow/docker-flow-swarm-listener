@@ -143,4 +143,3 @@ func (m *notification) sendCreateServiceRequest(serviceName, addr string, params
 		}
 	}
 }
-

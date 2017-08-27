@@ -27,6 +27,8 @@ func init() {
 	prometheus.MustRegister(errorCounter, serviceGauge)
 }
 
+// RecordError stores error information as Prometheus metric.
+// the `operation` argument is used to identify the error.
 func RecordError(operation string) {
 	errorCounter.With(prometheus.Labels{
 		"service":   serviceName,
@@ -34,6 +36,7 @@ func RecordError(operation string) {
 	}).Inc()
 }
 
+// RecordService stores the number of services as Prometheus metric.
 func RecordService(count int) {
 	serviceGauge.With(prometheus.Labels{
 		"service": serviceName,
