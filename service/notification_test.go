@@ -147,7 +147,43 @@ func (s *NotificationTestSuite) Test_ServicesCreate_SendsRequests() {
 	s.True(passed)
 }
 
-func (s *NotificationTestSuite) Test_ServicesCreate_UsesLabelFromEnvVars() {
+func (s *NotificationTestSuite) Test_ServicesCreate_AddsReplicas() {
+	labels := make(map[string]string)
+	labels["com.df.notify"] = "true"
+	labels["com.df.distribute"] = "true"
+	services := *s.getSwarmServices(labels)
+	replicas := uint64(2)
+	mode := swarm.ServiceMode{
+		Replicated: &swarm.ReplicatedService{Replicas: &replicas},
+	}
+	services[0].Service.Spec.Mode = mode
+
+	actualSent := false
+	actualQuery := ""
+	httpSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json")
+		actualQuery = r.URL.RawQuery
+		actualSent = true
+	}))
+	defer func() { httpSrv.Close() }()
+	url := fmt.Sprintf("%s/v1/docker-flow-proxy/reconfigure", httpSrv.URL)
+
+	n := newNotification([]string{url}, []string{})
+	n.ServicesCreate(&services, 1, 0)
+	passed := false
+	for i := 0; i < 1000; i++ {
+		if actualSent {
+			s.Equal("distribute=true&replicas=2&serviceName=my-service", actualQuery)
+			passed = true
+			break
+		}
+		time.Sleep(1 * time.Millisecond)
+	}
+	s.True(passed)
+}
+
+func (s *NotificationTestSuite) Test_ServicesCreate_UsesLabelsFromEnvVars() {
 	notifyLabelOrig := os.Getenv("DF_NOTIFY_LABEL")
 	defer func() { os.Setenv("DF_NOTIFY_LABEL", notifyLabelOrig) }()
 	os.Setenv("DF_NOTIFY_LABEL", "com.df.something")
@@ -233,7 +269,7 @@ func (s *NotificationTestSuite) Test_ServicesCreate_LogsError_WhenHttpRequestRet
 	n := newNotification([]string{"this-does-not-exist"}, []string{})
 	n.ServicesCreate(s.getSwarmServices(labels), 1, 0)
 
-	for i := 0; i < 100; i++ {
+	for i := 0; i < 200; i++ {
 		if strings.HasPrefix(msg, "ERROR") {
 			break
 		}
@@ -312,7 +348,7 @@ func (s *NotificationTestSuite) Test_ServicesRemove_ReturnsError_WhenHttpStatusI
 func (s *NotificationTestSuite) Test_ServicesRemove_ReturnsError_WhenHttpRequestReturnsError() {
 	Services = make(map[string]SwarmService)
 	n := newNotification([]string{}, []string{"this-does-not-exist"})
-	println("000")
+
 	err := n.ServicesRemove(&[]string{"my-removed-service-1"}, 1, 0)
 
 	s.Error(err)

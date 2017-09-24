@@ -1,7 +1,12 @@
-version: '2'
+version: '3.2'
 
 
 services:
+
+  tests:
+    image: vfarcic/docker-flow-swarm-listener-test
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
 
   docs:
     image: cilerler/mkdocs

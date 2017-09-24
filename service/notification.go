@@ -40,6 +40,9 @@ func (m *notification) ServicesCreate(services *[]SwarmService, retries, interva
 					params.Add(strings.TrimPrefix(k, "com.df."), v)
 				}
 			}
+			if s.Service.Spec.Mode.Replicated != nil {
+				params.Add("replicas", fmt.Sprintf("%d", *s.Service.Spec.Mode.Replicated.Replicas))
+			}
 			for _, addr := range m.CreateServiceAddr {
 				go m.sendCreateServiceRequest(s.Spec.Name, addr, params, retries, interval)
 			}

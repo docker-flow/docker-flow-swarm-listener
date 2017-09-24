@@ -96,10 +96,8 @@ func (s *ServerTestSuite) Test_NotifyServices_InvokesServicesCreate() {
 			return nil
 		},
 	}
-	println("000")
 
 	srv := NewServe(servicerMock, notifMock)
-	println("111")
 	srv.NotifyServices(rw, req)
 
 	time.Sleep(1 * time.Millisecond)
