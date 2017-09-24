@@ -15,7 +15,7 @@ pipeline {
           def dateFormat = new SimpleDateFormat("yy.MM.dd")
           currentBuild.displayName = dateFormat.format(new Date()) + "-" + env.BUILD_NUMBER
         }
-        dfBuild("docker-flow-proxy")
+        dfBuild("docker-flow-swarm-listener")
         dfLogin()
         // sh "docker image push vfarcic/docker-flow-swarm-listener-test"
         // sh "docker-compose run --rm tests"
