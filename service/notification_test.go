@@ -269,7 +269,7 @@ func (s *NotificationTestSuite) Test_ServicesCreate_LogsError_WhenHttpRequestRet
 	n := newNotification([]string{"this-does-not-exist"}, []string{})
 	n.ServicesCreate(s.getSwarmServices(labels), 1, 0)
 
-	for i := 0; i < 200; i++ {
+	for i := 0; i < 500; i++ {
 		if strings.HasPrefix(msg, "ERROR") {
 			break
 		}

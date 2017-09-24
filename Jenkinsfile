@@ -19,6 +19,26 @@ pipeline {
         sh "docker-compose run --rm tests"
       }
     }
+    stage("release") {
+      when {
+        branch "master"
+      }
+      steps {
+        dfRelease("docker-flow-swarm-listener")
+      }
+    }
+    stage("deploy") {
+      when {
+        branch "master"
+      }
+      agent {
+        label "prod"
+      }
+      steps {
+        dfDeploy("swarm-listener_swarm-listener", "swarm-listener_docs")
+        dfDeploy("monitor_swarm-listener", "")
+      }
+    }
   }
   post {
     always {
