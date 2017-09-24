@@ -35,8 +35,8 @@ pipeline {
         label "prod"
       }
       steps {
-        dfDeploy("swarm-listener_swarm-listener", "swarm-listener_docs")
-        dfDeploy("monitor_swarm-listener", "")
+        dfDeploy("docker-flow-swarm-listener", "swarm-listener_swarm-listener", "swarm-listener_docs")
+        dfDeploy("docker-flow-swarm-listener", "monitor_swarm-listener", "")
       }
     }
   }
