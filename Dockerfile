@@ -1,4 +1,6 @@
-FROM golang:1.9 AS build
+FROM golang:1.9-alpine3.6 AS build
+
+RUN apk add --update git
 ADD . /src
 WORKDIR /src
 RUN go get -d -v -t
