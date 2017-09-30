@@ -151,6 +151,22 @@ func (s *ServiceTestSuite) Test_GetNewServices_AddsUpdatedServices_WhenLabelIsUp
 	s.Equal(1, len(*actual))
 }
 
+func (s *ServiceTestSuite) Test_GetNewServices_AddsUpdatedServices_WhenReplicasAreUpdated() {
+	defer func() {
+		exec.Command("docker", "service", "update", "--label-rm", "com.df.something", "--replicas", "1", "util-1").Output()
+	}()
+	exec.Command("docker", "service", "update", "--replicas", "1", "util-1").Output()
+	service := NewService("unix:///var/run/docker.sock")
+	services, _ := service.GetServices()
+
+	exec.Command("docker", "service", "update", "--replicas", "2", "util-1").Output()
+	service.GetNewServices(services)
+	services, _ = service.GetServices()
+	actual, _ := service.GetNewServices(services)
+
+	s.Equal(1, len(*actual))
+}
+
 // GetRemovedServices
 
 func (s *ServiceTestSuite) Test_GetRemovedServices_ReturnsNamesOfRemovedServices() {

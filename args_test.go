@@ -22,7 +22,7 @@ func TestArgsUnitTestSuite(t *testing.T) {
 // GetArgs
 
 func (s *ArgsTestSuite) Test_GetArgs_ReturnsDefaultValues() {
-	args := GetArgs()
+	args := getArgs()
 
 	s.Equal(5, args.Interval)
 	s.Equal(1, args.Retry)
@@ -35,7 +35,7 @@ func (s *ArgsTestSuite) Test_GetArgs_ReturnsIntervalFromEnv() {
 	defer func() { os.Setenv("DF_INTERVAL", intervalOrig) }()
 	os.Setenv("DF_INTERVAL", strconv.Itoa(expected))
 
-	args := GetArgs()
+	args := getArgs()
 
 	s.Equal(expected, args.Interval)
 }
@@ -46,7 +46,7 @@ func (s *ArgsTestSuite) Test_GetArgs_ReturnsRetryFromEnv() {
 	defer func() { os.Setenv("DF_RETRY", intervalOrig) }()
 	os.Setenv("DF_RETRY", strconv.Itoa(expected))
 
-	args := GetArgs()
+	args := getArgs()
 
 	s.Equal(expected, args.Retry)
 }
@@ -57,7 +57,7 @@ func (s *ArgsTestSuite) Test_GetArgs_ReturnsRetryIntervalFromEnv() {
 	defer func() { os.Setenv("DF_RETRY_INTERVAL", intervalOrig) }()
 	os.Setenv("DF_RETRY_INTERVAL", strconv.Itoa(expected))
 
-	args := GetArgs()
+	args := getArgs()
 
 	s.Equal(expected, args.RetryInterval)
 }

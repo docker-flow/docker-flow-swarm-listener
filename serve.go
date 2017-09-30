@@ -13,15 +13,13 @@ var httpWriterSetContentType = func(w http.ResponseWriter, value string) {
 	w.Header().Set("Content-Type", value)
 }
 
-type Server interface {
-	Run()
-}
-
+// Serve is the instance structure
 type Serve struct {
 	Service      service.Servicer
 	Notification service.Sender
 }
 
+// Run executes a server
 func (m *Serve) Run() error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/v1/docker-flow-swarm-listener/notify-services", m.NotifyServices)
@@ -33,6 +31,7 @@ func (m *Serve) Run() error {
 	return nil
 }
 
+// NotifyServices notifies all configured endpoints of new, updated, or removed services
 func (m *Serve) NotifyServices(w http.ResponseWriter, req *http.Request) {
 	services, _ := m.Service.GetServices()
 	go m.Notification.ServicesCreate(services, 10, 5)
@@ -40,6 +39,7 @@ func (m *Serve) NotifyServices(w http.ResponseWriter, req *http.Request) {
 	httpWriterSetContentType(w, "application/json")
 }
 
+// GetServices retrieves all services with the `com.df.notify` label set to `true`
 func (m *Serve) GetServices(w http.ResponseWriter, req *http.Request) {
 	services, _ := m.Service.GetServices()
 	parameters := m.Service.GetServicesParameters(services)
@@ -54,6 +54,7 @@ func (m *Serve) GetServices(w http.ResponseWriter, req *http.Request) {
 	httpWriterSetContentType(w, "application/json")
 }
 
+// NewServe returns a new instance of the `Serve`
 func NewServe(service service.Servicer, notification service.Sender) *Serve {
 	return &Serve{
 		Service:      service,

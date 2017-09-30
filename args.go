@@ -5,14 +5,14 @@ import (
 	"strconv"
 )
 
-type Args struct {
+type args struct {
 	Interval      int
 	Retry         int
 	RetryInterval int
 }
 
-func GetArgs() *Args {
-	return &Args{
+func getArgs() *args {
+	return &args{
 		Interval:      getValue(5, "DF_INTERVAL"),
 		Retry:         getValue(1, "DF_RETRY"),
 		RetryInterval: getValue(0, "DF_RETRY_INTERVAL"),

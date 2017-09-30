@@ -13,7 +13,7 @@ func main() {
 	serve := NewServe(s, n)
 	go serve.Run()
 
-	args := GetArgs()
+	args := getArgs()
 	if len(n.CreateServiceAddr) > 0 {
 		logPrintf("Starting iterations")
 		for {

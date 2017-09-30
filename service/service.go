@@ -65,19 +65,8 @@ func (m *Service) GetNewServices(services *[]SwarmService) (*[]SwarmService, err
 		if tmpUpdatedAt.Nanosecond() == 0 || s.Meta.UpdatedAt.After(tmpUpdatedAt) {
 			updated := false
 			if service, ok := Services[s.Spec.Name]; ok {
-				// Check whether a label was added or updated
-				for k, v := range s.Spec.Labels {
-					if strings.HasPrefix(k, "com.df.") {
-						if storedValue, ok := service.Spec.Labels[k]; !ok || v != storedValue {
-							updated = true
-						}
-					}
-				}
-				// Check whether a label was removed
-				for k := range service.Spec.Labels {
-					if _, ok := s.Spec.Labels[k]; !ok {
-						updated = true
-					}
+				if m.isUpdated(s, service) || m.isRemoved(s, service) {
+					updated = true
 				}
 			} else { // It's a new service
 				updated = true
@@ -130,4 +119,28 @@ func NewServiceFromEnv() *Service {
 		host = os.Getenv("DF_DOCKER_HOST")
 	}
 	return NewService(host)
+}
+
+func (m *Service) isUpdated(candidate SwarmService, cached SwarmService) bool {
+	for k, v := range candidate.Spec.Labels {
+		if strings.HasPrefix(k, "com.df.") {
+			if storedValue, ok := cached.Spec.Labels[k]; !ok || v != storedValue {
+				return true
+			}
+		}
+	}
+	if candidate.Service.Spec.Mode.Replicated != nil &&
+		*candidate.Service.Spec.Mode.Replicated.Replicas != *cached.Service.Spec.Mode.Replicated.Replicas {
+		return true
+	}
+	return false
+}
+
+func (m *Service) isRemoved(candidate SwarmService, cached SwarmService) bool {
+	for k := range cached.Spec.Labels {
+		if _, ok := candidate.Spec.Labels[k]; !ok {
+			return true
+		}
+	}
+	return false
 }
