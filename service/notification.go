@@ -16,12 +16,6 @@ type notification struct {
 	RemoveServiceAddr []string
 }
 
-var httpTransport http.Transport = http.Transport{
-    MaxIdleConns:       1,
-    DisableKeepAlives: true,
-}
-var httpClient http.Client = http.Client{Transport: &httpTransport}
-
 func newNotification(createServiceAddr, removeServiceAddr []string) *notification {
 	return &notification{
 		CreateServiceAddr: createServiceAddr,
@@ -75,7 +69,7 @@ func (m *notification) ServicesRemove(remove *[]string, retries, interval int) e
 			fullUrl := urlObj.String()
 			logPrintf("Sending service removed notification to %s", fullUrl)
 			for i := 1; i <= retries; i++ {
-				resp, err := httpClient.Get(fullUrl)
+				resp, err := http.Get(fullUrl)
 				if err == nil && resp.StatusCode == http.StatusOK {
 					delete(Services, v)
 					break
@@ -123,7 +117,7 @@ func (m *notification) sendCreateServiceRequest(serviceName, addr string, params
 			logPrintf("Service %s was removed. Service created notifications are stopped.", serviceName)
 			break
 		}
-		resp, err := httpClient.Get(fullUrl)
+		resp, err := http.Get(fullUrl)
 		if err == nil && (resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusConflict) {
 			break
 		} else if i < retries {
