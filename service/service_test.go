@@ -95,6 +95,21 @@ func (s *ServiceTestSuite) Test_GetNewServices_AddsServices() {
 	s.Contains(Services, "util-1")
 }
 
+func (s *ServiceTestSuite) Test_GetNewServices_DoesNotAddServices_WhenReplicasAreZero() {
+	service := NewService("unix:///var/run/docker.sock")
+	services, _ := service.GetServices()
+	for _, s := range *services {
+		if s.Spec.Name == "util-1" {
+			replicas := uint64(0)
+			s.Spec.Mode.Replicated.Replicas = &replicas
+		}
+	}
+
+	service.GetNewServices(services)
+
+	s.NotContains(Services, "util-1")
+}
+
 func (s *ServiceTestSuite) Test_GetNewServices_AddsUpdatedServices_WhenLabelIsAdded() {
 	defer func() {
 		exec.Command("docker", "service", "update", "--label-rm", "com.df.something", "util-1").Output()
@@ -167,6 +182,22 @@ func (s *ServiceTestSuite) Test_GetNewServices_AddsUpdatedServices_WhenReplicasA
 	s.Equal(1, len(*actual))
 }
 
+func (s *ServiceTestSuite) Test_GetNewServices_DoesNotAddServices_WhenReplicasAreSetTo0() {
+	defer func() {
+		exec.Command("docker", "service", "update", "--label-rm", "com.df.something", "--replicas", "1", "util-1").Output()
+	}()
+	exec.Command("docker", "service", "update", "--replicas", "1", "util-1").Output()
+	service := NewService("unix:///var/run/docker.sock")
+	services, _ := service.GetServices()
+
+	exec.Command("docker", "service", "update", "--replicas", "0", "util-1").Output()
+	service.GetNewServices(services)
+	services, _ = service.GetServices()
+	actual, _ := service.GetNewServices(services)
+
+	s.Equal(0, len(*actual))
+}
+
 // GetRemovedServices
 
 func (s *ServiceTestSuite) Test_GetRemovedServices_ReturnsNamesOfRemovedServices() {
@@ -180,6 +211,20 @@ func (s *ServiceTestSuite) Test_GetRemovedServices_ReturnsNamesOfRemovedServices
 	s.Equal(2, len(*actual))
 	s.Contains(*actual, "removed-service-1")
 	s.Contains(*actual, "removed-service-2")
+}
+
+func (s *ServiceTestSuite) Test_GetRemovedServices_AddsServicesWithZeroReplicas() {
+	service := NewService("unix:///var/run/docker.sock")
+	services, _ := service.GetServices()
+	Services["util-1"] = SwarmService{}
+	for _, s := range *services {
+		replicas := uint64(0)
+		s.Spec.Mode.Replicated.Replicas = &replicas
+	}
+	actual := service.GetRemovedServices(services)
+
+	s.Equal(1, len(*actual))
+	s.Contains(*actual, "util-1")
 }
 
 // GetServicesParameters

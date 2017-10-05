@@ -65,10 +65,10 @@ func (m *Service) GetNewServices(services *[]SwarmService) (*[]SwarmService, err
 		if tmpUpdatedAt.Nanosecond() == 0 || s.Meta.UpdatedAt.After(tmpUpdatedAt) {
 			updated := false
 			if service, ok := Services[s.Spec.Name]; ok {
-				if m.isUpdated(s, service) || m.isRemoved(s, service) {
+				if m.isUpdated(s, service) {
 					updated = true
 				}
-			} else { // It's a new service
+			} else if !m.hasZeroReplicas(s) {
 				updated = true
 			}
 			if updated {
@@ -89,7 +89,7 @@ func (m *Service) GetRemovedServices(services *[]SwarmService) *[]string {
 		tmpMap[k] = v
 	}
 	for _, v := range *services {
-		if _, ok := Services[v.Spec.Name]; ok {
+		if _, ok := Services[v.Spec.Name]; ok && !m.hasZeroReplicas(v) {
 			delete(tmpMap, v.Spec.Name)
 		}
 	}
@@ -121,6 +121,16 @@ func NewServiceFromEnv() *Service {
 	return NewService(host)
 }
 
+func (m *Service) hasZeroReplicas(candidate SwarmService) bool {
+	if candidate.Service.Spec.Mode.Replicated != nil {
+		replicas := candidate.Service.Spec.Mode.Replicated.Replicas
+		if *replicas > 0 {
+			return false
+		}
+	}
+	return true
+}
+
 func (m *Service) isUpdated(candidate SwarmService, cached SwarmService) bool {
 	for k, v := range candidate.Spec.Labels {
 		if strings.HasPrefix(k, "com.df.") {
@@ -129,14 +139,13 @@ func (m *Service) isUpdated(candidate SwarmService, cached SwarmService) bool {
 			}
 		}
 	}
-	if candidate.Service.Spec.Mode.Replicated != nil &&
-		*candidate.Service.Spec.Mode.Replicated.Replicas != *cached.Service.Spec.Mode.Replicated.Replicas {
-		return true
+	if candidate.Service.Spec.Mode.Replicated != nil {
+		candidateReplicas := candidate.Service.Spec.Mode.Replicated.Replicas
+		cachedReplicas := cached.Service.Spec.Mode.Replicated.Replicas
+		if *candidateReplicas > 0 && *candidateReplicas != *cachedReplicas {
+			return true
+		}
 	}
-	return false
-}
-
-func (m *Service) isRemoved(candidate SwarmService, cached SwarmService) bool {
 	for k := range cached.Spec.Labels {
 		if _, ok := candidate.Spec.Labels[k]; !ok {
 			return true
