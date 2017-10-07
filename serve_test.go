@@ -58,6 +58,24 @@ func (s *ServerTestSuite) Test_Run_ReturnsError_WhenHTTPListenAndServeFails() {
 
 // NotifyServices
 
+func (s *ServerTestSuite) Test_NotifyServices_ReturnsStatus200() {
+	servicerMock := getServicerMock("")
+	notifMock := NotificationMock{
+		ServicesCreateMock: func(services *[]service.SwarmService, retries, interval int) error {
+			return nil
+		},
+	}
+	rw := getResponseWriterMock()
+	req, _ := http.NewRequest("GET", "/v1/docker-flow-swarm-listener/notify-services", nil)
+	expected, _ := json.Marshal(Response{Status: "OK"})
+
+	srv := NewServe(servicerMock, notifMock)
+	srv.NotifyServices(rw, req)
+
+	rw.AssertCalled(s.T(), "WriteHeader", 200)
+	rw.AssertCalled(s.T(), "Write", []byte(expected))
+}
+
 func (s *ServerTestSuite) Test_NotifyServices_SetsContentTypeToJSON() {
 	var actual string
 	httpWriterSetContentType = func(w http.ResponseWriter, value string) {
@@ -109,7 +127,6 @@ func (s *ServerTestSuite) Test_NotifyServices_InvokesServicesCreate() {
 // GetServices
 
 func (s *ServerTestSuite) Test_GetServices_ReturnsServices() {
-
 	servicerMock := getServicerMock("GetServicesParameters")
 	mapParam := []map[string]string{
 		{"serviceName": "demo",
@@ -129,8 +146,24 @@ func (s *ServerTestSuite) Test_GetServices_ReturnsServices() {
 	rsp := []map[string]string{}
 	json.Unmarshal(value, &rsp)
 	s.Equal(&mapParam, &rsp)
-
 }
+
+// PingHandler
+
+func (s *ServerTestSuite) Test_PingHandler_ReturnsStatus200() {
+	servicerMock := getServicerMock("")
+	notifMock := NotificationMock{}
+	rw := getResponseWriterMock()
+	req, _ := http.NewRequest("GET", "/v1/docker-flow-swarm-listener/ping", nil)
+	expected, _ := json.Marshal(Response{Status: "OK"})
+
+	srv := NewServe(servicerMock, notifMock)
+	srv.PingHandler(rw, req)
+
+	rw.AssertCalled(s.T(), "WriteHeader", 200)
+	rw.AssertCalled(s.T(), "Write", []byte(expected))
+}
+
 
 // NewServe
 

@@ -19,11 +19,25 @@ type Serve struct {
 	Notification service.Sender
 }
 
+//Response message
+type Response struct {
+	Status      string
+}
+
+// NewServe returns a new instance of the `Serve`
+func NewServe(service service.Servicer, notification service.Sender) *Serve {
+	return &Serve{
+		Service:      service,
+		Notification: notification,
+	}
+}
+
 // Run executes a server
 func (m *Serve) Run() error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/v1/docker-flow-swarm-listener/notify-services", m.NotifyServices)
 	mux.HandleFunc("/v1/docker-flow-swarm-listener/get-services", m.GetServices)
+	mux.HandleFunc("/v1/docker-flow-swarm-listener/ping", m.PingHandler)
 	mux.Handle("/metrics", prometheus.Handler())
 	if err := httpListenAndServe(":8080", mux); err != nil {
 		return err
@@ -35,8 +49,10 @@ func (m *Serve) Run() error {
 func (m *Serve) NotifyServices(w http.ResponseWriter, req *http.Request) {
 	services, _ := m.Service.GetServices()
 	go m.Notification.ServicesCreate(services, 10, 5)
-	// TODO: Add response message
+	js, _ := json.Marshal(Response{Status: "OK"})
 	httpWriterSetContentType(w, "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(js)
 }
 
 // GetServices retrieves all services with the `com.df.notify` label set to `true`
@@ -54,10 +70,10 @@ func (m *Serve) GetServices(w http.ResponseWriter, req *http.Request) {
 	httpWriterSetContentType(w, "application/json")
 }
 
-// NewServe returns a new instance of the `Serve`
-func NewServe(service service.Servicer, notification service.Sender) *Serve {
-	return &Serve{
-		Service:      service,
-		Notification: notification,
-	}
+// PingHandler is used for health checks
+func (m *Serve) PingHandler(w http.ResponseWriter, req *http.Request) {
+	js, _ := json.Marshal(Response{Status: "OK"})
+	httpWriterSetContentType(w, "application/json")
+	w.WriteHeader(http.StatusOK)
+	w.Write(js)
 }
