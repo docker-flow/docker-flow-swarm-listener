@@ -306,7 +306,6 @@ func (s *NotificationTestSuite) Test_ServicesCreate_StopsSendingNotifications_Wh
 	httpSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 		attempt++
-		println(attempt)
 		if attempt == 1 {
 			delete(CachedServices, "my-service")
 		}

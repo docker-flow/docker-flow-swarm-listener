@@ -125,7 +125,6 @@ func NewServiceFromEnv() *service {
 }
 
 func (m *service) hasZeroReplicas(candidate SwarmService) bool {
-	println(candidate.Service.Spec.Name)
 	if candidate.Service.Spec.Mode.Global != nil {
 		return false
 	} else if candidate.Service.Spec.Mode.Replicated != nil {
