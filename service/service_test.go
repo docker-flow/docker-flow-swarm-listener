@@ -39,20 +39,10 @@ func (s *ServiceTestSuite) Test_GetServices_ReturnsServices() {
 	services, _ := service.GetServices()
 	actual := *services
 
-	s.Equal(1, len(actual))
-	s.Equal("util-1", actual[0].Spec.Name)
+	s.Equal(2, len(actual))
 	s.Equal("/demo", actual[0].Spec.Labels["com.df.servicePath"])
 	s.Equal("true", actual[0].Spec.Labels["com.df.distribute"])
 }
-
-//func (s *ServiceTestSuite) Test_GetServices_ReturnsError_WhenNewClientFails() {
-//	services := NewService("unix:///var/run/docker.sock", "", "")
-//	hostOrig := services.Host
-//	defer func() { services.Host = hostOrig }()
-//	services.Host = "This host does not exist"
-//	_, err := services.GetServices()
-//	s.Error(err)
-//}
 
 func (s *ServiceTestSuite) Test_GetServices_ReturnsError_WhenServiceListFails() {
 	services := NewService("unix:///this/socket/does/not/exist")
@@ -71,7 +61,7 @@ func (s *ServiceTestSuite) Test_GetNewServices_ReturnsAllServices_WhenExecutedFo
 
 	actual, _ := service.GetNewServices(services)
 
-	s.Equal(1, len(*actual))
+	s.Equal(2, len(*actual))
 }
 
 func (s *ServiceTestSuite) Test_GetNewServices_ReturnsOnlyNewServices() {
@@ -91,8 +81,9 @@ func (s *ServiceTestSuite) Test_GetNewServices_AddsServices() {
 
 	service.GetNewServices(services)
 
-	s.Equal(1, len(Services))
-	s.Contains(Services, "util-1")
+	s.Equal(2, len(CachedServices))
+	s.Contains(CachedServices, "util-1")
+	s.Contains(CachedServices, "util-3")
 }
 
 func (s *ServiceTestSuite) Test_GetNewServices_DoesNotAddServices_WhenReplicasAreZero() {
@@ -107,7 +98,17 @@ func (s *ServiceTestSuite) Test_GetNewServices_DoesNotAddServices_WhenReplicasAr
 
 	service.GetNewServices(services)
 
-	s.NotContains(Services, "util-1")
+	s.NotContains(CachedServices, "util-1")
+}
+
+func (s *ServiceTestSuite) Test_GetNewServices_AddsServices_WhenModeIsGlobal() {
+	service := NewService("unix:///var/run/docker.sock")
+	services, _ := service.GetServices()
+
+	service.GetNewServices(services)
+
+	s.Equal(2, len(CachedServices))
+	s.Contains(CachedServices, "util-3")
 }
 
 func (s *ServiceTestSuite) Test_GetNewServices_AddsUpdatedServices_WhenLabelIsAdded() {
@@ -203,8 +204,8 @@ func (s *ServiceTestSuite) Test_GetNewServices_DoesNotAddServices_WhenReplicasAr
 func (s *ServiceTestSuite) Test_GetRemovedServices_ReturnsNamesOfRemovedServices() {
 	service := NewService("unix:///var/run/docker.sock")
 	services, _ := service.GetServices()
-	Services["removed-service-1"] = SwarmService{}
-	Services["removed-service-2"] = SwarmService{}
+	CachedServices["removed-service-1"] = SwarmService{}
+	CachedServices["removed-service-2"] = SwarmService{}
 
 	actual := service.GetRemovedServices(services)
 
@@ -216,10 +217,12 @@ func (s *ServiceTestSuite) Test_GetRemovedServices_ReturnsNamesOfRemovedServices
 func (s *ServiceTestSuite) Test_GetRemovedServices_AddsServicesWithZeroReplicas() {
 	service := NewService("unix:///var/run/docker.sock")
 	services, _ := service.GetServices()
-	Services["util-1"] = SwarmService{}
+	CachedServices["util-1"] = SwarmService{}
 	for _, s := range *services {
-		replicas := uint64(0)
-		s.Spec.Mode.Replicated.Replicas = &replicas
+		if s.Spec.Mode.Replicated != nil {
+			replicas := uint64(0)
+			s.Spec.Mode.Replicated.Replicas = &replicas
+		}
 	}
 	actual := service.GetRemovedServices(services)
 
@@ -289,14 +292,18 @@ func (s *ServiceTestSuite) Test_NewServiceFromEnv_SetsHostToSocket_WhenEnvIsNotP
 // Util
 
 func createTestServices() {
-	createTestService("util-1", []string{"com.df.notify=true", "com.df.servicePath=/demo", "com.df.distribute=true"})
-	createTestService("util-2", []string{})
+	createTestService("util-1", []string{"com.df.notify=true", "com.df.servicePath=/demo", "com.df.distribute=true"}, "")
+	createTestService("util-2", []string{}, "")
+	createTestService("util-3", []string{"com.df.notify=true", "com.df.servicePath=/demo", "com.df.distribute=true"}, "global")
 }
 
-func createTestService(name string, labels []string) {
+func createTestService(name string, labels []string, mode string) {
 	args := []string{"service", "create", "--name", name}
 	for _, v := range labels {
 		args = append(args, "-l", v)
+	}
+	if len(mode) > 0 {
+		args = append(args, "--mode", "global")
 	}
 	args = append(args, "alpine", "sleep", "1000000000")
 	exec.Command("docker", args...).Output()
@@ -305,6 +312,7 @@ func createTestService(name string, labels []string) {
 func removeTestServices() {
 	removeTestService("util-1")
 	removeTestService("util-2")
+	removeTestService("util-3")
 }
 
 func removeTestService(name string) {

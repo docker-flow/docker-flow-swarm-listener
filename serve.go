@@ -21,7 +21,7 @@ type Serve struct {
 
 //Response message
 type Response struct {
-	Status      string
+	Status string
 }
 
 // NewServe returns a new instance of the `Serve`

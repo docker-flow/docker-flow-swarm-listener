@@ -164,7 +164,6 @@ func (s *ServerTestSuite) Test_PingHandler_ReturnsStatus200() {
 	rw.AssertCalled(s.T(), "Write", []byte(expected))
 }
 
-
 // NewServe
 
 func (s *ServerTestSuite) Test_NewServe_SetsService() {

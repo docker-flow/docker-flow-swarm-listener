@@ -35,7 +35,7 @@ func main() {
 			}
 			removedServices := s.GetRemovedServices(allServices)
 			err = n.ServicesRemove(removedServices, args.Retry, args.RetryInterval)
-			metrics.RecordService(len(service.Services))
+			metrics.RecordService(len(service.CachedServices))
 			if err != nil {
 				metrics.RecordError("ServicesRemove")
 			}

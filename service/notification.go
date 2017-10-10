@@ -71,7 +71,7 @@ func (m *notification) ServicesRemove(remove *[]string, retries, interval int) e
 			for i := 1; i <= retries; i++ {
 				resp, err := http.Get(fullUrl)
 				if err == nil && resp.StatusCode == http.StatusOK {
-					delete(Services, v)
+					delete(CachedServices, v)
 					break
 				} else if i < retries {
 					if interval > 0 {
@@ -113,7 +113,7 @@ func (m *notification) sendCreateServiceRequest(serviceName, addr string, params
 	fullUrl := urlObj.String()
 	logPrintf("Sending service created notification to %s", fullUrl)
 	for i := 1; i <= retries; i++ {
-		if _, ok := Services[serviceName]; !ok {
+		if _, ok := CachedServices[serviceName]; !ok {
 			logPrintf("Service %s was removed. Service created notifications are stopped.", serviceName)
 			break
 		}

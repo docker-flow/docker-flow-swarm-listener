@@ -308,7 +308,7 @@ func (s *NotificationTestSuite) Test_ServicesCreate_StopsSendingNotifications_Wh
 		attempt++
 		println(attempt)
 		if attempt == 1 {
-			delete(Services, "my-service")
+			delete(CachedServices, "my-service")
 		}
 	}))
 
@@ -322,12 +322,12 @@ func (s *NotificationTestSuite) Test_ServicesCreate_StopsSendingNotifications_Wh
 // ServicesRemove
 
 func (s *NotificationTestSuite) Test_ServicesRemove_SendsRequests() {
-	Services = make(map[string]SwarmService)
+	CachedServices = make(map[string]SwarmService)
 	s.verifyNotifyServiceRemove(true, fmt.Sprintf("distribute=true&serviceName=%s", "my-removed-service-1"))
 }
 
 func (s *NotificationTestSuite) Test_ServicesRemove_ReturnsError_WhenUrlCannotBeParsed() {
-	Services = make(map[string]SwarmService)
+	CachedServices = make(map[string]SwarmService)
 	n := newNotification([]string{}, []string{"%%%"})
 	err := n.ServicesRemove(&[]string{"my-removed-service-1"}, 1, 0)
 
@@ -335,7 +335,7 @@ func (s *NotificationTestSuite) Test_ServicesRemove_ReturnsError_WhenUrlCannotBe
 }
 
 func (s *NotificationTestSuite) Test_ServicesRemove_ReturnsError_WhenHttpStatusIsNot200() {
-	Services = make(map[string]SwarmService)
+	CachedServices = make(map[string]SwarmService)
 	httpSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusNotFound)
 	}))
@@ -347,7 +347,7 @@ func (s *NotificationTestSuite) Test_ServicesRemove_ReturnsError_WhenHttpStatusI
 }
 
 func (s *NotificationTestSuite) Test_ServicesRemove_ReturnsError_WhenHttpRequestReturnsError() {
-	Services = make(map[string]SwarmService)
+	CachedServices = make(map[string]SwarmService)
 	n := newNotification([]string{}, []string{"this-does-not-exist"})
 
 	err := n.ServicesRemove(&[]string{"my-removed-service-1"}, 1, 0)
@@ -388,8 +388,8 @@ func (s *NotificationTestSuite) getSwarmServices(labels map[string]string) *[]Sw
 	srv := swarm.Service{
 		Spec: spec,
 	}
-	Services = map[string]SwarmService{}
-	Services[ann.Name] = SwarmService{srv}
+	CachedServices = map[string]SwarmService{}
+	CachedServices[ann.Name] = SwarmService{srv}
 	ss := SwarmService{srv}
 	return &[]SwarmService{ss}
 }
@@ -450,13 +450,13 @@ func (s *NotificationTestSuite) verifyNotifyServiceRemove(expectSent bool, expec
 	url := fmt.Sprintf("%s/v1/docker-flow-proxy/remove", httpSrv.URL)
 	n := newNotification([]string{}, []string{url})
 
-	Services["my-removed-service-1"] = SwarmService{}
+	CachedServices["my-removed-service-1"] = SwarmService{}
 	err := n.ServicesRemove(&[]string{"my-removed-service-1"}, 1, 0)
 
 	s.NoError(err)
 	s.Equal(expectSent, actualSent)
 	if expectSent {
 		s.Equal(expectQuery, actualQuery)
-		s.NotContains(Services, "my-removed-service-1")
+		s.NotContains(CachedServices, "my-removed-service-1")
 	}
 }
