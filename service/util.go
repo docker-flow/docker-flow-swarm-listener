@@ -32,3 +32,19 @@ func getSenderAddressesFromEnvVars(catchAllType, senderType, altSenderType strin
 	}
 	return createServiceAddr, removeServiceAddr
 }
+
+func getServiceParams(s *SwarmService) map[string]string {
+	params := map[string]string{}
+	if _, ok := s.Spec.Labels[os.Getenv("DF_NOTIFY_LABEL")]; ok {
+		params["serviceName"] = s.Spec.Name
+		for k, v := range s.Spec.Labels {
+			if strings.HasPrefix(k, "com.df") && k != os.Getenv("DF_NOTIFY_LABEL") {
+				params[strings.TrimPrefix(k, "com.df.")] = v
+			}
+		}
+		if s.Service.Spec.Mode.Replicated != nil {
+			params["replicas"] = fmt.Sprintf("%d", *s.Service.Spec.Mode.Replicated.Replicas)
+		}
+	}
+	return params
+}

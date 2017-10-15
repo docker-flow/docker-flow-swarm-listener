@@ -14,8 +14,8 @@ import (
 // CachedServices stores the information about services processed by the system
 var CachedServices map[string]SwarmService
 
-
-type service struct {
+// Service defines the based structure
+type Service struct {
 	Host                 string
 	ServiceLastUpdatedAt time.Time
 	DockerClient         *client.Client
@@ -29,24 +29,18 @@ type Servicer interface {
 	GetServicesParameters(services *[]SwarmService) *[]map[string]string
 }
 
-func (m *service) GetServicesParameters(services *[]SwarmService) *[]map[string]string {
-	var parameters = []map[string]string{}
+func (m *Service) GetServicesParameters(services *[]SwarmService) *[]map[string]string {
+	params := []map[string]string{}
 	for _, s := range *services {
-		if _, ok := s.Spec.Labels[os.Getenv("DF_NOTIFY_LABEL")]; ok {
-			var sParams = make(map[string]string)
-			sParams["serviceName"] = s.Spec.Name
-			for k, v := range s.Spec.Labels {
-				if strings.HasPrefix(k, "com.df") && k != os.Getenv("DF_NOTIFY_LABEL") {
-					sParams[strings.TrimPrefix(k, "com.df.")] = v
-				}
-			}
-			parameters = append(parameters, sParams)
+		sParams := getServiceParams(&s)
+		if len(sParams) > 0 {
+			params = append(params, sParams)
 		}
 	}
-	return &parameters
+	return &params
 }
 
-func (m *service) GetServices() (*[]SwarmService, error) {
+func (m *Service) GetServices() (*[]SwarmService, error) {
 	filter := filters.NewArgs()
 	filter.Add("label", fmt.Sprintf("%s=true", os.Getenv("DF_NOTIFY_LABEL")))
 	services, err := m.DockerClient.ServiceList(context.Background(), types.ServiceListOptions{Filters: filter})
@@ -61,7 +55,7 @@ func (m *service) GetServices() (*[]SwarmService, error) {
 	return &swarmServices, nil
 }
 
-func (m *service) GetNewServices(services *[]SwarmService) (*[]SwarmService, error) {
+func (m *Service) GetNewServices(services *[]SwarmService) (*[]SwarmService, error) {
 	newServices := []SwarmService{}
 	tmpUpdatedAt := m.ServiceLastUpdatedAt
 	for _, s := range *services {
@@ -86,7 +80,7 @@ func (m *service) GetNewServices(services *[]SwarmService) (*[]SwarmService, err
 	return &newServices, nil
 }
 
-func (m *service) GetRemovedServices(services *[]SwarmService) *[]string {
+func (m *Service) GetRemovedServices(services *[]SwarmService) *[]string {
 	tmpMap := make(map[string]SwarmService)
 	for k, v := range CachedServices {
 		tmpMap[k] = v
@@ -103,20 +97,22 @@ func (m *service) GetRemovedServices(services *[]SwarmService) *[]string {
 	return &rs
 }
 
-func NewService(host string) *service {
+// NewService returns a new instance of the `Service` structure
+func NewService(host string) *Service {
 	defaultHeaders := map[string]string{"User-Agent": "engine-api-cli-1.0"}
 	dc, err := client.NewClient(host, dockerApiVersion, nil, defaultHeaders)
 	if err != nil {
 		logPrintf(err.Error())
 	}
 	CachedServices = make(map[string]SwarmService)
-	return &service{
+	return &Service{
 		Host:         host,
 		DockerClient: dc,
 	}
 }
 
-func NewServiceFromEnv() *service {
+// NewServiceFromEnv returns a new instance of the `Service` structure using environment variable `DF_DOCKER_HOST` for the host
+func NewServiceFromEnv() *Service {
 	host := "unix:///var/run/docker.sock"
 	if len(os.Getenv("DF_DOCKER_HOST")) > 0 {
 		host = os.Getenv("DF_DOCKER_HOST")
@@ -124,7 +120,7 @@ func NewServiceFromEnv() *service {
 	return NewService(host)
 }
 
-func (m *service) hasZeroReplicas(candidate SwarmService) bool {
+func (m *Service) hasZeroReplicas(candidate SwarmService) bool {
 	if candidate.Service.Spec.Mode.Global != nil {
 		return false
 	} else if candidate.Service.Spec.Mode.Replicated != nil {
@@ -136,7 +132,7 @@ func (m *service) hasZeroReplicas(candidate SwarmService) bool {
 	return true
 }
 
-func (m *service) isUpdated(candidate SwarmService, cached SwarmService) bool {
+func (m *Service) isUpdated(candidate SwarmService, cached SwarmService) bool {
 	for k, v := range candidate.Spec.Labels {
 		if strings.HasPrefix(k, "com.df.") {
 			if storedValue, ok := cached.Spec.Labels[k]; !ok || v != storedValue {

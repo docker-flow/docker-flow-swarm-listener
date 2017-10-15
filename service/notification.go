@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	"strings"
 	"time"
 )
 
@@ -33,18 +32,13 @@ func NewNotificationFromEnv() *notification {
 func (m *notification) ServicesCreate(services *[]SwarmService, retries, interval int) error {
 	for _, s := range *services {
 		if _, ok := s.Spec.Labels[os.Getenv("DF_NOTIFY_LABEL")]; ok {
-			params := url.Values{}
-			params.Add("serviceName", s.Spec.Name)
-			for k, v := range s.Spec.Labels {
-				if strings.HasPrefix(k, "com.df") && k != os.Getenv("DF_NOTIFY_LABEL") {
-					params.Add(strings.TrimPrefix(k, "com.df."), v)
-				}
-			}
-			if s.Service.Spec.Mode.Replicated != nil {
-				params.Add("replicas", fmt.Sprintf("%d", *s.Service.Spec.Mode.Replicated.Replicas))
+			params := getServiceParams(&s)
+			urlValues := url.Values{}
+			for k, v := range params {
+				urlValues.Add(k, v)
 			}
 			for _, addr := range m.CreateServiceAddr {
-				go m.sendCreateServiceRequest(s.Spec.Name, addr, params, retries, interval)
+				go m.sendCreateServiceRequest(s.Spec.Name, addr, urlValues, retries, interval)
 			}
 		}
 	}
