@@ -43,7 +43,10 @@ func (m *Service) GetServicesParameters(services *[]SwarmService) *[]map[string]
 func (m *Service) GetServices() (*[]SwarmService, error) {
 	filter := filters.NewArgs()
 	filter.Add("label", fmt.Sprintf("%s=true", os.Getenv("DF_NOTIFY_LABEL")))
-	services, err := m.DockerClient.ServiceList(context.Background(), types.ServiceListOptions{Filters: filter})
+	services, err := m.DockerClient.ServiceList(
+		context.Background(),
+		types.ServiceListOptions{Filters: filter},
+	)
 	if err != nil {
 		logPrintf(err.Error())
 		return &[]SwarmService{}, err

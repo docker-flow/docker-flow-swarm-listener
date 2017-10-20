@@ -147,6 +147,52 @@ func (s *NotificationTestSuite) Test_ServicesCreate_SendsRequests() {
 	s.True(passed)
 }
 
+func (s *NotificationTestSuite) Test_ServicesCreate_UsesShortServiceName() {
+	labels := make(map[string]string)
+	labels["com.df.notify"] = "true"
+	labels["com.df.distribute"] = "true"
+	labels["com.df.shortName"] = "true"
+	labels["com.docker.stack.namespace"] = "my-stack"
+	ann := swarm.Annotations{
+		Name:   "my-stack_my-service",
+		Labels: labels,
+	}
+	spec := swarm.ServiceSpec{
+		Annotations: ann,
+	}
+	srv := swarm.Service{
+		Spec: spec,
+	}
+	CachedServices = map[string]SwarmService{}
+	CachedServices[ann.Name] = SwarmService{srv}
+	ss := SwarmService{srv}
+	services := &[]SwarmService{ss}
+
+	actualSent := false
+	actualQuery := ""
+	httpSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json")
+		actualQuery = r.URL.RawQuery
+		actualSent = true
+	}))
+	defer func() { httpSrv.Close() }()
+	url1 := fmt.Sprintf("%s/v1/docker-flow-proxy/reconfigure", httpSrv.URL)
+
+	n := newNotification([]string{url1}, []string{})
+	n.ServicesCreate(services, 1, 0)
+	passed := false
+	for i := 0; i < 100; i++ {
+		if actualSent {
+			s.Equal("distribute=true&serviceName=my-service&shortName=true", actualQuery)
+			passed = true
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
+	s.True(passed)
+}
+
 func (s *NotificationTestSuite) Test_ServicesCreate_AddsReplicas() {
 	labels := make(map[string]string)
 	labels["com.df.notify"] = "true"
