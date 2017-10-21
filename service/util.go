@@ -39,7 +39,7 @@ func getServiceParams(s *SwarmService) map[string]string {
 		serviceName := s.Spec.Name
 		stackName := s.Spec.Labels["com.docker.stack.namespace"]
 		if len(stackName) > 0 && strings.EqualFold(s.Spec.Labels["com.df.shortName"], "true") {
-			serviceName = strings.TrimPrefix(serviceName, stackName + "_")
+			serviceName = strings.TrimPrefix(serviceName, stackName+"_")
 		}
 		params["serviceName"] = serviceName
 

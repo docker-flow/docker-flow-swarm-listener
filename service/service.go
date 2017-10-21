@@ -29,6 +29,7 @@ type Servicer interface {
 	GetServicesParameters(services *[]SwarmService) *[]map[string]string
 }
 
+// GetServicesParameters returns parameters extracted from labels associated with input services
 func (m *Service) GetServicesParameters(services *[]SwarmService) *[]map[string]string {
 	params := []map[string]string{}
 	for _, s := range *services {
@@ -40,6 +41,7 @@ func (m *Service) GetServicesParameters(services *[]SwarmService) *[]map[string]
 	return &params
 }
 
+// GetServices returns all services running in the cluster
 func (m *Service) GetServices() (*[]SwarmService, error) {
 	filter := filters.NewArgs()
 	filter.Add("label", fmt.Sprintf("%s=true", os.Getenv("DF_NOTIFY_LABEL")))
@@ -58,6 +60,7 @@ func (m *Service) GetServices() (*[]SwarmService, error) {
 	return &swarmServices, nil
 }
 
+// GetNewServices returns services that were not processed previously
 func (m *Service) GetNewServices(services *[]SwarmService) (*[]SwarmService, error) {
 	newServices := []SwarmService{}
 	tmpUpdatedAt := m.ServiceLastUpdatedAt
@@ -83,6 +86,7 @@ func (m *Service) GetNewServices(services *[]SwarmService) (*[]SwarmService, err
 	return &newServices, nil
 }
 
+// GetRemovedServices returns services that were removed from the cluster
 func (m *Service) GetRemovedServices(services *[]SwarmService) *[]string {
 	tmpMap := make(map[string]SwarmService)
 	for k, v := range CachedServices {

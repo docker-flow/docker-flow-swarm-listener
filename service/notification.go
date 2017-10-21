@@ -10,26 +10,27 @@ import (
 	"time"
 )
 
-type notification struct {
+// Notification defines the structure with exported functions
+type Notification struct {
 	CreateServiceAddr []string
 	RemoveServiceAddr []string
 }
 
-func newNotification(createServiceAddr, removeServiceAddr []string) *notification {
-	return &notification{
+func newNotification(createServiceAddr, removeServiceAddr []string) *Notification {
+	return &Notification{
 		CreateServiceAddr: createServiceAddr,
 		RemoveServiceAddr: removeServiceAddr,
 	}
 }
 
 // NewNotificationFromEnv returns `notification` instance
-func NewNotificationFromEnv() *notification {
+func NewNotificationFromEnv() *Notification {
 	createServiceAddr, removeServiceAddr := getSenderAddressesFromEnvVars("notification", "notify", "notif")
 	return newNotification(createServiceAddr, removeServiceAddr)
 }
 
 // ServicesCreate sends create service notifications
-func (m *notification) ServicesCreate(services *[]SwarmService, retries, interval int) error {
+func (m *Notification) ServicesCreate(services *[]SwarmService, retries, interval int) error {
 	for _, s := range *services {
 		if _, ok := s.Spec.Labels[os.Getenv("DF_NOTIFY_LABEL")]; ok {
 			params := getServiceParams(&s)
@@ -46,7 +47,7 @@ func (m *notification) ServicesCreate(services *[]SwarmService, retries, interva
 }
 
 // ServicesRemove sends remove service notifications
-func (m *notification) ServicesRemove(remove *[]string, retries, interval int) error {
+func (m *Notification) ServicesRemove(remove *[]string, retries, interval int) error {
 	errs := []error{}
 	for _, v := range *remove {
 		parameters := url.Values{}
@@ -96,7 +97,7 @@ func (m *notification) ServicesRemove(remove *[]string, retries, interval int) e
 	return nil
 }
 
-func (m *notification) sendCreateServiceRequest(serviceName, addr string, params url.Values, retries, interval int) {
+func (m *Notification) sendCreateServiceRequest(serviceName, addr string, params url.Values, retries, interval int) {
 	urlObj, err := url.Parse(addr)
 	if err != nil {
 		logPrintf("ERROR: %s", err.Error())
