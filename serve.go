@@ -39,10 +39,7 @@ func (m *Serve) Run() error {
 	mux.HandleFunc("/v1/docker-flow-swarm-listener/get-services", m.GetServices)
 	mux.HandleFunc("/v1/docker-flow-swarm-listener/ping", m.PingHandler)
 	mux.Handle("/metrics", prometheus.Handler())
-	if err := httpListenAndServe(":8080", mux); err != nil {
-		return err
-	}
-	return nil
+	return httpListenAndServe(":8080", mux)
 }
 
 // NotifyServices notifies all configured endpoints of new, updated, or removed services

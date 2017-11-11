@@ -51,6 +51,9 @@ func getServiceParams(s *SwarmService) map[string]string {
 		if s.Service.Spec.Mode.Replicated != nil {
 			params["replicas"] = fmt.Sprintf("%d", *s.Service.Spec.Mode.Replicated.Replicas)
 		}
+		if _, ok := params["distribute"]; !ok {
+			params["distribute"] = "true"
+		}
 	}
 	return params
 }

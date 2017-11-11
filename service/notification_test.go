@@ -229,6 +229,36 @@ func (s *NotificationTestSuite) Test_ServicesCreate_AddsReplicas() {
 	s.True(passed)
 }
 
+func (s *NotificationTestSuite) Test_ServicesCreate_AddsDistributeTrue_WhenNotSet() {
+	labels := make(map[string]string)
+	labels["com.df.notify"] = "true"
+	services := *s.getSwarmServices(labels)
+
+	actualSent := false
+	actualQuery := ""
+	httpSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		w.Header().Set("Content-Type", "application/json")
+		actualQuery = r.URL.RawQuery
+		actualSent = true
+	}))
+	defer func() { httpSrv.Close() }()
+	url := fmt.Sprintf("%s/v1/docker-flow-proxy/reconfigure", httpSrv.URL)
+
+	n := newNotification([]string{url}, []string{})
+	n.ServicesCreate(&services, 1, 0)
+	passed := false
+	for i := 0; i < 1000; i++ {
+		if actualSent {
+			s.Equal("distribute=true&serviceName=my-service", actualQuery)
+			passed = true
+			break
+		}
+		time.Sleep(1 * time.Millisecond)
+	}
+	s.True(passed)
+}
+
 func (s *NotificationTestSuite) Test_ServicesCreate_UsesLabelsFromEnvVars() {
 	notifyLabelOrig := os.Getenv("DF_NOTIFY_LABEL")
 	defer func() { os.Setenv("DF_NOTIFY_LABEL", notifyLabelOrig) }()
