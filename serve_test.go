@@ -78,6 +78,8 @@ func (s *ServerTestSuite) Test_NotifyServices_ReturnsStatus200() {
 
 func (s *ServerTestSuite) Test_NotifyServices_SetsContentTypeToJSON() {
 	var actual string
+	httpWriterSetContentTypeOrig := httpWriterSetContentType
+	defer func() { httpWriterSetContentType = httpWriterSetContentTypeOrig }()
 	httpWriterSetContentType = func(w http.ResponseWriter, value string) {
 		actual = value
 	}
@@ -151,6 +153,12 @@ func (s *ServerTestSuite) Test_GetServices_ReturnsServices() {
 // PingHandler
 
 func (s *ServerTestSuite) Test_PingHandler_ReturnsStatus200() {
+	actual := ""
+	httpWriterSetContentTypeOrig := httpWriterSetContentType
+	defer func() { httpWriterSetContentType = httpWriterSetContentTypeOrig }()
+	httpWriterSetContentType = func(w http.ResponseWriter, value string) {
+		actual = value
+	}
 	servicerMock := getServicerMock("")
 	notifMock := NotificationMock{}
 	rw := getResponseWriterMock()
@@ -160,6 +168,7 @@ func (s *ServerTestSuite) Test_PingHandler_ReturnsStatus200() {
 	srv := NewServe(servicerMock, notifMock)
 	srv.PingHandler(rw, req)
 
+	s.Equal("application/json", actual)
 	rw.AssertCalled(s.T(), "WriteHeader", 200)
 	rw.AssertCalled(s.T(), "Write", []byte(expected))
 }

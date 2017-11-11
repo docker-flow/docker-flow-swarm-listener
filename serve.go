@@ -62,9 +62,11 @@ func (m *Serve) GetServices(w http.ResponseWriter, req *http.Request) {
 		metrics.RecordError("serveGetServices")
 		w.WriteHeader(http.StatusInternalServerError)
 	} else {
+		// NOTE: For an unknown reason, `httpWriterSetContentType` does not work so the header is set directly
+		w.Header().Set("Content-Type", "application/json")
+		httpWriterSetContentType(w, "application/json")
 		w.Write(bytes)
 	}
-	httpWriterSetContentType(w, "application/json")
 }
 
 // PingHandler is used for health checks
