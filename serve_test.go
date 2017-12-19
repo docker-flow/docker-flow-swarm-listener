@@ -1,16 +1,17 @@
 package main
 
 import (
-	"./service"
 	"encoding/json"
 	"fmt"
-	"github.com/docker/docker/api/types/swarm"
-	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/suite"
 	"net/http"
 	"strings"
 	"testing"
 	"time"
+
+	"./service"
+	"github.com/docker/docker/api/types/swarm"
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/suite"
 )
 
 type ServerTestSuite struct {
@@ -131,10 +132,12 @@ func (s *ServerTestSuite) Test_NotifyServices_InvokesServicesCreate() {
 func (s *ServerTestSuite) Test_GetServices_ReturnsServices() {
 	servicerMock := getServicerMock("GetServicesParameters")
 	mapParam := []map[string]string{
-		{"serviceName": "demo",
+		{
+			"serviceName": "demo",
 			"notify":      "true",
 			"servicePath": "/demo",
-			"distribute":  "true"},
+			"distribute":  "true",
+		},
 	}
 	servicerMock.On("GetServicesParameters", mock.Anything).Return(&mapParam)
 	req, _ := http.NewRequest("GET", "/v1/docker-flow-swarm-listener/get-services", nil)

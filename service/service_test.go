@@ -1,12 +1,13 @@
 package service
 
 import (
-	"github.com/docker/docker/api/types/swarm"
-	"github.com/stretchr/testify/suite"
 	"os"
 	"os/exec"
 	"testing"
 	"time"
+
+	"github.com/docker/docker/api/types/swarm"
+	"github.com/stretchr/testify/suite"
 )
 
 type ServiceTestSuite struct {
@@ -234,6 +235,10 @@ func (s *ServiceTestSuite) Test_GetRemovedServices_AddsServicesWithZeroReplicas(
 
 func (s *ServiceTestSuite) Test_GetRemovedServices_GetServicesParameters() {
 	service := NewService("unix:///var/run/docker.sock")
+	replicas := uint64(1)
+	mode := swarm.ServiceMode{
+		Replicated: &swarm.ReplicatedService{Replicas: &replicas},
+	}
 	srv := swarm.Service{
 		Spec: swarm.ServiceSpec{
 			Annotations: swarm.Annotations{
@@ -244,15 +249,44 @@ func (s *ServiceTestSuite) Test_GetRemovedServices_GetServicesParameters() {
 					"com.df.distribute":  "true",
 				},
 			},
+			Mode: mode,
 		},
 	}
 	srvs := []SwarmService{{srv}}
 	paramsList := service.GetServicesParameters(&srvs)
 	expected := []map[string]string{
-		{"serviceName": "demo",
+		{
+			"serviceName": "demo",
 			"servicePath": "/demo",
-			"distribute":  "true"},
+			"distribute":  "true",
+			"replicas":    "1",
+		},
 	}
+	s.Equal(&expected, paramsList)
+}
+
+func (s *ServiceTestSuite) Test_GetRemovedServices_IgnoresThoseScaledToZero() {
+	service := NewService("unix:///var/run/docker.sock")
+	replicas := uint64(0)
+	mode := swarm.ServiceMode{
+		Replicated: &swarm.ReplicatedService{Replicas: &replicas},
+	}
+	srv := swarm.Service{
+		Spec: swarm.ServiceSpec{
+			Annotations: swarm.Annotations{
+				Name: "demo",
+				Labels: map[string]string{
+					"com.df.notify":      "true",
+					"com.df.servicePath": "/demo",
+					"com.df.distribute":  "true",
+				},
+			},
+			Mode: mode,
+		},
+	}
+	srvs := []SwarmService{{srv}}
+	paramsList := service.GetServicesParameters(&srvs)
+	expected := []map[string]string{}
 	s.Equal(&expected, paramsList)
 }
 

@@ -2,13 +2,14 @@ package service
 
 import (
 	"fmt"
+	"os"
+	"strings"
+	"time"
+
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
 	"golang.org/x/net/context"
-	"os"
-	"strings"
-	"time"
 )
 
 // CachedServices stores the information about services processed by the system
@@ -71,7 +72,7 @@ func (m *Service) GetNewServices(services *[]SwarmService) (*[]SwarmService, err
 				if m.isUpdated(s, service) {
 					updated = true
 				}
-			} else if !m.hasZeroReplicas(s) {
+			} else if !hasZeroReplicas(&s) {
 				updated = true
 			}
 			if updated {
@@ -93,7 +94,7 @@ func (m *Service) GetRemovedServices(services *[]SwarmService) *[]string {
 		tmpMap[k] = v
 	}
 	for _, v := range *services {
-		if _, ok := CachedServices[v.Spec.Name]; ok && !m.hasZeroReplicas(v) {
+		if _, ok := CachedServices[v.Spec.Name]; ok && !hasZeroReplicas(&v) {
 			delete(tmpMap, v.Spec.Name)
 		}
 	}
@@ -125,18 +126,6 @@ func NewServiceFromEnv() *Service {
 		host = os.Getenv("DF_DOCKER_HOST")
 	}
 	return NewService(host)
-}
-
-func (m *Service) hasZeroReplicas(candidate SwarmService) bool {
-	if candidate.Service.Spec.Mode.Global != nil {
-		return false
-	} else if candidate.Service.Spec.Mode.Replicated != nil {
-		replicas := candidate.Service.Spec.Mode.Replicated.Replicas
-		if *replicas > 0 {
-			return false
-		}
-	}
-	return true
 }
 
 func (m *Service) isUpdated(candidate SwarmService, cached SwarmService) bool {

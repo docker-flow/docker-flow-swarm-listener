@@ -35,7 +35,8 @@ func getSenderAddressesFromEnvVars(catchAllType, senderType, altSenderType strin
 
 func getServiceParams(s *SwarmService) map[string]string {
 	params := map[string]string{}
-	if _, ok := s.Spec.Labels[os.Getenv("DF_NOTIFY_LABEL")]; ok {
+	// if _, ok := s.Spec.Labels[os.Getenv("DF_NOTIFY_LABEL")]; ok {
+	if _, ok := s.Spec.Labels[os.Getenv("DF_NOTIFY_LABEL")]; ok && !hasZeroReplicas(s) {
 		serviceName := s.Spec.Name
 		stackName := s.Spec.Labels["com.docker.stack.namespace"]
 		if len(stackName) > 0 && strings.EqualFold(s.Spec.Labels["com.df.shortName"], "true") {
@@ -56,4 +57,16 @@ func getServiceParams(s *SwarmService) map[string]string {
 		}
 	}
 	return params
+}
+
+func hasZeroReplicas(candidate *SwarmService) bool {
+	if candidate.Service.Spec.Mode.Global != nil {
+		return false
+	} else if candidate.Service.Spec.Mode.Replicated != nil {
+		replicas := candidate.Service.Spec.Mode.Replicated.Replicas
+		if *replicas > 0 {
+			return false
+		}
+	}
+	return true
 }

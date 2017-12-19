@@ -1,11 +1,12 @@
 package main
 
 import (
+	"encoding/json"
+	"net/http"
+
 	"./metrics"
 	"./service"
-	"encoding/json"
 	"github.com/prometheus/client_golang/prometheus"
-	"net/http"
 )
 
 var httpListenAndServe = http.ListenAndServe

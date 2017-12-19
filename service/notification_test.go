@@ -2,14 +2,15 @@ package service
 
 import (
 	"fmt"
-	"github.com/docker/docker/api/types/swarm"
-	"github.com/stretchr/testify/suite"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/docker/docker/api/types/swarm"
+	"github.com/stretchr/testify/suite"
 )
 
 type NotificationTestSuite struct {
@@ -128,7 +129,7 @@ func (s *NotificationTestSuite) Test_ServicesCreate_SendsRequests() {
 	passed := false
 	for i := 0; i < 100; i++ {
 		if actualSent1 {
-			s.Equal("distribute=true&serviceName=my-service", actualQuery1)
+			s.Equal("distribute=true&replicas=1&serviceName=my-service", actualQuery1)
 			passed = true
 			break
 		}
@@ -138,7 +139,7 @@ func (s *NotificationTestSuite) Test_ServicesCreate_SendsRequests() {
 	passed = false
 	for i := 0; i < 100; i++ {
 		if actualSent2 {
-			s.Equal("distribute=true&serviceName=my-service", actualQuery2)
+			s.Equal("distribute=true&replicas=1&serviceName=my-service", actualQuery2)
 			passed = true
 			break
 		}
@@ -157,8 +158,13 @@ func (s *NotificationTestSuite) Test_ServicesCreate_UsesShortServiceName() {
 		Name:   "my-stack_my-service",
 		Labels: labels,
 	}
+	replicas := uint64(1)
+	mode := swarm.ServiceMode{
+		Replicated: &swarm.ReplicatedService{Replicas: &replicas},
+	}
 	spec := swarm.ServiceSpec{
 		Annotations: ann,
+		Mode:        mode,
 	}
 	srv := swarm.Service{
 		Spec: spec,
@@ -184,7 +190,7 @@ func (s *NotificationTestSuite) Test_ServicesCreate_UsesShortServiceName() {
 	passed := false
 	for i := 0; i < 100; i++ {
 		if actualSent {
-			s.Equal("distribute=true&serviceName=my-service&shortName=true", actualQuery)
+			s.Equal("distribute=true&replicas=1&serviceName=my-service&shortName=true", actualQuery)
 			passed = true
 			break
 		}
@@ -250,7 +256,7 @@ func (s *NotificationTestSuite) Test_ServicesCreate_AddsDistributeTrue_WhenNotSe
 	passed := false
 	for i := 0; i < 1000; i++ {
 		if actualSent {
-			s.Equal("distribute=true&serviceName=my-service", actualQuery)
+			s.Equal("distribute=true&replicas=1&serviceName=my-service", actualQuery)
 			passed = true
 			break
 		}
@@ -269,7 +275,7 @@ func (s *NotificationTestSuite) Test_ServicesCreate_UsesLabelsFromEnvVars() {
 	labels["com.df.distribute"] = "true"
 	labels["label.without.correct.prefix"] = "something"
 
-	s.verifyNotifyServiceCreate(labels, true, fmt.Sprintf("distribute=true&serviceName=%s", "my-service"))
+	s.verifyNotifyServiceCreate(labels, true, fmt.Sprintf("distribute=true&replicas=1&serviceName=%s", "my-service"))
 }
 
 func (s *NotificationTestSuite) Test_ServicesCreate_LogsError_WhenUrlCannotBeParsed() {
@@ -457,8 +463,13 @@ func (s *NotificationTestSuite) getSwarmServices(labels map[string]string) *[]Sw
 		Name:   "my-service",
 		Labels: labels,
 	}
+	replicas := uint64(1)
+	mode := swarm.ServiceMode{
+		Replicated: &swarm.ReplicatedService{Replicas: &replicas},
+	}
 	spec := swarm.ServiceSpec{
 		Annotations: ann,
+		Mode:        mode,
 	}
 	srv := swarm.Service{
 		Spec: spec,
