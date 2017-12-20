@@ -25,6 +25,7 @@ pipeline {
       }
       steps {
         dfRelease("docker-flow-swarm-listener")
+        dfReleaseGithub("docker-flow-swarm-listener")
       }
     }
     stage("deploy") {
