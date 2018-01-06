@@ -1,13 +1,15 @@
 package service
 
 import (
-	"../metrics"
 	"fmt"
 	"io/ioutil"
 	"net/http"
 	"net/url"
 	"os"
+	"strings"
 	"time"
+
+	"../metrics"
 )
 
 // Notification defines the structure with exported functions
@@ -38,12 +40,30 @@ func (m *Notification) ServicesCreate(services *[]SwarmService, retries, interva
 			for k, v := range params {
 				urlValues.Add(k, v)
 			}
-			for _, addr := range m.CreateServiceAddr {
+			for _, addr := range m.GetCreateServiceAddr(urlValues) {
 				go m.sendCreateServiceRequest(s.Spec.Name, addr, urlValues, retries, interval)
 			}
 		}
 	}
 	return nil
+}
+
+// GetCreateServiceAddr returns create service addresses
+func (m *Notification) GetCreateServiceAddr(urlValues map[string][]string) []string {
+	if val, ok := urlValues["notifyService"]; ok {
+		addresses := []string{}
+		services := strings.Split(val[0], ",")
+		for _, s := range services {
+			for _, addr := range m.CreateServiceAddr {
+				if strings.Contains(addr, s) {
+					addresses = append(addresses, addr)
+					break
+				}
+			}
+		}
+		return addresses
+	}
+	return m.CreateServiceAddr
 }
 
 // ServicesRemove sends remove service notifications
@@ -53,7 +73,7 @@ func (m *Notification) ServicesRemove(remove *[]string, retries, interval int) e
 		parameters := url.Values{}
 		parameters.Add("serviceName", v)
 		parameters.Add("distribute", "true")
-		for _, addr := range m.RemoveServiceAddr {
+		for _, addr := range m.GetRemoveServiceAddr(parameters) {
 			urlObj, err := url.Parse(addr)
 			if err != nil {
 				logPrintf("ERROR: %s", err.Error())
@@ -61,10 +81,10 @@ func (m *Notification) ServicesRemove(remove *[]string, retries, interval int) e
 				break
 			}
 			urlObj.RawQuery = parameters.Encode()
-			fullUrl := urlObj.String()
-			logPrintf("Sending service removed notification to %s", fullUrl)
+			fullURL := urlObj.String()
+			logPrintf("Sending service removed notification to %s", fullURL)
 			for i := 1; i <= retries; i++ {
-				resp, err := http.Get(fullUrl)
+				resp, err := http.Get(fullURL)
 				if err == nil && resp.StatusCode == http.StatusOK {
 					delete(CachedServices, v)
 					break
@@ -79,7 +99,7 @@ func (m *Notification) ServicesRemove(remove *[]string, retries, interval int) e
 						metrics.RecordError("notificationServicesRemove")
 						errs = append(errs, err)
 					} else if resp.StatusCode != http.StatusOK {
-						msg := fmt.Errorf("Request %s returned status code %d", fullUrl, resp.StatusCode)
+						msg := fmt.Errorf("Request %s returned status code %d", fullURL, resp.StatusCode)
 						logPrintf("ERROR: %s", msg)
 						metrics.RecordError("notificationServicesRemove")
 						errs = append(errs, msg)
@@ -95,6 +115,11 @@ func (m *Notification) ServicesRemove(remove *[]string, retries, interval int) e
 		return fmt.Errorf("At least one request produced errors. Please consult logs for more details.")
 	}
 	return nil
+}
+
+// GetRemoveServiceAddr returns remove service addresses
+func (m *Notification) GetRemoveServiceAddr(urlValues map[string][]string) []string {
+	return m.RemoveServiceAddr
 }
 
 func (m *Notification) sendCreateServiceRequest(serviceName, addr string, params url.Values, retries, interval int) {

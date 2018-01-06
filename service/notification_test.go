@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
 	"os"
 	"strings"
 	"testing"
@@ -89,12 +90,59 @@ func (s *NotificationTestSuite) Test_NewNotificationFromEnv_SetsNotifyRemoveUrlF
 	}
 }
 
+// GetCreateServiceAddr
+
+func (s *NotificationTestSuite) Test_GetCreateServiceAddr_ReturnsCreateServiceAddr() {
+	expected := []string{"http://proxy:8080/v1/docker-flow-proxy/reconfigure"}
+	urlOrig := os.Getenv("DF_NOTIFY_CREATE_SERVICE_URL")
+	os.Setenv("DF_NOTIFY_CREATE_SERVICE_URL", expected[0])
+	defer func() {
+		os.Setenv("DF_NOTIFY_CREATE_SERVICE_URL", urlOrig)
+	}()
+	n := NewNotificationFromEnv()
+
+	actual := n.GetCreateServiceAddr(map[string][]string{})
+
+	s.Equal(expected, actual)
+}
+
+func (s *NotificationTestSuite) Test_GetCreateServiceAddr_FiltersOutputWithNotifyServiceLabel() {
+	expected := []string{"http://proxy-1/reconfigure", "http://proxy-2/reconfigure", "http://proxy-3/reconfigure"}
+	urlValues := url.Values{}
+	urlValues.Add("notifyService", fmt.Sprintf("%s,%s", expected[0], expected[2]))
+	urlOrig := os.Getenv("DF_NOTIFY_CREATE_SERVICE_URL")
+	os.Setenv("DF_NOTIFY_CREATE_SERVICE_URL", strings.Join(expected, ","))
+	defer func() {
+		os.Setenv("DF_NOTIFY_CREATE_SERVICE_URL", urlOrig)
+	}()
+	n := NewNotificationFromEnv()
+
+	actual := n.GetCreateServiceAddr(urlValues)
+
+	s.Equal([]string{expected[0], expected[2]}, actual)
+}
+
+// GetRemoveServiceAddr
+
+func (s *NotificationTestSuite) Test_GetRemoveServiceAddr_ReturnsRemoveServiceAddr() {
+	expected := []string{"http://proxy:8080/v1/docker-flow-proxy/reconfigure"}
+	urlOrig := os.Getenv("DF_NOTIFY_REMOVE_SERVICE_URL")
+	os.Setenv("DF_NOTIFY_REMOVE_SERVICE_URL", expected[0])
+	defer func() {
+		os.Setenv("DF_NOTIFY_REMOVE_SERVICE_URL", urlOrig)
+	}()
+	n := NewNotificationFromEnv()
+
+	actual := n.GetRemoveServiceAddr(map[string][]string{})
+
+	s.Equal(expected, actual)
+}
+
 // ServicesCreate
 
 func (s *NotificationTestSuite) Test_ServicesCreate_SendsRequests() {
 	labels := make(map[string]string)
 	labels["com.df.notify"] = "true"
-	labels["com.df.distribute"] = "true"
 	labels["label.without.correct.prefix"] = "something"
 
 	actualSent1 := false
