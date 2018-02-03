@@ -1,6 +1,7 @@
 package service
 
 import (
+	"encoding/json"
 	"os"
 	"os/exec"
 	"testing"
@@ -200,6 +201,60 @@ func (s *ServiceTestSuite) Test_GetNewServices_DoesNotAddServices_WhenReplicasAr
 	s.Equal(0, len(*actual))
 }
 
+func (s *ServiceTestSuite) Test_GetNewServices_AddsUpdatedServices_WhenReplicasAreUpdated_NodeInfo() {
+	defer func() {
+		exec.Command("docker", "service", "update",
+			"--label-rm", "com.df.something",
+			"--label-rm", "com.df.scrapeNetwork",
+			"--replicas", "1", "util-1").Output()
+		os.Unsetenv("DF_INCLUDE_NODE_IP_INFO")
+	}()
+	os.Setenv("DF_INCLUDE_NODE_IP_INFO", "true")
+
+	exec.Command("docker", "service", "update",
+		"--label-add", "com.df.scrapeNetwork=util-network",
+		"--replicas", "1", "util-1").Output()
+	service := NewService("unix:///var/run/docker.sock")
+	services, _ := service.GetServices()
+
+	exec.Command("docker", "service", "update", "--replicas", "2", "util-1").Output()
+	service.GetNewServices(services)
+	services, _ = service.GetServices()
+	actual, _ := service.GetNewServices(services)
+
+	s.Require().Len(*actual, 1)
+	actualService := (*actual)[0]
+
+	s.Equal(2, actualService.NodeInfo.Cardinality())
+}
+
+func (s *ServiceTestSuite) Test_GetNewServices_AddsUpdatedServices_WhenReplicasAreUpdated_NodeInfo_IncorrectNetworkLabel() {
+	defer func() {
+		exec.Command("docker", "service", "update",
+			"--label-rm", "com.df.something",
+			"--label-rm", "com.df.scrapeNetwork",
+			"--replicas", "1", "util-1").Output()
+		os.Unsetenv("DF_INCLUDE_NODE_IP_INFO")
+	}()
+	os.Setenv("DF_INCLUDE_NODE_IP_INFO", "true")
+
+	exec.Command("docker", "service", "update",
+		"--label-add", "com.df.scrapeNetwork=bad",
+		"--replicas", "1", "util-1").Output()
+	service := NewService("unix:///var/run/docker.sock")
+	services, _ := service.GetServices()
+
+	exec.Command("docker", "service", "update", "--replicas", "2", "util-1").Output()
+	service.GetNewServices(services)
+	services, _ = service.GetServices()
+	actual, _ := service.GetNewServices(services)
+
+	s.Require().Len(*actual, 1)
+	actualService := (*actual)[0]
+
+	s.Equal(0, actualService.NodeInfo.Cardinality())
+}
+
 // GetRemovedServices
 
 func (s *ServiceTestSuite) Test_GetRemovedServices_ReturnsNamesOfRemovedServices() {
@@ -252,7 +307,7 @@ func (s *ServiceTestSuite) Test_GetRemovedServices_GetServicesParameters() {
 			Mode: mode,
 		},
 	}
-	srvs := []SwarmService{{srv}}
+	srvs := []SwarmService{{srv, nil}}
 	paramsList := service.GetServicesParameters(&srvs)
 	expected := []map[string]string{
 		{
@@ -263,6 +318,52 @@ func (s *ServiceTestSuite) Test_GetRemovedServices_GetServicesParameters() {
 		},
 	}
 	s.Equal(&expected, paramsList)
+}
+
+func (s *ServiceTestSuite) Test_GetServiceParametersWithNodeInfo() {
+	service := NewService("unix:///var/run/docker.sock")
+	replicas := uint64(1)
+	mode := swarm.ServiceMode{
+		Replicated: &swarm.ReplicatedService{Replicas: &replicas},
+	}
+	srv := swarm.Service{
+		Spec: swarm.ServiceSpec{
+			Annotations: swarm.Annotations{
+				Name: "demo",
+				Labels: map[string]string{
+					"com.df.notify":      "true",
+					"com.df.servicePath": "/demo",
+					"com.df.distribute":  "true",
+				},
+			},
+			Mode: mode,
+		},
+	}
+	nodeInfo := NodeIPSet{}
+	nodeInfo.Add("node-1", "10.0.1.1")
+	nodeInfo.Add("node-1", "10.0.1.2")
+	srvs := []SwarmService{{srv, &nodeInfo}}
+	paramsList := service.GetServicesParameters(&srvs)
+	s.Require().Len(*paramsList, 1)
+
+	params := (*paramsList)[0]
+	expected := map[string]string{
+		"serviceName": "demo",
+		"servicePath": "/demo",
+		"distribute":  "true",
+		"replicas":    "1",
+	}
+
+	for k, v := range expected {
+		s.Equal(v, params[k])
+	}
+
+	nodeInfoStr := params["nodeInfo"]
+	paramNodeInfo := NodeIPSet{}
+	err := json.Unmarshal([]byte(nodeInfoStr), &paramNodeInfo)
+	s.Require().NoError(err)
+
+	s.True(nodeInfo.Equal(paramNodeInfo))
 }
 
 func (s *ServiceTestSuite) Test_GetRemovedServices_IgnoresThoseScaledToZero() {
@@ -284,7 +385,7 @@ func (s *ServiceTestSuite) Test_GetRemovedServices_IgnoresThoseScaledToZero() {
 			Mode: mode,
 		},
 	}
-	srvs := []SwarmService{{srv}}
+	srvs := []SwarmService{{srv, nil}}
 	paramsList := service.GetServicesParameters(&srvs)
 	expected := []map[string]string{}
 	s.Equal(&expected, paramsList)
@@ -326,18 +427,27 @@ func (s *ServiceTestSuite) Test_NewServiceFromEnv_SetsHostToSocket_WhenEnvIsNotP
 // Util
 
 func createTestServices() {
-	createTestService("util-1", []string{"com.df.notify=true", "com.df.servicePath=/demo", "com.df.distribute=true"}, "")
-	createTestService("util-2", []string{}, "")
-	createTestService("util-3", []string{"com.df.notify=true", "com.df.servicePath=/demo", "com.df.distribute=true"}, "global")
+	createTestNetwork("util-network")
+	createTestService("util-1", []string{"com.df.notify=true", "com.df.servicePath=/demo", "com.df.distribute=true"}, "", "util-network")
+	createTestService("util-2", []string{}, "", "util-network")
+	createTestService("util-3", []string{"com.df.notify=true", "com.df.servicePath=/demo", "com.df.distribute=true"}, "global", "util-network")
 }
 
-func createTestService(name string, labels []string, mode string) {
+func createTestNetwork(name string) {
+	args := []string{"network", "create", "-d", "overlay", name}
+	exec.Command("docker", args...).Output()
+}
+
+func createTestService(name string, labels []string, mode string, network string) {
 	args := []string{"service", "create", "--name", name}
 	for _, v := range labels {
 		args = append(args, "-l", v)
 	}
 	if len(mode) > 0 {
 		args = append(args, "--mode", "global")
+	}
+	if len(network) > 0 {
+		args = append(args, "--network", network)
 	}
 	args = append(args, "alpine", "sleep", "1000000000")
 	exec.Command("docker", args...).Output()
@@ -347,8 +457,13 @@ func removeTestServices() {
 	removeTestService("util-1")
 	removeTestService("util-2")
 	removeTestService("util-3")
+	removeTestNetwork("util-network")
 }
 
 func removeTestService(name string) {
 	exec.Command("docker", "service", "rm", name).Output()
+}
+
+func removeTestNetwork(name string) {
+	exec.Command("docker", "network", "rm", name).Output()
 }

@@ -56,7 +56,11 @@ func (m *Service) GetServices() (*[]SwarmService, error) {
 	}
 	swarmServices := []SwarmService{}
 	for _, s := range services {
-		swarmServices = append(swarmServices, SwarmService{s})
+		ss := SwarmService{s, nil}
+		if strings.EqualFold(os.Getenv("DF_INCLUDE_NODE_IP_INFO"), "true") {
+			ss.NodeInfo = m.getNodeInfo(ss)
+		}
+		swarmServices = append(swarmServices, ss)
 	}
 	return &swarmServices, nil
 }
@@ -148,5 +152,57 @@ func (m *Service) isUpdated(candidate SwarmService, cached SwarmService) bool {
 			return true
 		}
 	}
+
+	if candidate.NodeInfo != nil && cached.NodeInfo != nil &&
+		!candidate.NodeInfo.Equal(*cached.NodeInfo) {
+		return true
+	}
+
 	return false
+}
+
+func (m *Service) getNodeInfo(s SwarmService) *NodeIPSet {
+	filter := filters.NewArgs()
+	filter.Add("desired-state", "running")
+	filter.Add("service", s.Spec.Name)
+	taskList, err := m.DockerClient.TaskList(
+		context.Background(), types.TaskListOptions{Filters: filter})
+	if err != nil {
+		return nil
+	}
+
+	networkName, ok := s.Spec.Labels["com.df.scrapeNetwork"]
+	if !ok {
+		return nil
+	}
+
+	nodeInfo := NodeIPSet{}
+	nodeCache := map[string]string{}
+	for _, task := range taskList {
+		if len(task.NetworksAttachments) == 0 || len(task.NetworksAttachments[0].Addresses) == 0 {
+			continue
+		}
+		var address string
+		for _, networkAttach := range task.NetworksAttachments {
+			if networkAttach.Network.Spec.Name == networkName && len(networkAttach.Addresses) > 0 {
+				address = strings.Split(networkAttach.Addresses[0], "/")[0]
+			}
+		}
+
+		if len(address) == 0 {
+			continue
+		}
+
+		if nodeName, ok := nodeCache[task.NodeID]; ok {
+			nodeInfo.Add(nodeName, address)
+		} else {
+			node, _, err := m.DockerClient.NodeInspectWithRaw(context.Background(), task.NodeID)
+			if err != nil {
+				continue
+			}
+			nodeInfo.Add(node.Description.Hostname, address)
+			nodeCache[task.NodeID] = node.Description.Hostname
+		}
+	}
+	return &nodeInfo
 }

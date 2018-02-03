@@ -102,7 +102,7 @@ func (s *ServerTestSuite) Test_NotifyServices_InvokesServicesCreate() {
 	service1 := swarm.Service{
 		ID: "my-service-id-1",
 	}
-	expectedServices := []service.SwarmService{{service1}}
+	expectedServices := []service.SwarmService{{service1, nil}}
 	servicerMock.On("GetServices").Return(expectedServices, nil)
 	req, _ := http.NewRequest("GET", "/v1/docker-flow-swarm-listener/notify-services", nil)
 	rw := getResponseWriterMock()
