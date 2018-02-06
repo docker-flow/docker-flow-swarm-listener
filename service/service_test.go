@@ -252,7 +252,33 @@ func (s *ServiceTestSuite) Test_GetNewServices_AddsUpdatedServices_WhenReplicasA
 	s.Require().Len(*actual, 1)
 	actualService := (*actual)[0]
 
-	s.Equal(0, actualService.NodeInfo.Cardinality())
+	s.Nil(actualService.NodeInfo)
+}
+
+func (s *ServiceTestSuite) Test_GetNewServices_AddsUpdatedServices_WhenReplicasAreUpdated_NodeInfo_NoNetworkLabel() {
+	defer func() {
+		exec.Command("docker", "service", "update",
+			"--label-rm", "com.df.something",
+			"--label-rm", "com.df.scrapeNetwork",
+			"--replicas", "1", "util-1").Output()
+		os.Unsetenv("DF_INCLUDE_NODE_IP_INFO")
+	}()
+	os.Setenv("DF_INCLUDE_NODE_IP_INFO", "true")
+
+	exec.Command("docker", "service", "update",
+		"--replicas", "1", "util-1").Output()
+	service := NewService("unix:///var/run/docker.sock")
+	services, _ := service.GetServices()
+
+	exec.Command("docker", "service", "update", "--replicas", "2", "util-1").Output()
+	service.GetNewServices(services)
+	services, _ = service.GetServices()
+	actual, _ := service.GetNewServices(services)
+
+	s.Require().Len(*actual, 1)
+	actualService := (*actual)[0]
+
+	s.Nil(actualService.NodeInfo)
 }
 
 // GetRemovedServices

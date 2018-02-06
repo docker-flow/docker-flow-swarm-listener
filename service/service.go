@@ -162,6 +162,8 @@ func (m *Service) isUpdated(candidate SwarmService, cached SwarmService) bool {
 }
 
 func (m *Service) getNodeInfo(s SwarmService) *NodeIPSet {
+
+	nodeInfo := NodeIPSet{}
 	filter := filters.NewArgs()
 	filter.Add("desired-state", "running")
 	filter.Add("service", s.Spec.Name)
@@ -176,7 +178,6 @@ func (m *Service) getNodeInfo(s SwarmService) *NodeIPSet {
 		return nil
 	}
 
-	nodeInfo := NodeIPSet{}
 	nodeCache := map[string]string{}
 	for _, task := range taskList {
 		if len(task.NetworksAttachments) == 0 || len(task.NetworksAttachments[0].Addresses) == 0 {
@@ -203,6 +204,10 @@ func (m *Service) getNodeInfo(s SwarmService) *NodeIPSet {
 			nodeInfo.Add(node.Description.Hostname, address)
 			nodeCache[task.NodeID] = node.Description.Hostname
 		}
+	}
+
+	if nodeInfo.Cardinality() == 0 {
+		return nil
 	}
 	return &nodeInfo
 }
