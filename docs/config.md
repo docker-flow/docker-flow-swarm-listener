@@ -11,3 +11,4 @@ The following environment variables can be used when creating the `swarm-listene
 |DF_INTERVAL        |Interval (in seconds) between service discovery requests<br>**Default**: `5`<br>**Example**: `10`|
 |DF_RETRY           |Number of notification request retries<br>**Default**: `50`<br>**Example**: `100`|
 |DF_RETRY_INTERVAL  |Interval (in seconds) between notification request retries<br>**Default**: `5`<br>**Example**: `10`|
+|DF_INCLUDE_NODE_IP_INFO|Include node and ip information for service in notification.<br>**Default**:`false`|

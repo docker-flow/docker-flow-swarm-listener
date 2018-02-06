@@ -1,6 +1,7 @@
 package service
 
 import (
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"net/http/httptest"
@@ -173,7 +174,7 @@ func (s *NotificationTestSuite) Test_ServicesCreate_SendsRequests() {
 	url2 := fmt.Sprintf("%s/something/else", httpSrv.URL)
 
 	n := newNotification([]string{url1, url2}, []string{})
-	n.ServicesCreate(s.getSwarmServices(labels), 1, 0)
+	n.ServicesCreate(s.getSwarmServices(labels, nil), 1, 0)
 	passed := false
 	for i := 0; i < 100; i++ {
 		if actualSent1 {
@@ -194,6 +195,52 @@ func (s *NotificationTestSuite) Test_ServicesCreate_SendsRequests() {
 		time.Sleep(10 * time.Millisecond)
 	}
 	s.True(passed)
+}
+
+func (s *NotificationTestSuite) Test_ServicesCreateWithNodeInfo_SendsRequests() {
+	labels := make(map[string]string)
+	labels["com.df.notify"] = "true"
+
+	actualSent := false
+	var actualQuery url.Values
+	httpSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		actualPath := r.URL.Path
+		if r.Method == "GET" {
+			switch actualPath {
+			case "/v1/docker-flow-proxy/reconfigure":
+				w.WriteHeader(http.StatusOK)
+				w.Header().Set("Content-Type", "application/json")
+				actualQuery = r.URL.Query()
+				actualSent = true
+			default:
+				w.WriteHeader(http.StatusNotFound)
+			}
+		}
+	}))
+	defer func() { httpSrv.Close() }()
+	url1 := fmt.Sprintf("%s/v1/docker-flow-proxy/reconfigure", httpSrv.URL)
+
+	n := newNotification([]string{url1}, []string{})
+	nodeInfo := NodeIPSet{}
+	nodeInfo.Add("node-1", "127.0.0.1")
+	n.ServicesCreate(s.getSwarmServices(labels, &nodeInfo), 1, 0)
+	for i := 0; i < 100; i++ {
+		if actualSent {
+			s.Equal("true", actualQuery.Get("distribute"))
+			s.Equal("1", actualQuery.Get("replicas"))
+			s.Equal("my-service", actualQuery.Get("serviceName"))
+
+			nodeInfoStr := actualQuery.Get("nodeInfo")
+			s.Require().NotEqual(0, len(nodeInfoStr))
+
+			nodeInfoQuery := NodeIPSet{}
+			err := json.Unmarshal([]byte(nodeInfoStr), &nodeInfoQuery)
+			s.Require().NoError(err)
+			s.True(nodeInfo.Equal(nodeInfoQuery))
+			break
+		}
+		time.Sleep(10 * time.Millisecond)
+	}
 }
 
 func (s *NotificationTestSuite) Test_ServicesCreate_UsesShortServiceName() {
@@ -218,8 +265,8 @@ func (s *NotificationTestSuite) Test_ServicesCreate_UsesShortServiceName() {
 		Spec: spec,
 	}
 	CachedServices = map[string]SwarmService{}
-	CachedServices[ann.Name] = SwarmService{srv}
-	ss := SwarmService{srv}
+	CachedServices[ann.Name] = SwarmService{srv, nil}
+	ss := SwarmService{srv, nil}
 	services := &[]SwarmService{ss}
 
 	actualSent := false
@@ -251,7 +298,7 @@ func (s *NotificationTestSuite) Test_ServicesCreate_AddsReplicas() {
 	labels := make(map[string]string)
 	labels["com.df.notify"] = "true"
 	labels["com.df.distribute"] = "true"
-	services := *s.getSwarmServices(labels)
+	services := *s.getSwarmServices(labels, nil)
 	replicas := uint64(2)
 	mode := swarm.ServiceMode{
 		Replicated: &swarm.ReplicatedService{Replicas: &replicas},
@@ -286,7 +333,7 @@ func (s *NotificationTestSuite) Test_ServicesCreate_AddsReplicas() {
 func (s *NotificationTestSuite) Test_ServicesCreate_AddsDistributeTrue_WhenNotSet() {
 	labels := make(map[string]string)
 	labels["com.df.notify"] = "true"
-	services := *s.getSwarmServices(labels)
+	services := *s.getSwarmServices(labels, nil)
 
 	actualSent := false
 	actualQuery := ""
@@ -337,7 +384,7 @@ func (s *NotificationTestSuite) Test_ServicesCreate_LogsError_WhenUrlCannotBePar
 	}
 
 	n := newNotification([]string{"%%%"}, []string{})
-	n.ServicesCreate(s.getSwarmServices(labels), 1, 0)
+	n.ServicesCreate(s.getSwarmServices(labels, nil), 1, 0)
 
 	for i := 0; i < 100; i++ {
 		if strings.HasPrefix(msg, "ERROR") {
@@ -362,7 +409,7 @@ func (s *NotificationTestSuite) Test_ServicesCreate_LogsError_WhenHttpStatusIsNo
 	}
 
 	n := newNotification([]string{httpSrv.URL}, []string{})
-	n.ServicesCreate(s.getSwarmServices(labels), 1, 0)
+	n.ServicesCreate(s.getSwarmServices(labels, nil), 1, 0)
 
 	for i := 0; i < 100; i++ {
 		if strings.HasPrefix(msg, "ERROR") {
@@ -381,7 +428,7 @@ func (s *NotificationTestSuite) Test_ServicesCreate_DoesNotReturnError_WhenHttpS
 	labels["com.df.notify"] = "true"
 
 	n := newNotification([]string{httpSrv.URL}, []string{})
-	err := n.ServicesCreate(s.getSwarmServices(labels), 1, 0)
+	err := n.ServicesCreate(s.getSwarmServices(labels, nil), 1, 0)
 
 	s.NoError(err)
 }
@@ -424,7 +471,7 @@ func (s *NotificationTestSuite) Test_ServicesCreate_RetriesRequests() {
 	}))
 
 	n := newNotification([]string{httpSrv.URL}, []string{})
-	err := n.ServicesCreate(s.getSwarmServices(labels), 2, 1)
+	err := n.ServicesCreate(s.getSwarmServices(labels, nil), 2, 1)
 
 	s.NoError(err)
 }
@@ -442,7 +489,7 @@ func (s *NotificationTestSuite) Test_ServicesCreate_StopsSendingNotifications_Wh
 	}))
 
 	n := newNotification([]string{httpSrv.URL}, []string{})
-	n.ServicesCreate(s.getSwarmServices(labels), 5, 0)
+	n.ServicesCreate(s.getSwarmServices(labels, nil), 5, 0)
 
 	time.Sleep(2 * time.Millisecond)
 	s.Equal(1, attempt)
@@ -506,7 +553,7 @@ func (s *NotificationTestSuite) Test_ServicesRemove_RetriesRequests() {
 
 // Util
 
-func (s *NotificationTestSuite) getSwarmServices(labels map[string]string) *[]SwarmService {
+func (s *NotificationTestSuite) getSwarmServices(labels map[string]string, nodeInfo *NodeIPSet) *[]SwarmService {
 	ann := swarm.Annotations{
 		Name:   "my-service",
 		Labels: labels,
@@ -523,8 +570,8 @@ func (s *NotificationTestSuite) getSwarmServices(labels map[string]string) *[]Sw
 		Spec: spec,
 	}
 	CachedServices = map[string]SwarmService{}
-	CachedServices[ann.Name] = SwarmService{srv}
-	ss := SwarmService{srv}
+	CachedServices[ann.Name] = SwarmService{srv, nodeInfo}
+	ss := SwarmService{srv, nodeInfo}
 	return &[]SwarmService{ss}
 }
 
@@ -549,7 +596,7 @@ func (s *NotificationTestSuite) verifyNotifyServiceCreate(labels map[string]stri
 	url := fmt.Sprintf("%s/v1/docker-flow-proxy/reconfigure", httpSrv.URL)
 
 	n := newNotification([]string{url}, []string{})
-	n.ServicesCreate(s.getSwarmServices(labels), 1, 0)
+	n.ServicesCreate(s.getSwarmServices(labels, nil), 1, 0)
 
 	passed := false
 	for i := 0; i < 100; i++ {

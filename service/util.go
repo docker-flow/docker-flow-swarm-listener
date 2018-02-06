@@ -1,6 +1,7 @@
 package service
 
 import (
+	"encoding/json"
 	"fmt"
 	"log"
 	"os"
@@ -54,6 +55,13 @@ func getServiceParams(s *SwarmService) map[string]string {
 		}
 		if _, ok := params["distribute"]; !ok {
 			params["distribute"] = "true"
+		}
+
+		if s.NodeInfo != nil {
+			b, err := json.Marshal(s.NodeInfo)
+			if err == nil {
+				params["nodeInfo"] = string(b)
+			}
 		}
 	}
 	return params
