@@ -255,11 +255,6 @@ func (m *ServicerMock) GetNewServices(services *[]service.SwarmService) (*[]serv
 	return args.Get(0).(*[]service.SwarmService), args.Error(1)
 }
 
-func (m *ServicerMock) GetRemovedServices(services *[]service.SwarmService) *[]string {
-	args := m.Called(services)
-	return args.Get(0).(*[]string)
-}
-
 func (m *ServicerMock) GetServicesParameters(services *[]service.SwarmService) *[]map[string]string {
 	args := m.Called(services)
 	return args.Get(0).(*[]map[string]string)
@@ -272,9 +267,6 @@ func getServicerMock(skipMethod string) *ServicerMock {
 	}
 	if !strings.EqualFold("GetNewServices", skipMethod) {
 		mockObj.On("GetNewServices", mock.Anything).Return([]service.SwarmService{}, nil)
-	}
-	if !strings.EqualFold("GetRemovedServices", skipMethod) {
-		mockObj.On("GetRemovedServices", mock.Anything).Return(&[]string{})
 	}
 	if !strings.EqualFold("GetServicesParameters", skipMethod) {
 		mockObj.On("GetServicesParameters", mock.Anything).Return(&[]map[string]string{})

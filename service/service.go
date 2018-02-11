@@ -26,7 +26,6 @@ type Service struct {
 type Servicer interface {
 	GetServices() (*[]SwarmService, error)
 	GetNewServices(services *[]SwarmService) (*[]SwarmService, error)
-	GetRemovedServices(services *[]SwarmService) *[]string
 	GetServicesParameters(services *[]SwarmService) *[]map[string]string
 }
 
@@ -89,24 +88,6 @@ func (m *Service) GetNewServices(services *[]SwarmService) (*[]SwarmService, err
 		}
 	}
 	return &newServices, nil
-}
-
-// GetRemovedServices returns services that were removed from the cluster
-func (m *Service) GetRemovedServices(services *[]SwarmService) *[]string {
-	tmpMap := make(map[string]SwarmService)
-	for k, v := range CachedServices {
-		tmpMap[k] = v
-	}
-	for _, v := range *services {
-		if _, ok := CachedServices[v.ID]; ok && !hasZeroReplicas(&v) {
-			delete(tmpMap, v.Spec.Name)
-		}
-	}
-	rs := []string{}
-	for k := range tmpMap {
-		rs = append(rs, k)
-	}
-	return &rs
 }
 
 // GetServicesFromID returns service associated with serviceID

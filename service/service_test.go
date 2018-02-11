@@ -322,40 +322,9 @@ func (s *ServiceTestSuite) Test_GetNewServices_AddsUpdatedServices_WhenReplicasA
 	s.Nil(actualService.NodeInfo)
 }
 
-// GetRemovedServices
-
-func (s *ServiceTestSuite) Test_GetRemovedServices_ReturnsNamesOfRemovedServices() {
-	service := NewService("unix:///var/run/docker.sock")
-	services, _ := service.GetServices()
-	CachedServices["removed-service-1"] = SwarmService{}
-	CachedServices["removed-service-2"] = SwarmService{}
-
-	actual := service.GetRemovedServices(services)
-
-	s.Equal(2, len(*actual))
-	s.Contains(*actual, "removed-service-1")
-	s.Contains(*actual, "removed-service-2")
-}
-
-func (s *ServiceTestSuite) Test_GetRemovedServices_AddsServicesWithZeroReplicas() {
-	service := NewService("unix:///var/run/docker.sock")
-	services, _ := service.GetServices()
-	CachedServices["util-1"] = SwarmService{}
-	for _, s := range *services {
-		if s.Spec.Mode.Replicated != nil {
-			replicas := uint64(0)
-			s.Spec.Mode.Replicated.Replicas = &replicas
-		}
-	}
-	actual := service.GetRemovedServices(services)
-
-	s.Equal(1, len(*actual))
-	s.Contains(*actual, "util-1")
-}
-
 // GetServicesParameters
 
-func (s *ServiceTestSuite) Test_GetRemovedServices_GetServicesParameters() {
+func (s *ServiceTestSuite) Test_GetServicesParameters() {
 	service := NewService("unix:///var/run/docker.sock")
 	replicas := uint64(1)
 	mode := swarm.ServiceMode{
@@ -433,7 +402,7 @@ func (s *ServiceTestSuite) Test_GetServiceParametersWithNodeInfo() {
 	s.True(nodeInfo.Equal(paramNodeInfo))
 }
 
-func (s *ServiceTestSuite) Test_GetRemovedServices_IgnoresThoseScaledToZero() {
+func (s *ServiceTestSuite) Test_GetServicesParameters_IgnoresThoseScaledToZero() {
 	service := NewService("unix:///var/run/docker.sock")
 	replicas := uint64(0)
 	mode := swarm.ServiceMode{

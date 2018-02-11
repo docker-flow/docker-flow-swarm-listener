@@ -18,7 +18,7 @@ func main() {
 		return
 	}
 
-	logPrintf("Sending create for all services")
+	logPrintf("Sending notifications for running services")
 	allServices, err := s.GetServices()
 	if err != nil {
 		metrics.RecordError("GetServices")
