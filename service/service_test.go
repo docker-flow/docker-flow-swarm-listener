@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"os"
 	"os/exec"
+	"strings"
 	"testing"
 	"time"
 
@@ -54,6 +55,41 @@ func (s *ServiceTestSuite) Test_GetServices_ReturnsError_WhenServiceListFails() 
 	s.Error(err)
 }
 
+// GetServicesFromID
+
+func (s *ServiceTestSuite) Test_GetServicesFromID() {
+	service := NewService("unix:///var/run/docker.sock")
+
+	expUtil1ID := getServiceID("util-1")
+	expUtil2ID := getServiceID("util-2")
+	expUtil3ID := getServiceID("util-3")
+
+	util1Services, err := service.GetServicesFromID(expUtil1ID)
+	s.Require().NoError(err)
+	s.Require().NotNil(util1Services)
+
+	util2Services, err := service.GetServicesFromID(expUtil2ID)
+	s.Require().NoError(err)
+	s.Require().NotNil(util2Services)
+
+	util3Services, err := service.GetServicesFromID(expUtil3ID)
+	s.Require().NoError(err)
+	s.Require().NotNil(util3Services)
+
+	s.Len(*util2Services, 0)
+	s.Equal("util-1", (*util1Services)[0].Spec.Name)
+	s.Equal("util-3", (*util3Services)[0].Spec.Name)
+}
+
+func (s *ServiceTestSuite) Test_GetServicesFromID_ReturnsError() {
+	service := NewService("unix:///this/socket/does/not/exist")
+
+	expUtil1ID := getServiceID("util-1")
+
+	_, err := service.GetServicesFromID(expUtil1ID)
+	s.Error(err)
+}
+
 // GetNewServices
 
 func (s *ServiceTestSuite) Test_GetNewServices_ReturnsAllServices_WhenExecutedForTheFirstTime() {
@@ -78,18 +114,22 @@ func (s *ServiceTestSuite) Test_GetNewServices_ReturnsOnlyNewServices() {
 }
 
 func (s *ServiceTestSuite) Test_GetNewServices_AddsServices() {
+	expUtil1ID := getServiceID("util-1")
+	expUtil3ID := getServiceID("util-3")
+
 	service := NewService("unix:///var/run/docker.sock")
 	services, _ := service.GetServices()
 
 	service.GetNewServices(services)
 
 	s.Equal(2, len(CachedServices))
-	s.Contains(CachedServices, "util-1")
-	s.Contains(CachedServices, "util-3")
+	s.Contains(CachedServices, expUtil1ID)
+	s.Contains(CachedServices, expUtil3ID)
 }
 
 func (s *ServiceTestSuite) Test_GetNewServices_DoesNotAddServices_WhenReplicasAreZero() {
 	service := NewService("unix:///var/run/docker.sock")
+	expUtil1ID := getServiceID("util-1")
 	services, _ := service.GetServices()
 	for _, s := range *services {
 		if s.Spec.Name == "util-1" {
@@ -100,17 +140,18 @@ func (s *ServiceTestSuite) Test_GetNewServices_DoesNotAddServices_WhenReplicasAr
 
 	service.GetNewServices(services)
 
-	s.NotContains(CachedServices, "util-1")
+	s.NotContains(CachedServices, expUtil1ID)
 }
 
 func (s *ServiceTestSuite) Test_GetNewServices_AddsServices_WhenModeIsGlobal() {
 	service := NewService("unix:///var/run/docker.sock")
+	expUtil3ID := getServiceID("util-3")
 	services, _ := service.GetServices()
 
 	service.GetNewServices(services)
 
 	s.Equal(2, len(CachedServices))
-	s.Contains(CachedServices, "util-3")
+	s.Contains(CachedServices, expUtil3ID)
 }
 
 func (s *ServiceTestSuite) Test_GetNewServices_AddsUpdatedServices_WhenLabelIsAdded() {
@@ -492,4 +533,9 @@ func removeTestService(name string) {
 
 func removeTestNetwork(name string) {
 	exec.Command("docker", "network", "rm", name).Output()
+}
+
+func getServiceID(name string) string {
+	output, _ := exec.Command("docker", "service", "inspect", name, "-f", "{{ .ID }}").Output()
+	return strings.TrimRight(string(output), "\n")
 }
