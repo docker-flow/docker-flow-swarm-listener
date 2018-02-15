@@ -41,7 +41,7 @@ func (m *Notification) ServicesCreate(services *[]SwarmService, retries, interva
 				urlValues.Add(k, v)
 			}
 			for _, addr := range m.GetCreateServiceAddr(urlValues) {
-				go m.sendCreateServiceRequest(s.Spec.Name, addr, urlValues, retries, interval)
+				go m.sendCreateServiceRequest(s.ID, addr, urlValues, retries, interval)
 			}
 		}
 	}
@@ -66,12 +66,17 @@ func (m *Notification) GetCreateServiceAddr(urlValues map[string][]string) []str
 	return m.CreateServiceAddr
 }
 
-// ServicesRemove sends remove service notifications
+// ServicesRemove sends remove service notifications, remove is a list of serviceIDs
 func (m *Notification) ServicesRemove(remove *[]string, retries, interval int) error {
 	errs := []error{}
 	for _, v := range *remove {
+		serviceName, ok := CachedServices[v]
+		if !ok {
+			return fmt.Errorf("ID %s is not CachedServices", v)
+		}
+
 		parameters := url.Values{}
-		parameters.Add("serviceName", v)
+		parameters.Add("serviceName", serviceName.Spec.Name)
 		parameters.Add("distribute", "true")
 		for _, addr := range m.GetRemoveServiceAddr(parameters) {
 			urlObj, err := url.Parse(addr)
@@ -112,7 +117,7 @@ func (m *Notification) ServicesRemove(remove *[]string, retries, interval int) e
 		}
 	}
 	if len(errs) > 0 {
-		return fmt.Errorf("At least one request produced errors. Please consult logs for more details.")
+		return fmt.Errorf("At least one request produced errors. Please consult logs for more details")
 	}
 	return nil
 }
@@ -122,7 +127,7 @@ func (m *Notification) GetRemoveServiceAddr(urlValues map[string][]string) []str
 	return m.RemoveServiceAddr
 }
 
-func (m *Notification) sendCreateServiceRequest(serviceName, addr string, params url.Values, retries, interval int) {
+func (m *Notification) sendCreateServiceRequest(serviceID, addr string, params url.Values, retries, interval int) {
 	urlObj, err := url.Parse(addr)
 	if err != nil {
 		logPrintf("ERROR: %s", err.Error())
@@ -130,18 +135,18 @@ func (m *Notification) sendCreateServiceRequest(serviceName, addr string, params
 		return
 	}
 	urlObj.RawQuery = params.Encode()
-	fullUrl := urlObj.String()
-	logPrintf("Sending service created notification to %s", fullUrl)
+	fullURL := urlObj.String()
+	logPrintf("Sending service created notification to %s", fullURL)
 	for i := 1; i <= retries; i++ {
-		if _, ok := CachedServices[serviceName]; !ok {
-			logPrintf("Service %s was removed. Service created notifications are stopped.", serviceName)
+		if s, ok := CachedServices[serviceID]; !ok {
+			logPrintf("Service %s was removed. Service created notifications are stopped.", s.Spec.Name)
 			break
 		}
-		resp, err := http.Get(fullUrl)
+		resp, err := http.Get(fullURL)
 		if err == nil && (resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusConflict) {
 			break
 		} else if i < retries {
-			logPrintf("Retrying service created notification to %s", fullUrl)
+			logPrintf("Retrying service created notification to %s", fullURL)
 			if interval > 0 {
 				t := time.NewTicker(time.Second * time.Duration(interval))
 				<-t.C
@@ -152,11 +157,11 @@ func (m *Notification) sendCreateServiceRequest(serviceName, addr string, params
 				metrics.RecordError("notificationSendCreateServiceRequest")
 			} else if resp.StatusCode == http.StatusConflict {
 				body, _ := ioutil.ReadAll(resp.Body)
-				logPrintf(fmt.Sprintf("Request %s returned status code %d\n%s", fullUrl, resp.StatusCode, string(body[:])))
+				logPrintf(fmt.Sprintf("Request %s returned status code %d\n%s", fullURL, resp.StatusCode, string(body[:])))
 				metrics.RecordError("notificationSendCreateServiceRequest")
 			} else if resp.StatusCode != http.StatusOK {
 				body, _ := ioutil.ReadAll(resp.Body)
-				msg := fmt.Errorf("Request %s returned status code %d\n%s", fullUrl, resp.StatusCode, string(body[:]))
+				msg := fmt.Errorf("Request %s returned status code %d\n%s", fullURL, resp.StatusCode, string(body[:]))
 				logPrintf("ERROR: %s", msg.Error())
 				metrics.RecordError("notificationSendCreateServiceRequest")
 			}

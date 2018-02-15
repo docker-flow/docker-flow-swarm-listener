@@ -26,7 +26,6 @@ type Service struct {
 type Servicer interface {
 	GetServices() (*[]SwarmService, error)
 	GetNewServices(services *[]SwarmService) (*[]SwarmService, error)
-	GetRemovedServices(services *[]SwarmService) *[]string
 	GetServicesParameters(services *[]SwarmService) *[]map[string]string
 }
 
@@ -72,7 +71,7 @@ func (m *Service) GetNewServices(services *[]SwarmService) (*[]SwarmService, err
 	for _, s := range *services {
 		if tmpUpdatedAt.Nanosecond() == 0 || s.Meta.UpdatedAt.After(tmpUpdatedAt) {
 			updated := false
-			if service, ok := CachedServices[s.Spec.Name]; ok {
+			if service, ok := CachedServices[s.ID]; ok {
 				if m.isUpdated(s, service) {
 					updated = true
 				}
@@ -81,7 +80,7 @@ func (m *Service) GetNewServices(services *[]SwarmService) (*[]SwarmService, err
 			}
 			if updated {
 				newServices = append(newServices, s)
-				CachedServices[s.Spec.Name] = s
+				CachedServices[s.ID] = s
 				if m.ServiceLastUpdatedAt.Before(s.Meta.UpdatedAt) {
 					m.ServiceLastUpdatedAt = s.Meta.UpdatedAt
 				}
@@ -91,22 +90,28 @@ func (m *Service) GetNewServices(services *[]SwarmService) (*[]SwarmService, err
 	return &newServices, nil
 }
 
-// GetRemovedServices returns services that were removed from the cluster
-func (m *Service) GetRemovedServices(services *[]SwarmService) *[]string {
-	tmpMap := make(map[string]SwarmService)
-	for k, v := range CachedServices {
-		tmpMap[k] = v
+// GetServicesFromID returns service associated with serviceID
+func (m *Service) GetServicesFromID(serviceID string) (*[]SwarmService, error) {
+	filter := filters.NewArgs()
+	filter.Add("label", fmt.Sprintf("%s=true", os.Getenv("DF_NOTIFY_LABEL")))
+	filter.Add("id", serviceID)
+	services, err := m.DockerClient.ServiceList(
+		context.Background(),
+		types.ServiceListOptions{Filters: filter},
+	)
+	if err != nil {
+		return &[]SwarmService{}, err
 	}
-	for _, v := range *services {
-		if _, ok := CachedServices[v.Spec.Name]; ok && !hasZeroReplicas(&v) {
-			delete(tmpMap, v.Spec.Name)
+
+	swarmServices := []SwarmService{}
+	for _, s := range services {
+		ss := SwarmService{s, nil}
+		if strings.EqualFold(os.Getenv("DF_INCLUDE_NODE_IP_INFO"), "true") {
+			ss.NodeInfo = m.getNodeInfo(ss)
 		}
+		swarmServices = append(swarmServices, ss)
 	}
-	rs := []string{}
-	for k := range tmpMap {
-		rs = append(rs, k)
-	}
-	return &rs
+	return &swarmServices, nil
 }
 
 // NewService returns a new instance of the `Service` structure
