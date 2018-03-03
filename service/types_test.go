@@ -109,7 +109,7 @@ func (s *TypesTestSuite) Test_NodeIP_JSONCycle() {
 	s.Require().NoError(err)
 
 	i := NodeIPSet{}
-	err = json.Unmarshal(by, &i)
+	json.Unmarshal(by, &i)
 
 	s.True(a.Equal(i))
 }
