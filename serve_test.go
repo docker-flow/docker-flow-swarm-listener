@@ -1,32 +1,39 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
+	"log"
 	"net/http"
-	"strings"
+	"os"
 	"testing"
-	"time"
 
-	"./service"
-	"github.com/docker/docker/api/types/swarm"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
 )
 
 type ServerTestSuite struct {
 	suite.Suite
-}
-
-func (s *ServerTestSuite) SetupTest() {
+	Log    *log.Logger
+	RWMock *ResponseWriterMock
+	SLMock *SwarmListeningMock
 }
 
 func TestServerUnitTestSuite(t *testing.T) {
-	s := new(ServerTestSuite)
-	suite.Run(t, s)
+	suite.Run(t, new(ServerTestSuite))
 }
 
-// Run
+func (s *ServerTestSuite) SetupSuite() {
+	s.Log = log.New(os.Stdout, "", 0)
+
+	s.RWMock = new(ResponseWriterMock)
+	s.RWMock.On("Header").Return(nil)
+	s.RWMock.On("Write", mock.Anything).Return(0, nil)
+	s.RWMock.On("WriteHeader", mock.Anything)
+
+	s.SLMock = new(SwarmListeningMock)
+}
 
 func (s *ServerTestSuite) Test_Run_InvokesHTTPListenAndServe() {
 	var actual string
@@ -57,24 +64,18 @@ func (s *ServerTestSuite) Test_Run_ReturnsError_WhenHTTPListenAndServeFails() {
 	s.Error(actual)
 }
 
-// NotifyServices
-
 func (s *ServerTestSuite) Test_NotifyServices_ReturnsStatus200() {
-	servicerMock := getServicerMock("")
-	notifMock := NotificationMock{
-		ServicesCreateMock: func(services *[]service.SwarmService, retries, interval int) error {
-			return nil
-		},
-	}
-	rw := getResponseWriterMock()
+	s.SLMock.On("NotifyServices", false).Return()
+
 	req, _ := http.NewRequest("GET", "/v1/docker-flow-swarm-listener/notify-services", nil)
 	expected, _ := json.Marshal(Response{Status: "OK"})
 
-	srv := NewServe(servicerMock, notifMock)
-	srv.NotifyServices(rw, req)
+	srv := NewServe(s.SLMock, s.Log)
+	srv.NotifyServices(s.RWMock, req)
 
-	rw.AssertCalled(s.T(), "WriteHeader", 200)
-	rw.AssertCalled(s.T(), "Write", []byte(expected))
+	s.RWMock.AssertCalled(s.T(), "WriteHeader", 200)
+	s.RWMock.AssertCalled(s.T(), "Write", []byte(expected))
+	s.SLMock.AssertExpectations(s.T())
 }
 
 func (s *ServerTestSuite) Test_NotifyServices_SetsContentTypeToJSON() {
@@ -85,52 +86,18 @@ func (s *ServerTestSuite) Test_NotifyServices_SetsContentTypeToJSON() {
 		actual = value
 	}
 	req, _ := http.NewRequest("GET", "/v1/docker-flow-swarm-listener/notify-services", nil)
-	notifMock := NotificationMock{
-		ServicesCreateMock: func(services *[]service.SwarmService, retries, interval int) error {
-			return nil
-		},
-	}
+	s.SLMock.On("NotifyServices", false).Return()
 
-	srv := NewServe(getServicerMock(""), notifMock)
-	srv.NotifyServices(getResponseWriterMock(), req)
+	srv := NewServe(s.SLMock, s.Log)
+	srv.NotifyServices(s.RWMock, req)
 
 	s.Equal("application/json", actual)
-}
-
-func (s *ServerTestSuite) Test_NotifyServices_InvokesServicesCreate() {
-	servicerMock := getServicerMock("GetServices")
-	service1 := swarm.Service{
-		ID: "my-service-id-1",
-	}
-	expectedServices := []service.SwarmService{{service1, nil}}
-	servicerMock.On("GetServices").Return(expectedServices, nil)
-	req, _ := http.NewRequest("GET", "/v1/docker-flow-swarm-listener/notify-services", nil)
-	rw := getResponseWriterMock()
-	actualServices := []service.SwarmService{}
-	actualRetries := 0
-	actualInterval := 0
-	notifMock := NotificationMock{
-		ServicesCreateMock: func(services *[]service.SwarmService, retries, interval int) error {
-			actualServices = *services
-			actualRetries = retries
-			actualInterval = interval
-			return nil
-		},
-	}
-
-	srv := NewServe(servicerMock, notifMock)
-	srv.NotifyServices(rw, req)
-
-	time.Sleep(1 * time.Millisecond)
-	s.Equal(expectedServices, actualServices)
-	s.Equal(10, actualRetries)
-	s.Equal(5, actualInterval)
+	s.SLMock.AssertExpectations(s.T())
 }
 
 // GetServices
 
 func (s *ServerTestSuite) Test_GetServices_ReturnsServices() {
-	servicerMock := getServicerMock("GetServicesParameters")
 	mapParam := []map[string]string{
 		{
 			"serviceName": "demo",
@@ -139,18 +106,16 @@ func (s *ServerTestSuite) Test_GetServices_ReturnsServices() {
 			"distribute":  "true",
 		},
 	}
-	servicerMock.On("GetServicesParameters", mock.Anything).Return(&mapParam)
+	s.SLMock.On("GetServicesParameters", mock.Anything).Return(mapParam, nil)
 	req, _ := http.NewRequest("GET", "/v1/docker-flow-swarm-listener/get-services", nil)
-	rw := getResponseWriterMock()
-	notifMock := NotificationMock{}
-	srv := NewServe(servicerMock, notifMock)
-	srv.GetServices(rw, req)
+	srv := NewServe(s.SLMock, s.Log)
+	srv.GetServices(s.RWMock, req)
 
-	call := rw.GetLastMethodCall("Write")
+	call := s.RWMock.GetLastMethodCall("Write")
 	value, _ := call.Arguments.Get(0).([]byte)
 	rsp := []map[string]string{}
 	json.Unmarshal(value, &rsp)
-	s.Equal(&mapParam, &rsp)
+	s.Equal(mapParam, rsp)
 }
 
 // PingHandler
@@ -162,36 +127,15 @@ func (s *ServerTestSuite) Test_PingHandler_ReturnsStatus200() {
 	httpWriterSetContentType = func(w http.ResponseWriter, value string) {
 		actual = value
 	}
-	servicerMock := getServicerMock("")
-	notifMock := NotificationMock{}
-	rw := getResponseWriterMock()
 	req, _ := http.NewRequest("GET", "/v1/docker-flow-swarm-listener/ping", nil)
 	expected, _ := json.Marshal(Response{Status: "OK"})
 
-	srv := NewServe(servicerMock, notifMock)
-	srv.PingHandler(rw, req)
+	srv := NewServe(s.SLMock, s.Log)
+	srv.PingHandler(s.RWMock, req)
 
 	s.Equal("application/json", actual)
-	rw.AssertCalled(s.T(), "WriteHeader", 200)
-	rw.AssertCalled(s.T(), "Write", []byte(expected))
-}
-
-// NewServe
-
-func (s *ServerTestSuite) Test_NewServe_SetsService() {
-	srv := service.NewServiceFromEnv()
-	notifMock := NotificationMock{}
-	serve := NewServe(srv, notifMock)
-
-	s.Equal(srv, serve.Service)
-}
-
-func (s *ServerTestSuite) Test_NewServe_SetsNotifier() {
-	srv := service.NewServiceFromEnv()
-	notifMock := NotificationMock{}
-	serve := NewServe(srv, notifMock)
-
-	s.Equal(notifMock, serve.Notification)
+	s.RWMock.AssertCalled(s.T(), "WriteHeader", 200)
+	s.RWMock.AssertCalled(s.T(), "Write", []byte(expected))
 }
 
 // Mocks
@@ -223,66 +167,20 @@ func (m *ResponseWriterMock) WriteHeader(header int) {
 	m.Called(header)
 }
 
-func getResponseWriterMock() *ResponseWriterMock {
-	mockObj := new(ResponseWriterMock)
-	mockObj.On("Header").Return(nil)
-	mockObj.On("Write", mock.Anything).Return(0, nil)
-	mockObj.On("WriteHeader", mock.Anything)
-	return mockObj
-}
-
-type ServicerMock struct {
+type SwarmListeningMock struct {
 	mock.Mock
 }
 
-func (m *ServicerMock) Execute(args []string) error {
-	params := m.Called(args)
-	return params.Error(0)
+func (m *SwarmListeningMock) Run() {
+	m.Called()
 }
-
-func (m *ServicerMock) ServeHTTP(w http.ResponseWriter, req *http.Request) {
-	m.Called(w, req)
+func (m *SwarmListeningMock) NotifyServices(ignoreCache bool) {
+	m.Called(ignoreCache)
 }
-
-func (m *ServicerMock) GetServices() (*[]service.SwarmService, error) {
-	args := m.Called()
-	s := args.Get(0).([]service.SwarmService)
-	return &s, args.Error(1)
+func (m *SwarmListeningMock) NotifyNodes(ignoreCache bool) {
+	m.Called(ignoreCache)
 }
-
-func (m *ServicerMock) GetNewServices(services *[]service.SwarmService) (*[]service.SwarmService, error) {
-	args := m.Called()
-	return args.Get(0).(*[]service.SwarmService), args.Error(1)
-}
-
-func (m *ServicerMock) GetServicesParameters(services *[]service.SwarmService) *[]map[string]string {
-	args := m.Called(services)
-	return args.Get(0).(*[]map[string]string)
-}
-
-func getServicerMock(skipMethod string) *ServicerMock {
-	mockObj := new(ServicerMock)
-	if !strings.EqualFold("GetServices", skipMethod) {
-		mockObj.On("GetServices").Return([]service.SwarmService{}, nil)
-	}
-	if !strings.EqualFold("GetNewServices", skipMethod) {
-		mockObj.On("GetNewServices", mock.Anything).Return([]service.SwarmService{}, nil)
-	}
-	if !strings.EqualFold("GetServicesParameters", skipMethod) {
-		mockObj.On("GetServicesParameters", mock.Anything).Return(&[]map[string]string{})
-	}
-	return mockObj
-}
-
-type NotificationMock struct {
-	ServicesCreateMock func(services *[]service.SwarmService, retries, interval int) error
-	ServicesRemoveMock func(remove *[]string, retries, interval int) error
-}
-
-func (m NotificationMock) ServicesCreate(services *[]service.SwarmService, retries, interval int) error {
-	return m.ServicesCreateMock(services, retries, interval)
-}
-
-func (m NotificationMock) ServicesRemove(remove *[]string, retries, interval int) error {
-	return m.ServicesRemoveMock(remove, retries, interval)
+func (m *SwarmListeningMock) GetServicesParameters(ctx context.Context) ([]map[string]string, error) {
+	args := m.Called(ctx)
+	return args.Get(0).([]map[string]string), args.Error(1)
 }

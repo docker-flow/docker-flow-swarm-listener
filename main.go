@@ -1,76 +1,29 @@
 package main
 
 import (
-	"./metrics"
+	"log"
+	"os"
+
 	"./service"
 )
 
 func main() {
-	logPrintf("Starting Docker Flow: Swarm Listener")
-	s := service.NewServiceFromEnv()
-	n := service.NewNotificationFromEnv()
-	el := service.NewEventListenerFromEnv()
-	serve := NewServe(s, n)
-	go serve.Run()
+	l := log.New(os.Stdout, "", log.LstdFlags)
 
+	l.Printf("Starting Docker Flow: Swarm Listener")
 	args := getArgs()
-	if len(n.CreateServiceAddr) == 0 {
+	swarmListener, err := service.NewSwarmListenerFromEnv(args.Retry, args.RetryInterval, l)
+	if err != nil {
+		l.Printf("Failed to initialize Docker Flow: Swarm Listener")
+		l.Printf("ERROR: %v", err)
 		return
 	}
 
-	logPrintf("Sending notifications for running services")
-	allServices, err := s.GetServices()
-	if err != nil {
-		metrics.RecordError("GetServices")
-	}
+	l.Printf("Sending notifications for running services and nodes")
+	swarmListener.NotifyServices(true)
+	swarmListener.NotifyNodes(true)
 
-	newServices, err := s.GetNewServices(allServices)
-	if err != nil {
-		metrics.RecordError("GetNewServices")
-	}
-	err = n.ServicesCreate(
-		newServices,
-		args.Retry,
-		args.RetryInterval,
-	)
-	if err != nil {
-		metrics.RecordError("ServicesCreate")
-	}
-
-	logPrintf("Start listening to docker service events")
-	events, errs := el.ListenForEvents()
-	for {
-		select {
-		case event := <-events:
-			if event.Action == "create" || event.Action == "update" {
-				eventServices, err := s.GetServicesFromID(event.ServiceID)
-				if err != nil {
-					metrics.RecordError("GetServicesFromID")
-				}
-				newServices, err := s.GetNewServices(eventServices)
-				if err != nil {
-					metrics.RecordError("GetNewServices")
-				}
-				err = n.ServicesCreate(
-					newServices,
-					args.Retry,
-					args.RetryInterval,
-				)
-				if err != nil {
-					metrics.RecordError("ServicesCreate")
-				}
-
-			} else if event.Action == "remove" {
-				err = n.ServicesRemove(&[]string{event.ServiceID}, args.Retry, args.RetryInterval)
-				metrics.RecordService(len(service.CachedServices))
-				if err != nil {
-					metrics.RecordError("ServicesRemove")
-				}
-			}
-		case <-errs:
-			metrics.RecordError("ListenForEvents")
-			// Restart listening for events
-			events, errs = el.ListenForEvents()
-		}
-	}
+	swarmListener.Run()
+	serve := NewServe(swarmListener, l)
+	l.Fatal(serve.Run())
 }

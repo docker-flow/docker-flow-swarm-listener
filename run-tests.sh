@@ -1,1 +1,1 @@
-go test --cover ./... --run UnitTest
+go test --cover ./... -p 1

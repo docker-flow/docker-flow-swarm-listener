@@ -1,189 +1,93 @@
 package service
 
 import (
-	"fmt"
-	"os"
+	"context"
 	"strings"
-	"time"
 
 	"github.com/docker/docker/api/types"
 	"github.com/docker/docker/api/types/filters"
+	"github.com/docker/docker/api/types/swarm"
 	"github.com/docker/docker/client"
-	"golang.org/x/net/context"
 )
 
-// CachedServices stores the information about services processed by the system
-var CachedServices map[string]SwarmService
-
-// Service defines the based structure
-type Service struct {
-	Host                 string
-	ServiceLastUpdatedAt time.Time
-	DockerClient         *client.Client
+// SwarmServiceInspector is able to inspect services
+type SwarmServiceInspector interface {
+	SwarmServiceInspect(serviceID string, includeNodeIPInfo bool) (*SwarmService, error)
+	SwarmServiceList(ctx context.Context, includeNodeIPInfo bool) ([]SwarmService, error)
 }
 
-// Servicer defines interface with mandatory methods
-type Servicer interface {
-	GetServices() (*[]SwarmService, error)
-	GetNewServices(services *[]SwarmService) (*[]SwarmService, error)
-	GetServicesParameters(services *[]SwarmService) *[]map[string]string
+// SwarmServiceClient implements `SwarmServiceInspector` for docker
+type SwarmServiceClient struct {
+	DockerClient   *client.Client
+	FilterLabel    string
+	FilterKey      string
+	ScrapeNetLabel string
 }
 
-// GetServicesParameters returns parameters extracted from labels associated with input services
-func (m *Service) GetServicesParameters(services *[]SwarmService) *[]map[string]string {
-	params := []map[string]string{}
-	for _, s := range *services {
-		sParams := getServiceParams(&s)
-		if len(sParams) > 0 {
-			params = append(params, sParams)
-		}
-	}
-	return &params
+// NewSwarmServiceClient creates a `SwarmServiceClient`
+func NewSwarmServiceClient(c *client.Client, filterLabel, scrapNetLabel string) *SwarmServiceClient {
+	key := strings.SplitN(filterLabel, "=", 2)[0]
+	return &SwarmServiceClient{DockerClient: c,
+		FilterLabel:    filterLabel,
+		FilterKey:      key,
+		ScrapeNetLabel: scrapNetLabel}
 }
 
-// GetServices returns all services running in the cluster
-func (m *Service) GetServices() (*[]SwarmService, error) {
-	filter := filters.NewArgs()
-	filter.Add("label", fmt.Sprintf("%s=true", os.Getenv("DF_NOTIFY_LABEL")))
-	services, err := m.DockerClient.ServiceList(
-		context.Background(),
-		types.ServiceListOptions{Filters: filter},
-	)
+// SwarmServiceInspect returns `SwarmService` from its ID
+// Returns nil when service doesnt not have the `FilterLabel`
+// When `includeNodeIPInfo` is true, return node info as well
+func (c SwarmServiceClient) SwarmServiceInspect(serviceID string, includeNodeIPInfo bool) (*SwarmService, error) {
+	service, _, err := c.DockerClient.ServiceInspectWithRaw(context.Background(), serviceID, types.ServiceInspectOptions{})
 	if err != nil {
-		logPrintf(err.Error())
-		return &[]SwarmService{}, err
+		return nil, err
+	}
+
+	// Check if service has label
+	if _, ok := service.Spec.Labels[c.FilterKey]; !ok {
+		return nil, nil
+	}
+
+	ss := SwarmService{service, nil}
+	if includeNodeIPInfo {
+		ss.NodeInfo = c.getNodeInfo(service)
+	}
+	return &ss, nil
+}
+
+// SwarmServiceList returns a list of services
+// When `includeNodeIPInfo` is true, return node info as well
+func (c SwarmServiceClient) SwarmServiceList(ctx context.Context, includeNodeIPInfo bool) ([]SwarmService, error) {
+	filter := filters.NewArgs()
+	filter.Add("label", c.FilterLabel)
+	services, err := c.DockerClient.ServiceList(ctx, types.ServiceListOptions{Filters: filter})
+	if err != nil {
+		return nil, err
 	}
 	swarmServices := []SwarmService{}
 	for _, s := range services {
 		ss := SwarmService{s, nil}
-		if strings.EqualFold(os.Getenv("DF_INCLUDE_NODE_IP_INFO"), "true") {
-			ss.NodeInfo = m.getNodeInfo(ss)
+		if includeNodeIPInfo {
+			ss.NodeInfo = c.getNodeInfo(s)
 		}
 		swarmServices = append(swarmServices, ss)
 	}
-	return &swarmServices, nil
+	return swarmServices, nil
 }
 
-// GetNewServices returns services that were not processed previously
-func (m *Service) GetNewServices(services *[]SwarmService) (*[]SwarmService, error) {
-	newServices := []SwarmService{}
-	tmpUpdatedAt := m.ServiceLastUpdatedAt
-	for _, s := range *services {
-		if tmpUpdatedAt.Nanosecond() == 0 || s.Meta.UpdatedAt.After(tmpUpdatedAt) {
-			updated := false
-			if service, ok := CachedServices[s.ID]; ok {
-				if m.isUpdated(s, service) {
-					updated = true
-				}
-			} else if !hasZeroReplicas(&s) {
-				updated = true
-			}
-			if updated {
-				newServices = append(newServices, s)
-				CachedServices[s.ID] = s
-				if m.ServiceLastUpdatedAt.Before(s.Meta.UpdatedAt) {
-					m.ServiceLastUpdatedAt = s.Meta.UpdatedAt
-				}
-			}
-		}
-	}
-	return &newServices, nil
-}
+func (c SwarmServiceClient) getNodeInfo(ss swarm.Service) *NodeIPSet {
 
-// GetServicesFromID returns service associated with serviceID
-func (m *Service) GetServicesFromID(serviceID string) (*[]SwarmService, error) {
-	filter := filters.NewArgs()
-	filter.Add("label", fmt.Sprintf("%s=true", os.Getenv("DF_NOTIFY_LABEL")))
-	filter.Add("id", serviceID)
-	services, err := m.DockerClient.ServiceList(
-		context.Background(),
-		types.ServiceListOptions{Filters: filter},
-	)
-	if err != nil {
-		return &[]SwarmService{}, err
-	}
-
-	swarmServices := []SwarmService{}
-	for _, s := range services {
-		ss := SwarmService{s, nil}
-		if strings.EqualFold(os.Getenv("DF_INCLUDE_NODE_IP_INFO"), "true") {
-			ss.NodeInfo = m.getNodeInfo(ss)
-		}
-		swarmServices = append(swarmServices, ss)
-	}
-	return &swarmServices, nil
-}
-
-// NewService returns a new instance of the `Service` structure
-func NewService(host string) *Service {
-	defaultHeaders := map[string]string{"User-Agent": "engine-api-cli-1.0"}
-	dc, err := client.NewClient(host, dockerApiVersion, nil, defaultHeaders)
-	if err != nil {
-		logPrintf(err.Error())
-	}
-	CachedServices = make(map[string]SwarmService)
-	return &Service{
-		Host:         host,
-		DockerClient: dc,
-	}
-}
-
-// NewServiceFromEnv returns a new instance of the `Service` structure using environment variable `DF_DOCKER_HOST` for the host
-func NewServiceFromEnv() *Service {
-	host := "unix:///var/run/docker.sock"
-	if len(os.Getenv("DF_DOCKER_HOST")) > 0 {
-		host = os.Getenv("DF_DOCKER_HOST")
-	}
-	return NewService(host)
-}
-
-func (m *Service) isUpdated(candidate SwarmService, cached SwarmService) bool {
-	for k, v := range candidate.Spec.Labels {
-		if strings.HasPrefix(k, "com.df.") {
-			if storedValue, ok := cached.Spec.Labels[k]; !ok || v != storedValue {
-				return true
-			}
-		}
-	}
-	if candidate.Service.Spec.Mode.Replicated != nil {
-		candidateReplicas := candidate.Service.Spec.Mode.Replicated.Replicas
-		cachedReplicas := cached.Service.Spec.Mode.Replicated.Replicas
-		if *candidateReplicas > 0 && *candidateReplicas != *cachedReplicas {
-			return true
-		}
-	}
-	for k := range cached.Spec.Labels {
-		if _, ok := candidate.Spec.Labels[k]; !ok {
-			return true
-		}
-	}
-
-	if candidate.NodeInfo != nil && cached.NodeInfo != nil &&
-		!candidate.NodeInfo.Equal(*cached.NodeInfo) {
-		return true
-	}
-
-	return false
-}
-
-func (m *Service) getNodeInfo(s SwarmService) *NodeIPSet {
-
-	nodeInfo := NodeIPSet{}
-	filter := filters.NewArgs()
-	filter.Add("desired-state", "running")
-	filter.Add("service", s.Spec.Name)
-	taskList, err := m.DockerClient.TaskList(
-		context.Background(), types.TaskListOptions{Filters: filter})
-	if err != nil {
-		return nil
-	}
-
-	networkName, ok := s.Spec.Labels["com.df.scrapeNetwork"]
+	networkName, ok := ss.Spec.Labels[c.ScrapeNetLabel]
 	if !ok {
 		return nil
 	}
 
-	nodeCache := map[string]string{}
+	taskList, err := c.getTaskList(ss.ID)
+	if err != nil {
+		return nil
+	}
+
+	nodeInfo := NodeIPSet{}
+	nodeIPCache := map[string]string{}
 	for _, task := range taskList {
 		if len(task.NetworksAttachments) == 0 || len(task.NetworksAttachments[0].Addresses) == 0 {
 			continue
@@ -199,15 +103,15 @@ func (m *Service) getNodeInfo(s SwarmService) *NodeIPSet {
 			continue
 		}
 
-		if nodeName, ok := nodeCache[task.NodeID]; ok {
+		if nodeName, ok := nodeIPCache[task.NodeID]; ok {
 			nodeInfo.Add(nodeName, address)
 		} else {
-			node, _, err := m.DockerClient.NodeInspectWithRaw(context.Background(), task.NodeID)
+			node, _, err := c.DockerClient.NodeInspectWithRaw(context.Background(), task.NodeID)
 			if err != nil {
 				continue
 			}
 			nodeInfo.Add(node.Description.Hostname, address)
-			nodeCache[task.NodeID] = node.Description.Hostname
+			nodeIPCache[task.NodeID] = node.Description.Hostname
 		}
 	}
 
@@ -215,4 +119,13 @@ func (m *Service) getNodeInfo(s SwarmService) *NodeIPSet {
 		return nil
 	}
 	return &nodeInfo
+}
+
+func (c SwarmServiceClient) getTaskList(serviceID string) ([]swarm.Task, error) {
+
+	filter := filters.NewArgs()
+	filter.Add("desired-state", "running")
+	filter.Add("service", serviceID)
+	return c.DockerClient.TaskList(
+		context.Background(), types.TaskListOptions{Filters: filter})
 }

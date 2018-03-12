@@ -3,6 +3,7 @@ pages:
   - Home: index.md
   - Tutorial: tutorial.md
   - Configuration: config.md
+  - Usage: usage.md
   - About:
     - Release Notes: release-notes.md
     - Feedback and Contribution: feedback-and-contribution.md

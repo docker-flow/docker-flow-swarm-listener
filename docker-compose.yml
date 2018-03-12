@@ -7,9 +7,23 @@ services:
     image: vfarcic/docker-flow-swarm-listener-test
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
+      - $PWD:/src
+    networks:
+      - dfsl_network
 
   docs:
     image: cilerler/mkdocs
     volumes:
       - .:/docs
     command: bash -c "pip install pygments && pip install pymdown-extensions && mkdocs build"
+
+  tests_local:
+    image: vfarcic/docker-flow-swarm-listener-test
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - $PWD:/src
+    networks:
+      - dfsl_network
+
+networks:
+  dfsl_network:

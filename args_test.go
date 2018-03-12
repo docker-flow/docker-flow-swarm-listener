@@ -1,11 +1,12 @@
 package main
 
 import (
-	"github.com/stretchr/testify/suite"
 	"math/rand"
 	"os"
 	"strconv"
 	"testing"
+
+	"github.com/stretchr/testify/suite"
 )
 
 type ArgsTestSuite struct {
@@ -24,20 +25,8 @@ func TestArgsUnitTestSuite(t *testing.T) {
 func (s *ArgsTestSuite) Test_GetArgs_ReturnsDefaultValues() {
 	args := getArgs()
 
-	s.Equal(5, args.Interval)
 	s.Equal(1, args.Retry)
 	s.Equal(0, args.RetryInterval)
-}
-
-func (s *ArgsTestSuite) Test_GetArgs_ReturnsIntervalFromEnv() {
-	expected := rand.Int()
-	intervalOrig := os.Getenv("DF_INTERVAL")
-	defer func() { os.Setenv("DF_INTERVAL", intervalOrig) }()
-	os.Setenv("DF_INTERVAL", strconv.Itoa(expected))
-
-	args := getArgs()
-
-	s.Equal(expected, args.Interval)
 }
 
 func (s *ArgsTestSuite) Test_GetArgs_ReturnsRetryFromEnv() {

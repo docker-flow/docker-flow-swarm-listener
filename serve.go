@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"log"
 	"net/http"
 
 	"./metrics"
@@ -14,22 +15,22 @@ var httpWriterSetContentType = func(w http.ResponseWriter, value string) {
 	w.Header().Set("Content-Type", value)
 }
 
-// Serve is the instance structure
-type Serve struct {
-	Service      service.Servicer
-	Notification service.Sender
-}
-
 //Response message
 type Response struct {
 	Status string
 }
 
+// Serve is the instance structure
+type Serve struct {
+	SwarmListener service.SwarmListening
+	Log           *log.Logger
+}
+
 // NewServe returns a new instance of the `Serve`
-func NewServe(service service.Servicer, notification service.Sender) *Serve {
+func NewServe(swarmListener service.SwarmListening, logger *log.Logger) *Serve {
 	return &Serve{
-		Service:      service,
-		Notification: notification,
+		SwarmListener: swarmListener,
+		Log:           logger,
 	}
 }
 
@@ -45,8 +46,7 @@ func (m *Serve) Run() error {
 
 // NotifyServices notifies all configured endpoints of new, updated, or removed services
 func (m *Serve) NotifyServices(w http.ResponseWriter, req *http.Request) {
-	services, _ := m.Service.GetServices()
-	go m.Notification.ServicesCreate(services, 10, 5)
+	m.SwarmListener.NotifyServices(false)
 	js, _ := json.Marshal(Response{Status: "OK"})
 	httpWriterSetContentType(w, "application/json")
 	w.WriteHeader(http.StatusOK)
@@ -55,11 +55,15 @@ func (m *Serve) NotifyServices(w http.ResponseWriter, req *http.Request) {
 
 // GetServices retrieves all services with the `com.df.notify` label set to `true`
 func (m *Serve) GetServices(w http.ResponseWriter, req *http.Request) {
-	services, _ := m.Service.GetServices()
-	parameters := m.Service.GetServicesParameters(services)
-	bytes, error := json.Marshal(parameters)
-	if error != nil {
-		logPrintf("ERROR: Unable to prepare response: %s", error)
+	parameters, err := m.SwarmListener.GetServicesParameters(req.Context())
+	if err != nil {
+		m.Log.Printf("ERROR: Unable to prepare response: %s", err)
+		metrics.RecordError("serveGetServices")
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+	bytes, err := json.Marshal(parameters)
+	if err != nil {
+		m.Log.Printf("ERROR: Unable to prepare response: %s", err)
 		metrics.RecordError("serveGetServices")
 		w.WriteHeader(http.StatusInternalServerError)
 	} else {

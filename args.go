@@ -13,7 +13,6 @@ type args struct {
 
 func getArgs() *args {
 	return &args{
-		Interval:      getValue(5, "DF_INTERVAL"),
 		Retry:         getValue(1, "DF_RETRY"),
 		RetryInterval: getValue(0, "DF_RETRY_INTERVAL"),
 	}

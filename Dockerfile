@@ -1,4 +1,4 @@
-FROM golang:1.9-alpine3.6 AS build
+FROM golang:1.10.0-alpine3.7 AS build
 
 RUN apk add --update git
 ADD . /src
@@ -8,12 +8,11 @@ RUN go build -v -o docker-flow-swarm-listener
 
 
 
-FROM alpine:3.6
-MAINTAINER 	Viktor Farcic <viktor@farcic.com>
+FROM alpine:3.7
+LABEL maintainer="Viktor Farcic <viktor@farcic.com>"
 
 ENV DF_DOCKER_HOST="unix:///var/run/docker.sock" \
     DF_NOTIFICATION_URL="" \
-    DF_INTERVAL="5" \
     DF_RETRY="50" \
     DF_RETRY_INTERVAL="5" \
     DF_NOTIFY_LABEL="com.df.notify" \
