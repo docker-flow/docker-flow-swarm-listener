@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"fmt"
+	"log"
 	"strings"
 
 	"github.com/docker/docker/api/types"
@@ -22,15 +24,18 @@ type SwarmServiceClient struct {
 	FilterLabel    string
 	FilterKey      string
 	ScrapeNetLabel string
+	Log            *log.Logger
 }
 
 // NewSwarmServiceClient creates a `SwarmServiceClient`
-func NewSwarmServiceClient(c *client.Client, filterLabel, scrapNetLabel string) *SwarmServiceClient {
+func NewSwarmServiceClient(c *client.Client, filterLabel, scrapNetLabel string, logger *log.Logger) *SwarmServiceClient {
 	key := strings.SplitN(filterLabel, "=", 2)[0]
 	return &SwarmServiceClient{DockerClient: c,
 		FilterLabel:    filterLabel,
 		FilterKey:      key,
-		ScrapeNetLabel: scrapNetLabel}
+		ScrapeNetLabel: scrapNetLabel,
+		Log:            logger,
+	}
 }
 
 // SwarmServiceInspect returns `SwarmService` from its ID
@@ -49,7 +54,12 @@ func (c SwarmServiceClient) SwarmServiceInspect(serviceID string, includeNodeIPI
 
 	ss := SwarmService{service, nil}
 	if includeNodeIPInfo {
-		ss.NodeInfo = c.getNodeInfo(service)
+		nodeInfo, err := c.getNodeInfo(context.Background(), service)
+		if err != nil {
+			c.Log.Printf("%v", err)
+		} else {
+			ss.NodeInfo = nodeInfo
+		}
 	}
 	return &ss, nil
 }
@@ -67,23 +77,28 @@ func (c SwarmServiceClient) SwarmServiceList(ctx context.Context, includeNodeIPI
 	for _, s := range services {
 		ss := SwarmService{s, nil}
 		if includeNodeIPInfo {
-			ss.NodeInfo = c.getNodeInfo(s)
+			nodeInfo, _ := c.getNodeInfo(ctx, s)
+			if err != nil {
+				c.Log.Printf("%v", err)
+			} else {
+				ss.NodeInfo = nodeInfo
+			}
 		}
 		swarmServices = append(swarmServices, ss)
 	}
 	return swarmServices, nil
 }
 
-func (c SwarmServiceClient) getNodeInfo(ss swarm.Service) *NodeIPSet {
+func (c SwarmServiceClient) getNodeInfo(ctx context.Context, ss swarm.Service) (NodeIPSet, error) {
 
 	networkName, ok := ss.Spec.Labels[c.ScrapeNetLabel]
 	if !ok {
-		return nil
+		return nil, fmt.Errorf("NodeInfo %s label is not defined for service %s", c.ScrapeNetLabel, ss.Spec.Name)
 	}
 
-	taskList, err := c.getTaskList(ss.ID)
+	taskList, err := GetTaskList(ctx, c.DockerClient, ss.ID)
 	if err != nil {
-		return nil
+		return nil, err
 	}
 
 	nodeInfo := NodeIPSet{}
@@ -106,7 +121,7 @@ func (c SwarmServiceClient) getNodeInfo(ss swarm.Service) *NodeIPSet {
 		if nodeName, ok := nodeIPCache[task.NodeID]; ok {
 			nodeInfo.Add(nodeName, address)
 		} else {
-			node, _, err := c.DockerClient.NodeInspectWithRaw(context.Background(), task.NodeID)
+			node, _, err := c.DockerClient.NodeInspectWithRaw(ctx, task.NodeID)
 			if err != nil {
 				continue
 			}
@@ -116,16 +131,7 @@ func (c SwarmServiceClient) getNodeInfo(ss swarm.Service) *NodeIPSet {
 	}
 
 	if nodeInfo.Cardinality() == 0 {
-		return nil
+		return nil, nil
 	}
-	return &nodeInfo
-}
-
-func (c SwarmServiceClient) getTaskList(serviceID string) ([]swarm.Task, error) {
-
-	filter := filters.NewArgs()
-	filter.Add("desired-state", "running")
-	filter.Add("service", serviceID)
-	return c.DockerClient.TaskList(
-		context.Background(), types.TaskListOptions{Filters: filter})
+	return nodeInfo, nil
 }

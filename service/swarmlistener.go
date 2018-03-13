@@ -83,7 +83,7 @@ func NewSwarmListenerFromEnv(retries, interval int, logger *log.Logger) (*SwarmL
 		return nil, err
 	}
 	ssListener := NewSwarmServiceListener(dockerClient, logger)
-	ssClient := NewSwarmServiceClient(dockerClient, ignoreKey, "com.df.scrapeNetwork")
+	ssClient := NewSwarmServiceClient(dockerClient, ignoreKey, "com.df.scrapeNetwork", logger)
 	ssCache := NewSwarmServiceCache()
 
 	nodeListener := NewNodeListener(dockerClient, logger)

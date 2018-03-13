@@ -7,6 +7,7 @@ import (
 
 	"../metrics"
 	"github.com/docker/docker/api/types"
+	"github.com/docker/docker/api/types/events"
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
 )
@@ -38,6 +39,9 @@ func (s SwarmServiceListener) ListenForServiceEvents(eventChan chan<- Event) {
 		for {
 			select {
 			case msg := <-msgStream:
+				if !s.validEventNode(msg) {
+					continue
+				}
 				eventType := EventTypeCreate
 				if msg.Action == "remove" {
 					eventType = EventTypeRemove
@@ -56,4 +60,15 @@ func (s SwarmServiceListener) ListenForServiceEvents(eventChan chan<- Event) {
 			}
 		}
 	}()
+}
+
+// validEventNode returns true when event is valid (should be passed through)
+func (s SwarmServiceListener) validEventNode(msg events.Message) bool {
+	if msg.Action != "update" {
+		return true
+	}
+	if name, ok := msg.Actor.Attributes["updatestate.new"]; ok && len(name) > 0 {
+		return false
+	}
+	return true
 }

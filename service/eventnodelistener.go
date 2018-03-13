@@ -66,7 +66,7 @@ func (s NodeListener) ListenForNodeEvents(
 
 }
 
-// validEventNode returns false when event is valid (should be passed through)
+// validEventNode returns true when event is valid (should be passed through)
 // this will still allow through 4-5 events from changing a worker node
 // to a manager node or vise versa.
 func (s NodeListener) validEventNode(msg events.Message) bool {

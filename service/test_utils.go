@@ -156,7 +156,7 @@ func getNewSwarmServiceMini() SwarmServiceMini {
 		},
 		Replicas: uint64(3),
 		Global:   false,
-		NodeInfo: &nodeSet,
+		NodeInfo: nodeSet,
 	}
 }
 

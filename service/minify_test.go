@@ -110,10 +110,10 @@ func (s *MinifyUnitTestSuite) Test_MinifySwarmService_Global() {
 		},
 		Global:   true,
 		Replicas: uint64(0),
-		NodeInfo: &nodeSet,
+		NodeInfo: nodeSet,
 	}
 
-	ss := SwarmService{service, &nodeSet}
+	ss := SwarmService{service, nodeSet}
 	ssMini := MinifySwarmService(ss, "com.df.notify", "com.docker.stack.namespace")
 
 	s.Equal(expectMini, ssMini)
@@ -159,10 +159,10 @@ func (s *MinifyUnitTestSuite) Test_MinifySwarmService_Replicas() {
 		},
 		Global:   false,
 		Replicas: uint64(3),
-		NodeInfo: &nodeSet,
+		NodeInfo: nodeSet,
 	}
 
-	ss := SwarmService{service, &nodeSet}
+	ss := SwarmService{service, nodeSet}
 	ssMini := MinifySwarmService(ss, "com.df.notify", "com.docker.stack.namespace")
 
 	s.Equal(expectMini, ssMini)

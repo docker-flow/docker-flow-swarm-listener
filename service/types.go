@@ -13,7 +13,7 @@ type SwarmServiceMini struct {
 	Labels   map[string]string
 	Global   bool
 	Replicas uint64
-	NodeInfo *NodeIPSet
+	NodeInfo NodeIPSet
 }
 
 // Equal returns when SwarmServiceMini is equal to `other`
@@ -69,7 +69,7 @@ func EqualMapStringString(l map[string]string, r map[string]string) bool {
 // SwarmService defines internal structure with service information
 type SwarmService struct {
 	swarm.Service
-	NodeInfo *NodeIPSet
+	NodeInfo NodeIPSet
 }
 
 // EventType is the type of event from eventlisteners
@@ -98,12 +98,12 @@ type NodeIP struct {
 type NodeIPSet map[NodeIP]struct{}
 
 // Add node to set
-func (ns *NodeIPSet) Add(name, addr string) {
-	(*ns)[NodeIP{Name: name, Addr: addr}] = struct{}{}
+func (ns NodeIPSet) Add(name, addr string) {
+	ns[NodeIP{Name: name, Addr: addr}] = struct{}{}
 }
 
 // EqualNodeIPSet returns true when NodeIPSets contain the same elements
-func EqualNodeIPSet(l *NodeIPSet, r *NodeIPSet) bool {
+func EqualNodeIPSet(l NodeIPSet, r NodeIPSet) bool {
 
 	if l == nil && r == nil {
 		return true
@@ -117,8 +117,8 @@ func EqualNodeIPSet(l *NodeIPSet, r *NodeIPSet) bool {
 		return false
 	}
 
-	for ip := range *l {
-		if _, ok := (*r)[ip]; !ok {
+	for ip := range l {
+		if _, ok := (r)[ip]; !ok {
 			return false
 		}
 	}

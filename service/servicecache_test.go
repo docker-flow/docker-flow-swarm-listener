@@ -114,7 +114,7 @@ func (s *SwarmServiceCacheTestSuite) Test_InsertAndCheck_NewNodeInfo_ReturnsTrue
 	newSSMini := getNewSwarmServiceMini()
 	nodeSet := NodeIPSet{}
 	nodeSet.Add("node-3", "1.0.2.1")
-	newSSMini.NodeInfo = &nodeSet
+	newSSMini.NodeInfo = nodeSet
 
 	isUpdated = s.Cache.InsertAndCheck(newSSMini)
 	s.True(isUpdated)
