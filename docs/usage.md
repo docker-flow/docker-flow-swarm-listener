@@ -20,7 +20,7 @@ When a service is removed, a notification will be sent to **[DF_NOTIFY_REMOVE_SE
 
 ### Node Notification
 
-When a node is created or updated a notification will be sent to **[DF_NOTIFY_CREATE_NODE_UR]** with the following parameters:
+When a node is created or updated a notification will be sent to **[DF_NOTIFY_CREATE_NODE_URL]** with the following parameters:
 
 | Query | Description | Example |
 |-------|-------------|---------|
@@ -34,7 +34,7 @@ When a node is created or updated a notification will be sent to **[DF_NOTIFY_CR
 
 All service labels prefixed by `com.df.` will be added to the notification. For example, a node with label `com.df.hello=world` will translate to parameter: `hello=world`.
 
-When a node is removed, a notification will be sent to **[DF_NOTIFY_REMOVE_NODE_URl]**. Only the `id`, `hostname`, and `address` parameters are included.
+When a node is removed, a notification will be sent to **[DF_NOTIFY_REMOVE_NODE_URL]**. Only the `id`, `hostname`, and `address` parameters are included.
 
 ## API
 
