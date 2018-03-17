@@ -213,11 +213,11 @@ func (s *WatcherTestSuite) Test_Run_NodeChannel() {
 func (s *WatcherTestSuite) Test_NotifyServices_WithCache() {
 
 	expServices := []SwarmService{
-		SwarmService{
+		{
 			swarm.Service{
 				ID: "serviceID1"}, nil,
 		},
-		SwarmService{
+		{
 			swarm.Service{
 				ID: "serviceID2"}, nil,
 		},
@@ -250,10 +250,10 @@ func (s *WatcherTestSuite) Test_NotifyServices_WithCache() {
 func (s *WatcherTestSuite) Test_NotifyServices_WithoutCache() {
 
 	expServices := []SwarmService{
-		SwarmService{
+		{
 			swarm.Service{ID: "serviceID1"}, nil,
 		},
-		SwarmService{
+		{
 			swarm.Service{ID: "serviceID2"}, nil,
 		},
 	}
@@ -284,10 +284,10 @@ func (s *WatcherTestSuite) Test_NotifyServices_WithoutCache() {
 
 func (s *WatcherTestSuite) Test_NotifyNodes_WithoutCache() {
 	expNodes := []swarm.Node{
-		swarm.Node{
+		{
 			ID: "nodeID1",
 		},
-		swarm.Node{
+		{
 			ID: "nodeID2",
 		},
 	}
@@ -318,10 +318,10 @@ func (s *WatcherTestSuite) Test_NotifyNodes_WithoutCache() {
 
 func (s *WatcherTestSuite) Test_NotifyNodes_WithCache() {
 	expNodes := []swarm.Node{
-		swarm.Node{
+		{
 			ID: "nodeID1",
 		},
-		swarm.Node{
+		{
 			ID: "nodeID2",
 		},
 	}
@@ -353,10 +353,10 @@ func (s *WatcherTestSuite) Test_NotifyNodes_WithCache() {
 func (s *WatcherTestSuite) Test_GetServices() {
 
 	expServices := []SwarmService{
-		SwarmService{
+		{
 			swarm.Service{ID: "serviceID1"}, nil,
 		},
-		SwarmService{
+		{
 			swarm.Service{ID: "serviceID2"}, nil,
 		},
 	}
