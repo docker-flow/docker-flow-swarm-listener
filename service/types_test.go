@@ -52,65 +52,65 @@ func (s *TypesTestSuite) Test_EqualMapStringString_DifferentNumberOfValues() {
 
 func (s *TypesTestSuite) Test_Cardinality_DifferentElms() {
 	a := NodeIPSet{}
-	a.Add("node-1", "1.0.0.1")
-	a.Add("node-2", "1.0.1.1")
+	a.Add("node-1", "1.0.0.1", "id1")
+	a.Add("node-2", "1.0.1.1", "id2")
 	s.Equal(2, a.Cardinality())
 }
 
 func (s *TypesTestSuite) Test_Cardinality_RepeatElems() {
 	a := NodeIPSet{}
-	a.Add("node-1", "1.0.0.1")
-	a.Add("node-1", "1.0.0.1")
+	a.Add("node-1", "1.0.0.1", "id1")
+	a.Add("node-1", "1.0.0.1", "id1")
 	s.Equal(1, a.Cardinality())
 }
 
 func (s *TypesTestSuite) Test_NodeIPSetEqual_RepeatElems() {
 	a := NodeIPSet{}
-	a.Add("node-1", "1.0.0.1")
-	a.Add("node-1", "1.0.0.1")
+	a.Add("node-1", "1.0.0.1", "id1")
+	a.Add("node-1", "1.0.0.1", "id1")
 	b := NodeIPSet{}
-	b.Add("node-1", "1.0.0.1")
+	b.Add("node-1", "1.0.0.1", "id1")
 	s.True(EqualNodeIPSet(a, b))
 }
 
 func (s *TypesTestSuite) Test_NodeIPSetEqual_LenUnequal() {
 	a := NodeIPSet{}
-	a.Add("node-1", "1.0.0.1")
-	a.Add("node-2", "1.0.1.1")
+	a.Add("node-1", "1.0.0.1", "id1")
+	a.Add("node-2", "1.0.1.1", "id2")
 	b := NodeIPSet{}
-	b.Add("node-1", "1.0.0.1")
-	b.Add("node-2", "1.0.1.1")
-	b.Add("node-2", "1.0.1.2")
+	b.Add("node-1", "1.0.0.1", "id1")
+	b.Add("node-2", "1.0.1.1", "id2")
+	b.Add("node-2", "1.0.1.2", "id2")
 	s.False(EqualNodeIPSet(a, b))
 }
 
 func (s *TypesTestSuite) Test_NodeIPSetEqual_EqualSets() {
 	a := NodeIPSet{}
-	a.Add("node-1", "1.0.0.1")
-	a.Add("node-2", "1.0.1.1")
+	a.Add("node-1", "1.0.0.1", "id1")
+	a.Add("node-2", "1.0.1.1", "id2")
 	b := NodeIPSet{}
-	b.Add("node-1", "1.0.0.1")
-	b.Add("node-2", "1.0.1.1")
+	b.Add("node-1", "1.0.0.1", "id1")
+	b.Add("node-2", "1.0.1.1", "id2")
 	s.True(EqualNodeIPSet(a, b))
 }
 
 func (s *TypesTestSuite) Test_NodeIPSetEqual_AddrNotEqual() {
 	a := NodeIPSet{}
-	a.Add("node-1", "1.0.0.1")
-	a.Add("node-2", "1.0.1.1")
+	a.Add("node-1", "1.0.0.1", "id1")
+	a.Add("node-2", "1.0.1.1", "id2")
 	b := NodeIPSet{}
-	b.Add("node-1", "1.0.0.1")
-	b.Add("node-2", "1.0.1.2")
+	b.Add("node-1", "1.0.0.1", "id1")
+	b.Add("node-2", "1.0.1.2", "id2")
 	s.False(EqualNodeIPSet(a, b))
 }
 
 func (s *TypesTestSuite) Test_NodeIPSetEqual_NodeNameNotEqual() {
 	a := NodeIPSet{}
-	a.Add("node-1", "1.0.0.1")
-	a.Add("node-2", "1.0.1.1")
+	a.Add("node-1", "1.0.0.1", "id1")
+	a.Add("node-2", "1.0.1.1", "id2")
 	b := NodeIPSet{}
-	b.Add("node-1", "1.0.0.1")
-	b.Add("node-1", "1.0.1.1")
+	b.Add("node-1", "1.0.0.1", "id1")
+	b.Add("node-1", "1.0.1.1", "id1")
 	s.False(EqualNodeIPSet(a, b))
 }
 
@@ -123,8 +123,8 @@ func (s *TypesTestSuite) Test_NodeIPSetEqual_EmptySets() {
 func (s *TypesTestSuite) Test_NodeIPSetEqual_OneEmpty() {
 	a := NodeIPSet{}
 	b := NodeIPSet{}
-	b.Add("node-1", "1.0.0.1")
-	b.Add("node-1", "1.0.1.1")
+	b.Add("node-1", "1.0.0.1", "id1")
+	b.Add("node-1", "1.0.1.1", "id1")
 	s.False(EqualNodeIPSet(a, b))
 }
 
@@ -138,8 +138,8 @@ func (s *TypesTestSuite) Test_NodeIPMarshallJSON_EmptySet() {
 
 func (s *TypesTestSuite) Test_NodeIP_JSONCycle() {
 	a := NodeIPSet{}
-	a.Add("node-1", "1.0.0.1")
-	a.Add("node-2", "1.0.1.1")
+	a.Add("node-1", "1.0.0.1", "id1")
+	a.Add("node-2", "1.0.1.1", "id2")
 	by, err := json.Marshal(a)
 	s.Require().NoError(err)
 
@@ -152,11 +152,21 @@ func (s *TypesTestSuite) Test_NodeIP_JSONCycle() {
 
 func (s *TypesTestSuite) Test_NodeIPSet_Add() {
 	a := NodeIPSet{}
-	a.Add("node-1", "1.0.0.1")
-	a.Add("node-1", "1.0.1.1")
+	a.Add("node-1", "1.0.0.1", "id1")
+	a.Add("node-1", "1.0.1.1", "id1")
 	b := NodeIPSet{}
-	b.Add("node-1", "1.0.0.1")
-	b.Add("node-1", "1.0.1.1")
+	b.Add("node-1", "1.0.0.1", "id1")
+	b.Add("node-1", "1.0.1.1", "id1")
 
 	s.True(EqualNodeIPSet(a, b))
+}
+
+func (s *TypesTestSuite) Test_NodeIP_WithTwoEntries() {
+	nodeBytes := []byte("[[\"node-1\", \"1.0.0.1\"], [\"node-2\", \"1.0.1.1\"]]")
+	ipSet := NodeIPSet{}
+	err := json.Unmarshal(nodeBytes, &ipSet)
+	s.Require().NoError(err)
+
+	s.Contains(ipSet, NodeIP{Name: "node-1", Addr: "1.0.0.1"})
+	s.Contains(ipSet, NodeIP{Name: "node-2", Addr: "1.0.1.1"})
 }

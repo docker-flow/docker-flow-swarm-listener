@@ -24,14 +24,13 @@ func TestServerUnitTestSuite(t *testing.T) {
 	suite.Run(t, new(ServerTestSuite))
 }
 
-func (s *ServerTestSuite) SetupSuite() {
+func (s *ServerTestSuite) SetupTest() {
 	s.Log = log.New(os.Stdout, "", 0)
 
 	s.RWMock = new(ResponseWriterMock)
 	s.RWMock.On("Header").Return(nil)
 	s.RWMock.On("Write", mock.Anything).Return(0, nil)
 	s.RWMock.On("WriteHeader", mock.Anything)
-
 	s.SLMock = new(SwarmListeningMock)
 }
 
@@ -118,6 +117,31 @@ func (s *ServerTestSuite) Test_GetServices_ReturnsServices() {
 	s.Equal(mapParam, rsp)
 }
 
+// GetNodes
+
+func (s *ServerTestSuite) Test_GetNodes_ReturnNodes() {
+	mapParam := []map[string]string{
+		{
+			"id":           "node1",
+			"hostname":     "node1hostname",
+			"address":      "10.0.0.1",
+			"versionIndex": "24",
+			"state":        "ready",
+			"role":         "worker",
+			"availability": "active",
+		},
+	}
+	s.SLMock.On("GetNodesParameters", mock.Anything).Return(mapParam, nil)
+	req, _ := http.NewRequest("GET", "/v1/docker-flow-swarm-listener/get-nodes", nil)
+	srv := NewServe(s.SLMock, s.Log)
+	srv.GetNodes(s.RWMock, req)
+	call := s.RWMock.GetLastMethodCall("Write")
+	value, _ := call.Arguments.Get(0).([]byte)
+	rsp := []map[string]string{}
+	json.Unmarshal(value, &rsp)
+	s.Equal(mapParam, rsp)
+}
+
 // PingHandler
 
 func (s *ServerTestSuite) Test_PingHandler_ReturnsStatus200() {
@@ -181,6 +205,10 @@ func (m *SwarmListeningMock) NotifyNodes(ignoreCache bool) {
 	m.Called(ignoreCache)
 }
 func (m *SwarmListeningMock) GetServicesParameters(ctx context.Context) ([]map[string]string, error) {
+	args := m.Called(ctx)
+	return args.Get(0).([]map[string]string), args.Error(1)
+}
+func (m *SwarmListeningMock) GetNodesParameters(ctx context.Context) ([]map[string]string, error) {
 	args := m.Called(ctx)
 	return args.Get(0).([]map[string]string), args.Error(1)
 }

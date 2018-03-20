@@ -94,8 +94,8 @@ func (s *MinifyUnitTestSuite) Test_MinifySwarmService_Global() {
 	}
 
 	nodeSet := NodeIPSet{}
-	nodeSet.Add("node-1", "1.0.0.1")
-	nodeSet.Add("node-2", "1.0.1.1")
+	nodeSet.Add("node-1", "1.0.0.1", "id1")
+	nodeSet.Add("node-2", "1.0.1.1", "id2")
 
 	service := swarm.Service{
 		ID:   "serviceID",
@@ -143,7 +143,7 @@ func (s *MinifyUnitTestSuite) Test_MinifySwarmService_Replicas() {
 	}
 
 	nodeSet := NodeIPSet{}
-	nodeSet.Add("node-1", "1.0.0.1")
+	nodeSet.Add("node-1", "1.0.0.1", "id1")
 
 	service := swarm.Service{
 		ID:   "serviceID",

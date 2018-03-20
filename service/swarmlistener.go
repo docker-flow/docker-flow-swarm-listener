@@ -14,6 +14,7 @@ type SwarmListening interface {
 	NotifyServices(ignoreCache bool)
 	NotifyNodes(ignoreCache bool)
 	GetServicesParameters(ctx context.Context) ([]map[string]string, error)
+	GetNodesParameters(ctx context.Context) ([]map[string]string, error)
 }
 
 // SwarmListener provides public api
@@ -297,6 +298,23 @@ func (l SwarmListener) GetServicesParameters(ctx context.Context) ([]map[string]
 	for _, s := range services {
 		ssm := MinifySwarmService(s, l.IgnoreKey, l.IncludeKey)
 		newParams := GetSwarmServiceMiniCreateParameters(ssm)
+		if len(newParams) > 0 {
+			params = append(params, newParams)
+		}
+	}
+	return params, nil
+}
+
+// GetNodesParameters get all nodes
+func (l SwarmListener) GetNodesParameters(ctx context.Context) ([]map[string]string, error) {
+	nodes, err := l.NodeClient.NodeList(ctx)
+	if err != nil {
+		return []map[string]string{}, err
+	}
+	params := []map[string]string{}
+	for _, n := range nodes {
+		mn := MinifyNode(n)
+		newParams := GetNodeMiniCreateParameters(mn)
 		if len(newParams) > 0 {
 			params = append(params, newParams)
 		}

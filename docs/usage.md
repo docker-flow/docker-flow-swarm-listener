@@ -12,7 +12,7 @@ When a service is created or updated a notification will be sent to **[DF_NOTIFY
 |-------------|------------------------------------------------------------------------|---------|
 | serviceName | Name of service. If `com.df.shortName` is true, and the service is part of a stack the stack name will be trimed off. | `go-demo` |
 | replicas    | Number of replicas of service. If the service is global, this parameter will be excluded.| `3` |
-| nodeInfo    | An array of node with its ip on an overlay network. The network is defined with the label: `com.df.scrapeNetwork`. This parameter is included when environment variable, `DF_INCLUDE_NODE_IP_INFO`, is true. | `[["node-3","10.0.0.23"], ["node-2", "10.0.0.22"]]` |
+| nodeInfo    | An array of node with its ip on an overlay network. The network is defined with the label: `com.df.scrapeNetwork`. This parameter is included when environment variable, `DF_INCLUDE_NODE_IP_INFO`, is true. | `[["node-3","10.0.0.23", "node-3id"], ["node-2", "10.0.0.22", "node-2id"]]` |
 
 All service labels prefixed by `com.df.` will be added to the notification. For example, a service with label `com.df.hello=world` will translate to parameter: `hello=world`.
 
@@ -47,3 +47,7 @@ The *Get Services* endpoint is used to query all running services with the `DF_N
 ### Notify Services
 
 *DFSL* normally sends out notifcations when a service is created, updated, or removed. The *Notify Services* endpoint will force *DFSL* to send out notifications for all running services with the `DF_NOTIFY_LABEL` label. A `GET` request to **[SWARM_LISTENER_IP]:[SWARM_LISTENER_PORT]/v1/docker-flow-swarm-listener/notify-services** sends out the notifications.
+
+### Get Nodes
+
+The *Get Nodes* endpoint is used to query all nodes. A `GET` request to **[SWARM_LISTENER_IP]:[SWARM_LISTENER_PORT]/v1/docker-flow-swarm-listener/get-nodes** returns a json representation of these nodes.

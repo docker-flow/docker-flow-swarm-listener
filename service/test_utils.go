@@ -146,7 +146,7 @@ func runDockerCommandOnSocket(args []string) (string, error) {
 
 func getNewSwarmServiceMini() SwarmServiceMini {
 	nodeSet := NodeIPSet{}
-	nodeSet.Add("node-1", "1.0.0.1")
+	nodeSet.Add("node-1", "1.0.0.1", "id1")
 
 	return SwarmServiceMini{
 		ID:   "serviceID",
