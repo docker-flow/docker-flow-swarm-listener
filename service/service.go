@@ -119,13 +119,13 @@ func (c SwarmServiceClient) getNodeInfo(ctx context.Context, ss swarm.Service) (
 		}
 
 		if nodeName, ok := nodeIPCache[task.NodeID]; ok {
-			nodeInfo.Add(nodeName, address)
+			nodeInfo.Add(nodeName, address, task.NodeID)
 		} else {
 			node, _, err := c.DockerClient.NodeInspectWithRaw(ctx, task.NodeID)
 			if err != nil {
 				continue
 			}
-			nodeInfo.Add(node.Description.Hostname, address)
+			nodeInfo.Add(node.Description.Hostname, address, task.NodeID)
 			nodeIPCache[task.NodeID] = node.Description.Hostname
 		}
 	}

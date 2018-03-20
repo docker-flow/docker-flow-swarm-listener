@@ -6,7 +6,6 @@ import (
 )
 
 type args struct {
-	Interval      int
 	Retry         int
 	RetryInterval int
 }

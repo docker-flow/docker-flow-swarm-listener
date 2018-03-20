@@ -74,6 +74,27 @@ func (m *Serve) GetServices(w http.ResponseWriter, req *http.Request) {
 	}
 }
 
+// GetNodes retrieves all nodes
+func (m *Serve) GetNodes(w http.ResponseWriter, req *http.Request) {
+	parameters, err := m.SwarmListener.GetNodesParameters(req.Context())
+	if err != nil {
+		m.Log.Printf("ERROR: Unable to prepare response: %s", err)
+		metrics.RecordError("serveGetNodes")
+		w.WriteHeader(http.StatusInternalServerError)
+	}
+	bytes, err := json.Marshal(parameters)
+	if err != nil {
+		m.Log.Printf("ERROR: Unable to prepare response: %s", err)
+		metrics.RecordError("serveGetNodes")
+		w.WriteHeader(http.StatusInternalServerError)
+	} else {
+		// NOTE: For an unknown reason, `httpWriterSetContentType` does not work so the header is set directly
+		w.Header().Set("Content-Type", "application/json")
+		httpWriterSetContentType(w, "application/json")
+		w.Write(bytes)
+	}
+}
+
 // PingHandler is used for health checks
 func (m *Serve) PingHandler(w http.ResponseWriter, req *http.Request) {
 	js, _ := json.Marshal(Response{Status: "OK"})

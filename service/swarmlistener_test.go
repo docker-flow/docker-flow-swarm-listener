@@ -368,3 +368,18 @@ func (s *WatcherTestSuite) Test_GetServices() {
 
 	s.SSClientMock.AssertExpectations(s.T())
 }
+
+func (s *WatcherTestSuite) Test_GetNodes() {
+
+	expServices := []swarm.Node{
+		swarm.Node{ID: "nodeID1"},
+		swarm.Node{ID: "nodeID2"},
+	}
+	s.NodeClientMock.On("NodeList", mock.AnythingOfType("*context.emptyCtx")).Return(expServices, nil)
+
+	params, err := s.SwarmListener.GetNodesParameters(context.Background())
+	s.Require().NoError(err)
+	s.Len(params, 2)
+
+	s.NodeClientMock.AssertExpectations(s.T())
+}
