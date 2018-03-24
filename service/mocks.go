@@ -11,13 +11,13 @@ type notificationSenderMock struct {
 	mock.Mock
 }
 
-func (m *notificationSenderMock) Create(params string) error {
-	args := m.Called(params)
+func (m *notificationSenderMock) Create(ctx context.Context, params string) error {
+	args := m.Called(ctx, params)
 	return args.Error(0)
 }
 
-func (m *notificationSenderMock) Remove(params string) error {
-	args := m.Called(params)
+func (m *notificationSenderMock) Remove(ctx context.Context, params string) error {
+	args := m.Called(ctx, params)
 	return args.Error(0)
 }
 
@@ -29,6 +29,19 @@ func (m *notificationSenderMock) GetCreateAddr() string {
 func (m *notificationSenderMock) GetRemoveAddr() string {
 	args := m.Called()
 	return args.String(0)
+}
+
+type cancelManagingMock struct {
+	mock.Mock
+}
+
+func (m *cancelManagingMock) Add(id string, reqID int64) context.Context {
+	args := m.Called(id, reqID)
+	return args.Get(0).(context.Context)
+}
+
+func (m *cancelManagingMock) Delete(id string, reqID int64) {
+	m.Called(id, reqID)
 }
 
 type swarmServiceListeningMock struct {

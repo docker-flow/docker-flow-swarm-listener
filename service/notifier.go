@@ -1,11 +1,13 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"io/ioutil"
 	"log"
 	"net/http"
 	"net/url"
+	"strings"
 	"time"
 
 	"../metrics"
@@ -16,8 +18,8 @@ type NotifyType string
 
 // NotificationSender sends notifications to listeners
 type NotificationSender interface {
-	Create(params string) error
-	Remove(params string) error
+	Create(ctx context.Context, params string) error
+	Remove(ctx context.Context, params string) error
 	GetCreateAddr() string
 	GetRemoveAddr() string
 }
@@ -61,7 +63,7 @@ func (n Notifier) GetRemoveAddr() string {
 }
 
 // Create sends create notifications to listeners
-func (n Notifier) Create(params string) error {
+func (n Notifier) Create(ctx context.Context, params string) error {
 	if len(n.createAddr) == 0 {
 		return nil
 	}
@@ -74,39 +76,73 @@ func (n Notifier) Create(params string) error {
 	}
 	urlObj.RawQuery = params
 	fullURL := urlObj.String()
+	req, err := http.NewRequest(http.MethodGet, fullURL, nil)
+	if err != nil {
+		n.log.Printf("ERROR: Incorrect fullURL: %s", fullURL)
+		metrics.RecordError(n.createErrorMetric)
+		return err
+	}
+	req = req.WithContext(ctx)
+
 	n.log.Printf("Sending %s created notification to %s", n.notifyType, fullURL)
-	for i := 1; i <= n.retries; i++ {
-		resp, err := http.Get(fullURL)
-		if err == nil &&
-			(resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusConflict) {
-			return nil
-		} else if i < n.retries {
-			if n.interval > 0 {
+	retryChan := make(chan int, 1)
+	retryChan <- 1
+	for {
+		select {
+		case i := <-retryChan:
+			resp, err := http.DefaultClient.Do(req)
+			if err != nil {
+				if strings.Contains(err.Error(), "context") {
+					n.log.Printf("Canceling %s create notification to %s", n.notifyType, fullURL)
+					return nil
+				}
+				if i <= n.retries && n.interval > 0 {
+					n.log.Printf("Retrying %s created notification to %s (%d try)", n.notifyType, fullURL, i)
+					time.Sleep(time.Second * time.Duration(n.interval))
+					retryChan <- i + 1
+					continue
+				} else {
+					n.log.Printf("ERROR: %v", err)
+					metrics.RecordError(n.createErrorMetric)
+					return err
+				}
+			}
+			defer resp.Body.Close()
+
+			if resp.StatusCode == http.StatusOK || resp.StatusCode == http.StatusConflict {
+				return nil
+			} else if i <= n.retries && n.interval > 0 {
 				n.log.Printf("Retrying %s created notification to %s (%d try)", n.notifyType, fullURL, i)
 				time.Sleep(time.Second * time.Duration(n.interval))
-			}
-		} else {
-			if err != nil {
-				n.log.Printf("ERROR: %v", err)
-				metrics.RecordError(n.createErrorMetric)
-				return err
+				retryChan <- i + 1
+				continue
 			} else if resp.StatusCode == http.StatusConflict || resp.StatusCode != http.StatusOK {
-				body, _ := ioutil.ReadAll(resp.Body)
-				err := fmt.Errorf("Request %s returned status code %d\n%s", fullURL, resp.StatusCode, string(body[:]))
+				body, err := ioutil.ReadAll(resp.Body)
+				if err != nil {
+					err = fmt.Errorf("Failed at retrying request to %s returned status code %d", fullURL, resp.StatusCode)
+					n.log.Printf("ERROR: %v", err)
+					metrics.RecordError(n.createErrorMetric)
+					return err
+				}
+				err = fmt.Errorf("Failed at retrying request to %s returned status code %d\n%s", fullURL, resp.StatusCode, string(body[:]))
 				n.log.Printf("ERROR: %v", err)
 				metrics.RecordError(n.createErrorMetric)
 				return err
 			}
+			err = fmt.Errorf("Failed at retrying request to %s returned status code %d", fullURL, resp.StatusCode)
+			n.log.Printf("ERROR: %v", err)
+			metrics.RecordError(n.createErrorMetric)
+			return err
+		case <-ctx.Done():
+			n.log.Printf("Canceling %s create notification to %s", n.notifyType, fullURL)
+			return nil
 		}
-		if resp != nil && resp.Body != nil {
-			resp.Body.Close()
-		}
+
 	}
-	return nil
 }
 
 // Remove sends remove notifications to listeners
-func (n Notifier) Remove(params string) error {
+func (n Notifier) Remove(ctx context.Context, params string) error {
 	if len(n.removeAddr) == 0 {
 		return nil
 	}
@@ -119,32 +155,62 @@ func (n Notifier) Remove(params string) error {
 	}
 	urlObj.RawQuery = params
 	fullURL := urlObj.String()
+	req, err := http.NewRequest(http.MethodGet, fullURL, nil)
+	if err != nil {
+		n.log.Printf("ERROR: Incorrect fullURL: %s", fullURL)
+		metrics.RecordError(n.removeErrorMetric)
+		return err
+	}
+	req = req.WithContext(ctx)
+
 	n.log.Printf("Sending %s removed notification to %s", n.notifyType, fullURL)
-	for i := 1; i <= n.retries; i++ {
-		resp, err := http.Get(fullURL)
-		if err == nil && resp.StatusCode == http.StatusOK {
-			return nil
-		} else if i < n.retries {
-			if n.interval > 0 {
+	retryChan := make(chan int, 1)
+	retryChan <- 1
+	for {
+		select {
+		case i := <-retryChan:
+			resp, err := http.DefaultClient.Do(req)
+			if err != nil {
+				if strings.Contains(err.Error(), "context") {
+					n.log.Printf("Canceling %s remove notification to %s", n.notifyType, fullURL)
+					return nil
+				}
+				if i <= n.retries && n.interval > 0 {
+					n.log.Printf("Retrying %s removed notification to %s (%d try)", n.notifyType, fullURL, i)
+					time.Sleep(time.Second * time.Duration(n.interval))
+					retryChan <- i + 1
+					continue
+				} else {
+					n.log.Printf("ERROR: %v", err)
+					metrics.RecordError(n.removeErrorMetric)
+					return err
+				}
+			}
+			defer resp.Body.Close()
+
+			if resp.StatusCode == http.StatusOK {
+				return nil
+			} else if i <= n.retries && n.interval > 0 {
 				n.log.Printf("Retrying %s removed notification to %s (%d try)", n.notifyType, fullURL, i)
 				time.Sleep(time.Second * time.Duration(n.interval))
-			}
-		} else {
-			if err != nil {
+				retryChan <- i + 1
+				continue
+			} else {
+				body, err := ioutil.ReadAll(resp.Body)
+				if err != nil {
+					err = fmt.Errorf("Failed at retrying request to %s returned status code %d", fullURL, resp.StatusCode)
+					n.log.Printf("ERROR: %v", err)
+					metrics.RecordError(n.removeErrorMetric)
+					return err
+				}
+				err = fmt.Errorf("Failed at retrying request to %s returned status code %d\n%s", fullURL, resp.StatusCode, string(body[:]))
 				n.log.Printf("ERROR: %v", err)
 				metrics.RecordError(n.removeErrorMetric)
 				return err
-			} else if resp.StatusCode != http.StatusOK {
-				body, _ := ioutil.ReadAll(resp.Body)
-				err := fmt.Errorf("Request %s returned status code %d\n%s", fullURL, resp.StatusCode, string(body[:]))
-				n.log.Printf("ERROR: %v", err)
-				metrics.RecordError(n.removeErrorMetric)
-				return err
 			}
-		}
-		if resp != nil && resp.Body != nil {
-			resp.Body.Close()
+		case <-ctx.Done():
+			n.log.Printf("Canceling %s remove notification to %s", n.notifyType, fullURL)
+			return nil
 		}
 	}
-	return nil
 }

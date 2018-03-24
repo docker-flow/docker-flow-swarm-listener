@@ -1,23 +1,32 @@
 package service
 
 import (
+	"context"
 	"log"
 	"net/url"
 	"os"
 	"strings"
+	"time"
 )
 
 // Notification is a node notification
 type Notification struct {
 	EventType  EventType
+	ID         string
 	Parameters string
+}
+
+type internalNotification struct {
+	Notification
+	ReqID int64
+	Ctx   context.Context
 }
 
 // NotifyEndpoint holds Notifiers and channels to watch
 type NotifyEndpoint struct {
-	ServiceChan     chan Notification
+	ServiceChan     chan internalNotification
 	ServiceNotifier NotificationSender
-	NodeChan        chan Notification
+	NodeChan        chan internalNotification
 	NodeNotifier    NotificationSender
 }
 
@@ -32,13 +41,23 @@ type NotifyDistributing interface {
 // NotifyDistributor distributes service and node notifications to `NotifyEndpoints`
 // `NotifyEndpoints` are keyed by hostname to send notifications to
 type NotifyDistributor struct {
-	NotifyEndpoints map[string]NotifyEndpoint
-	log             *log.Logger
-	interval        int
+	NotifyEndpoints      map[string]NotifyEndpoint
+	ServiceCancelManager CancelManaging
+	NodeCancelManager    CancelManaging
+	log                  *log.Logger
+	interval             int
 }
 
-func newNotifyDistributor(notifyEndpoints map[string]NotifyEndpoint, interval int, logger *log.Logger) *NotifyDistributor {
-	return &NotifyDistributor{NotifyEndpoints: notifyEndpoints, interval: interval, log: logger}
+func newNotifyDistributor(notifyEndpoints map[string]NotifyEndpoint,
+	serviceCancelManager CancelManaging, nodeCancelManager CancelManaging,
+	interval int, logger *log.Logger) *NotifyDistributor {
+	return &NotifyDistributor{
+		NotifyEndpoints:      notifyEndpoints,
+		ServiceCancelManager: serviceCancelManager,
+		NodeCancelManager:    nodeCancelManager,
+		interval:             interval,
+		log:                  logger,
+	}
 }
 
 func newNotifyDistributorfromStrings(serviceCreateAddrs, serviceRemoveAddrs, nodeCreateAddrs, nodeRemoveAddrs string, retries, interval int, logger *log.Logger) *NotifyDistributor {
@@ -54,7 +73,7 @@ func newNotifyDistributorfromStrings(serviceCreateAddrs, serviceRemoveAddrs, nod
 	for hostname, addrMap := range tempNotifyEP {
 		ep := NotifyEndpoint{}
 		if len(addrMap["createService"]) > 0 || len(addrMap["removeService"]) > 0 {
-			ep.ServiceChan = make(chan Notification)
+			ep.ServiceChan = make(chan internalNotification)
 			ep.ServiceNotifier = NewNotifier(
 				addrMap["createService"],
 				addrMap["removeService"],
@@ -65,7 +84,7 @@ func newNotifyDistributorfromStrings(serviceCreateAddrs, serviceRemoveAddrs, nod
 			)
 		}
 		if len(addrMap["createNode"]) > 0 || len(addrMap["removeNode"]) > 0 {
-			ep.NodeChan = make(chan Notification)
+			ep.NodeChan = make(chan internalNotification)
 			ep.NodeNotifier = NewNotifier(
 				addrMap["createNode"],
 				addrMap["removeNode"],
@@ -78,7 +97,12 @@ func newNotifyDistributorfromStrings(serviceCreateAddrs, serviceRemoveAddrs, nod
 		notifyEndpoints[hostname] = ep
 	}
 
-	return newNotifyDistributor(notifyEndpoints, interval, logger)
+	return newNotifyDistributor(
+		notifyEndpoints,
+		NewCancelManager(len(notifyEndpoints)),
+		NewCancelManager(len(notifyEndpoints)),
+		interval,
+		logger)
 }
 
 func insertAddrStringIntoMap(tempEP map[string]map[string]string, key, addrs string) {
@@ -132,8 +156,13 @@ func (d NotifyDistributor) Run(serviceChan <-chan Notification, nodeChan <-chan 
 	if serviceChan != nil {
 		go func() {
 			for n := range serviceChan {
+				// Use time as request id
+				ctx := d.ServiceCancelManager.Add(n.ID, time.Now().UTC().UnixNano())
 				for _, endpoint := range d.NotifyEndpoints {
-					endpoint.ServiceChan <- n
+					endpoint.ServiceChan <- internalNotification{
+						Notification: n,
+						Ctx:          ctx,
+					}
 				}
 			}
 		}()
@@ -141,8 +170,13 @@ func (d NotifyDistributor) Run(serviceChan <-chan Notification, nodeChan <-chan 
 	if nodeChan != nil {
 		go func() {
 			for n := range nodeChan {
+				// Use time as request id
+				ctx := d.NodeCancelManager.Add(n.ID, time.Now().UTC().UnixNano())
 				for _, endpoint := range d.NotifyEndpoints {
-					endpoint.NodeChan <- n
+					endpoint.NodeChan <- internalNotification{
+						Notification: n,
+						Ctx:          ctx,
+					}
 				}
 			}
 		}()
@@ -154,24 +188,28 @@ func (d NotifyDistributor) watchChannels(endpoint NotifyEndpoint) {
 		select {
 		case n := <-endpoint.ServiceChan:
 			if n.EventType == EventTypeCreate {
-				err := endpoint.ServiceNotifier.Create(n.Parameters)
+				err := endpoint.ServiceNotifier.Create(n.Ctx, n.Parameters)
+				d.ServiceCancelManager.Delete(n.ID, n.ReqID)
 				if err != nil {
 					d.log.Printf("ERROR: Unable to send ServiceCreateNotify to %s, params: %s", endpoint.ServiceNotifier.GetCreateAddr(), n.Parameters)
 				}
 			} else if n.EventType == EventTypeRemove {
-				err := endpoint.ServiceNotifier.Remove(n.Parameters)
+				err := endpoint.ServiceNotifier.Remove(n.Ctx, n.Parameters)
+				d.ServiceCancelManager.Delete(n.ID, n.ReqID)
 				if err != nil {
 					d.log.Printf("ERROR: Unable to send ServiceRemoveNotify to %s, params: %s", endpoint.ServiceNotifier.GetRemoveAddr(), n.Parameters)
 				}
 			}
 		case n := <-endpoint.NodeChan:
 			if n.EventType == EventTypeCreate {
-				err := endpoint.NodeNotifier.Create(n.Parameters)
+				err := endpoint.NodeNotifier.Create(n.Ctx, n.Parameters)
+				d.NodeCancelManager.Delete(n.ID, n.ReqID)
 				if err != nil {
 					d.log.Printf("ERROR: Unable to send NodeCreateNotify to %s, params: %s", endpoint.NodeNotifier.GetCreateAddr(), n.Parameters)
 				}
 			} else if n.EventType == EventTypeRemove {
-				err := endpoint.NodeNotifier.Remove(n.Parameters)
+				err := endpoint.NodeNotifier.Remove(n.Ctx, n.Parameters)
+				d.NodeCancelManager.Delete(n.ID, n.ReqID)
 				if err != nil {
 					d.log.Printf("ERROR: Unable to send NodeRemoveNotify to %s, params: %s", endpoint.NodeNotifier.GetRemoveAddr(), n.Parameters)
 				}

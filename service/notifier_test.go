@@ -2,6 +2,7 @@ package service
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"log"
 	"net/http"
@@ -62,7 +63,7 @@ func (s *NotifierTestSuite) Test_Create_SendsRequests() {
 
 	n := NewNotifier(url1, "", "service", 5, 1, s.Logger)
 	s.Equal(url1, n.GetCreateAddr())
-	err := n.Create(s.Params)
+	err := n.Create(context.Background(), s.Params)
 	s.Require().NoError(err)
 
 	s.Equal(s.Params, query1)
@@ -78,7 +79,7 @@ func (s *NotifierTestSuite) Test_Create_SendsRequests() {
 
 func (s *NotifierTestSuite) Test_Create_ReturnsAndLogsError_WhenUrlCannotBeParsed() {
 	n := NewNotifier("%%%", "", "service", 5, 1, s.Logger)
-	err := n.Create(s.Params)
+	err := n.Create(context.Background(), s.Params)
 	s.Error(err)
 
 	logMsgs := s.LogBytes.String()
@@ -93,7 +94,7 @@ func (s *NotifierTestSuite) Test_Create_ReturnsAndLogsError_WhenHttpStatusIsNot2
 
 	n := NewNotifier(
 		httpSrv.URL, "", "node", 1, 0, s.Logger)
-	err := n.Create(s.Params)
+	err := n.Create(context.Background(), s.Params)
 	s.Error(err)
 
 	logMsgs := s.LogBytes.String()
@@ -108,7 +109,7 @@ func (s *NotifierTestSuite) Test_Create_ReturnsNoError_WhenHttpStatusIs409() {
 
 	n := NewNotifier(
 		httpSrv.URL, "", "node", 1, 0, s.Logger)
-	err := n.Create(s.Params)
+	err := n.Create(context.Background(), s.Params)
 	s.Require().NoError(err)
 }
 
@@ -116,7 +117,7 @@ func (s *NotifierTestSuite) Test_Create_ReturnsAndLogsError_WhenHttpRequestError
 	n := NewNotifier(
 		"this-does-not-exist", "", "node", 2, 1, s.Logger)
 
-	err := n.Create(s.Params)
+	err := n.Create(context.Background(), s.Params)
 	s.Require().Error(err)
 
 	logMsgs := s.LogBytes.String()
@@ -137,12 +138,28 @@ func (s *NotifierTestSuite) Test_Create_RetriesRequests() {
 
 	n := NewNotifier(
 		httpSrv.URL, "", "service", 2, 1, s.Logger)
-	n.Create(s.Params)
+	n.Create(context.Background(), s.Params)
 
 	s.Equal(2, attempt)
 
 	logMsgs := s.LogBytes.String()
 	expMsg := fmt.Sprintf("Retrying service created notification to %s", httpSrv.URL)
+	s.Contains(logMsgs, expMsg)
+}
+
+func (s *NotifierTestSuite) Test_Create_Cancels() {
+	httpSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	n := NewNotifier(
+		httpSrv.URL, "", "service", 2, 1, s.Logger)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	n.Create(ctx, s.Params)
+
+	logMsgs := s.LogBytes.String()
+	expMsg := fmt.Sprintf("Canceling service create notification to %s", httpSrv.URL)
 	s.Contains(logMsgs, expMsg)
 }
 
@@ -170,7 +187,7 @@ func (s *NotifierTestSuite) Test_Remove_SendsRequests() {
 
 	n := NewNotifier("", url1, "node", 5, 1, s.Logger)
 	s.Equal(url1, n.GetRemoveAddr())
-	err := n.Remove(s.Params)
+	err := n.Remove(context.Background(), s.Params)
 	s.Require().NoError(err)
 
 	s.Equal(s.Params, query1)
@@ -186,7 +203,7 @@ func (s *NotifierTestSuite) Test_Remove_SendsRequests() {
 
 func (s *NotifierTestSuite) Test_Remove_ReturnsAndLogsError_WhenUrlCannotBeParsed() {
 	n := NewNotifier("", "%%%", "node", 5, 1, s.Logger)
-	err := n.Remove(s.Params)
+	err := n.Remove(context.Background(), s.Params)
 	s.Error(err)
 
 	logMsgs := s.LogBytes.String()
@@ -201,7 +218,7 @@ func (s *NotifierTestSuite) Test_Remove_ReturnsAndLogsError_WhenHttpStatusIsNot2
 
 	n := NewNotifier(
 		"", httpSrv.URL, "service", 1, 0, s.Logger)
-	err := n.Remove(s.Params)
+	err := n.Remove(context.Background(), s.Params)
 	s.Error(err)
 
 	logMsgs := s.LogBytes.String()
@@ -211,7 +228,7 @@ func (s *NotifierTestSuite) Test_Remove_ReturnsAndLogsError_WhenHttpStatusIsNot2
 func (s *NotifierTestSuite) Test_Remove_ReturnsAndLogsError_WhenHttpRequestReturnsError() {
 	n := NewNotifier(
 		"", "this-does-not-exist", "service", 2, 1, s.Logger)
-	err := n.Remove(s.Params)
+	err := n.Remove(context.Background(), s.Params)
 	s.Error(err)
 
 	logMsgs := s.LogBytes.String()
@@ -232,13 +249,30 @@ func (s *NotifierTestSuite) Test_Remove_RetriesRequests() {
 
 	n := NewNotifier(
 		"", httpSrv.URL, "node", 2, 1, s.Logger)
-	err := n.Remove(s.Params)
+	err := n.Remove(context.Background(), s.Params)
 	s.Require().NoError(err)
 
 	s.Equal(2, attempt)
 
 	logMsgs := s.LogBytes.String()
 	expMsg := fmt.Sprintf("Retrying node removed notification to %s", httpSrv.URL)
+	s.Contains(logMsgs, expMsg)
+}
+
+func (s *NotifierTestSuite) Test_Remove_Cancels() {
+
+	httpSrv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(http.StatusNotFound)
+	}))
+	n := NewNotifier(
+		"", httpSrv.URL, "service", 2, 1, s.Logger)
+
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+	n.Remove(ctx, s.Params)
+
+	logMsgs := s.LogBytes.String()
+	expMsg := fmt.Sprintf("Canceling service remove notification to %s", httpSrv.URL)
 	s.Contains(logMsgs, expMsg)
 }
 
