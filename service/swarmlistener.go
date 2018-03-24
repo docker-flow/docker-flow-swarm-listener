@@ -156,7 +156,7 @@ func (l *SwarmListener) connectServiceChannels() {
 
 				params := GetSwarmServiceMiniCreateParameters(ssm)
 				paramsEncoded := ConvertMapStringStringToURLValues(params).Encode()
-				l.placeOnNotificationChan(l.SSNotificationChan, event.Type, paramsEncoded)
+				l.placeOnNotificationChan(l.SSNotificationChan, event.Type, ssm.ID, paramsEncoded)
 			} else {
 				// EventTypeRemove
 				ssm, ok := l.SSCache.Get(event.ID)
@@ -168,7 +168,7 @@ func (l *SwarmListener) connectServiceChannels() {
 
 				params := GetSwarmServiceMiniRemoveParameters(ssm)
 				paramsEncoded := ConvertMapStringStringToURLValues(params).Encode()
-				l.placeOnNotificationChan(l.SSNotificationChan, event.Type, paramsEncoded)
+				l.placeOnNotificationChan(l.SSNotificationChan, event.Type, ssm.ID, paramsEncoded)
 			}
 		}
 	}()
@@ -200,7 +200,7 @@ func (l *SwarmListener) connectNodeChannels() {
 				}
 				params := GetNodeMiniCreateParameters(nm)
 				paramsEncoded := ConvertMapStringStringToURLValues(params).Encode()
-				l.placeOnNotificationChan(l.NodeNotificationChan, event.Type, paramsEncoded)
+				l.placeOnNotificationChan(l.NodeNotificationChan, event.Type, nm.ID, paramsEncoded)
 			} else {
 				// EventTypeRemove
 				nm, ok := l.NodeCache.Get(event.ID)
@@ -211,7 +211,7 @@ func (l *SwarmListener) connectNodeChannels() {
 
 				params := GetNodeMiniRemoveParameters(nm)
 				paramsEncoded := ConvertMapStringStringToURLValues(params).Encode()
-				l.placeOnNotificationChan(l.NodeNotificationChan, event.Type, paramsEncoded)
+				l.placeOnNotificationChan(l.NodeNotificationChan, event.Type, nm.ID, paramsEncoded)
 			}
 		}
 	}()
@@ -240,7 +240,7 @@ func (l SwarmListener) NotifyServices(useCache bool) {
 
 				params := GetSwarmServiceMiniCreateParameters(ssm)
 				paramsEncoded := ConvertMapStringStringToURLValues(params).Encode()
-				l.placeOnNotificationChan(l.SSNotificationChan, EventTypeCreate, paramsEncoded)
+				l.placeOnNotificationChan(l.SSNotificationChan, EventTypeCreate, ssm.ID, paramsEncoded)
 			}
 		}()
 	}
@@ -268,15 +268,16 @@ func (l SwarmListener) NotifyNodes(useCache bool) {
 				nm := MinifyNode(n)
 				params := GetNodeMiniCreateParameters(nm)
 				paramsEncoded := ConvertMapStringStringToURLValues(params).Encode()
-				l.placeOnNotificationChan(l.NodeNotificationChan, EventTypeCreate, paramsEncoded)
+				l.placeOnNotificationChan(l.NodeNotificationChan, EventTypeCreate, nm.ID, paramsEncoded)
 			}
 		}()
 	}
 }
 
-func (l SwarmListener) placeOnNotificationChan(notiChan chan<- Notification, eventType EventType, parameters string) {
+func (l SwarmListener) placeOnNotificationChan(notiChan chan<- Notification, eventType EventType, ID string, parameters string) {
 	notiChan <- Notification{
 		EventType:  eventType,
+		ID:         ID,
 		Parameters: parameters,
 	}
 }
