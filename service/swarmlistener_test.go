@@ -372,8 +372,8 @@ func (s *WatcherTestSuite) Test_GetServices() {
 func (s *WatcherTestSuite) Test_GetNodes() {
 
 	expServices := []swarm.Node{
-		swarm.Node{ID: "nodeID1"},
-		swarm.Node{ID: "nodeID2"},
+		{ID: "nodeID1"},
+		{ID: "nodeID2"},
 	}
 	s.NodeClientMock.On("NodeList", mock.AnythingOfType("*context.emptyCtx")).Return(expServices, nil)
 

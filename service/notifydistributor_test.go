@@ -313,13 +313,13 @@ func (s *NotifyDistributorTestSuite) Test_RunDistributesNotificationsToEndpoints
 	nodeCancelManagerMock := new(cancelManagingMock)
 
 	endpoints := map[string]NotifyEndpoint{
-		"host1": NotifyEndpoint{
+		"host1": {
 			ServiceChan:     make(chan internalNotification),
 			ServiceNotifier: &serviceNotifyMock1,
 			NodeChan:        nil,
 			NodeNotifier:    nil,
 		},
-		"host2": NotifyEndpoint{
+		"host2": {
 			ServiceChan:     make(chan internalNotification),
 			ServiceNotifier: &serviceNotifyMock2,
 			NodeChan:        nil,
@@ -411,13 +411,13 @@ func (s *NotifyDistributorTestSuite) Test_RunDistributesNotificationsToEndpoints
 		})
 
 	endpoints := map[string]NotifyEndpoint{
-		"host1": NotifyEndpoint{
+		"host1": {
 			ServiceChan:     nil,
 			ServiceNotifier: nil,
 			NodeChan:        make(chan internalNotification),
 			NodeNotifier:    &nodesNotifyMock1,
 		},
-		"host2": NotifyEndpoint{
+		"host2": {
 			ServiceChan:     nil,
 			ServiceNotifier: nil,
 			NodeChan:        make(chan internalNotification),
