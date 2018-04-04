@@ -40,8 +40,14 @@ func (m *cancelManagingMock) Add(id string, reqID int64) context.Context {
 	return args.Get(0).(context.Context)
 }
 
-func (m *cancelManagingMock) Delete(id string, reqID int64) {
-	m.Called(id, reqID)
+func (m *cancelManagingMock) Delete(id string, reqID int64) bool {
+	args := m.Called(id, reqID)
+	return args.Bool(0)
+}
+
+func (m *cancelManagingMock) ForceDelete(id string) bool {
+	args := m.Called(id)
+	return args.Bool(0)
 }
 
 type swarmServiceListeningMock struct {
@@ -56,8 +62,8 @@ type swarmServiceInspector struct {
 	mock.Mock
 }
 
-func (m *swarmServiceInspector) SwarmServiceInspect(serviceID string, includeNodeIPInfo bool) (*SwarmService, error) {
-	args := m.Called(serviceID, includeNodeIPInfo)
+func (m *swarmServiceInspector) SwarmServiceInspect(ctx context.Context, serviceID string, includeNodeIPInfo bool) (*SwarmService, error) {
+	args := m.Called(ctx, serviceID, includeNodeIPInfo)
 	return args.Get(0).(*SwarmService), args.Error(1)
 }
 
