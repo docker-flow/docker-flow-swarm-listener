@@ -99,8 +99,8 @@ func newNotifyDistributorfromStrings(serviceCreateAddrs, serviceRemoveAddrs, nod
 
 	return newNotifyDistributor(
 		notifyEndpoints,
-		NewCancelManager(len(notifyEndpoints)),
-		NewCancelManager(len(notifyEndpoints)),
+		NewCancelManager(len(notifyEndpoints), true),
+		NewCancelManager(len(notifyEndpoints), true),
 		interval,
 		logger)
 }
