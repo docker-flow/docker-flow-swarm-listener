@@ -51,7 +51,7 @@ func (s *CancelManagerTestSuite) Test_Delete_IDEqual_ReqIDNotEqual_DoesNothing()
 
 	s.Require().Len(cm.v, 1)
 
-	cm.Delete("id1", 2)
+	s.False(cm.Delete("id1", 2))
 	s.Require().Len(cm.v, 1)
 	s.Require().Contains(cm.v, "id1")
 	s.Equal(cm.v["id1"].ReqID, int64(1))
@@ -63,7 +63,7 @@ func (s *CancelManagerTestSuite) Test_Delete_IDEqual_ReqIDEqual_CallsCancel_Remo
 
 	s.Require().Len(cm.v, 1)
 
-	cm.Delete("id1", 1)
+	s.True(cm.Delete("id1", 1))
 	s.Require().Len(cm.v, 0)
 
 L:
@@ -87,11 +87,31 @@ func (s *CancelManagerTestSuite) Test_Delete_IDEqual_ReqIDEqual_CntNotZero_Stays
 	s.Equal(2, cm.v["id1"].Cnt)
 
 	// Cnt is now at one
-	cm.Delete("id1", 1)
+	s.False(cm.Delete("id1", 1))
 	s.Require().Len(cm.v, 1)
 	s.Require().Contains(cm.v, "id1")
 	s.Equal(1, cm.v["id1"].Cnt)
 
-	cm.Delete("id1", 1)
+	s.True(cm.Delete("id1", 1))
 	s.Require().Len(cm.v, 0)
+}
+
+func (s *CancelManagerTestSuite) Test_ForceDelete() {
+	cm := NewCancelManager(2)
+	ctx := cm.Add("id1", 1)
+	s.Require().Len(cm.v, 1)
+
+	s.False(cm.ForceDelete("DOESNOTEXIST"))
+	s.True(cm.ForceDelete("id1"))
+
+L:
+	for {
+		select {
+		case <-time.After(time.Second * 5):
+			s.Fail("Timeout")
+			return
+		case <-ctx.Done():
+			break L
+		}
+	}
 }

@@ -68,7 +68,7 @@ func (s *SwarmServiceClientTestSuite) TearDownSuite() {
 
 func (s *SwarmServiceClientTestSuite) Test_SwarmServiceInspect_NodeInfo_UndefinedScrapeNetwork() {
 
-	util3Service, err := s.SClient.SwarmServiceInspect(s.Util3ID, true)
+	util3Service, err := s.SClient.SwarmServiceInspect(context.Background(), s.Util3ID, true)
 	s.Require().NoError(err)
 	s.Require().NotNil(util3Service)
 
@@ -78,14 +78,14 @@ func (s *SwarmServiceClientTestSuite) Test_SwarmServiceInspect_NodeInfo_Undefine
 
 func (s *SwarmServiceClientTestSuite) Test_ServiceList_Filtered() {
 
-	util2Service, err := s.SClient.SwarmServiceInspect(s.Util2ID, false)
+	util2Service, err := s.SClient.SwarmServiceInspect(context.Background(), s.Util2ID, false)
 	s.Require().NoError(err)
 	s.Nil(util2Service)
 
 }
 
 func (s *SwarmServiceClientTestSuite) Test_SwarmServiceInspect_NodeInfo_OneReplica() {
-	util1Service, err := s.SClient.SwarmServiceInspect(s.Util1ID, true)
+	util1Service, err := s.SClient.SwarmServiceInspect(context.Background(), s.Util1ID, true)
 	s.Require().NoError(err)
 	s.Require().NotNil(util1Service)
 
@@ -98,7 +98,7 @@ func (s *SwarmServiceClientTestSuite) Test_SwarmServiceInspect_NodeInfo_OneRepli
 
 func (s *SwarmServiceClientTestSuite) Test_SwarmServiceInspect_NodeInfo_TwoReplica() {
 
-	util4Service, err := s.SClient.SwarmServiceInspect(s.Util4ID, true)
+	util4Service, err := s.SClient.SwarmServiceInspect(context.Background(), s.Util4ID, true)
 	s.Require().NoError(err)
 	s.Require().NotNil(util4Service)
 
@@ -110,7 +110,7 @@ func (s *SwarmServiceClientTestSuite) Test_SwarmServiceInspect_NodeInfo_TwoRepli
 }
 
 func (s *SwarmServiceClientTestSuite) Test_SwarmServiceInspect_IncorrectName() {
-	_, err := s.SClient.SwarmServiceInspect("cowsfly", true)
+	_, err := s.SClient.SwarmServiceInspect(context.Background(), "cowsfly", true)
 	s.Error(err)
 }
 

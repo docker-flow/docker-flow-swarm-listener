@@ -295,7 +295,7 @@ func (s *NotifyDistributorTestSuite) Test_RunDistributesNotificationsToEndpoints
 		On("Add", "sid2", mock.AnythingOfType("int64")).
 		Return(context.Background()).
 		On("Delete", "sid1", mock.AnythingOfType("int64")).
-		Return(context.Background()).
+		Return(true).
 		Run(func(args mock.Arguments) {
 			deleteCnt1++
 			if deleteCnt1 == 2 {
@@ -303,7 +303,7 @@ func (s *NotifyDistributorTestSuite) Test_RunDistributesNotificationsToEndpoints
 			}
 		}).
 		On("Delete", "sid2", mock.AnythingOfType("int64")).
-		Return(context.Background()).
+		Return(true).
 		Run(func(args mock.Arguments) {
 			deleteCnt2++
 			if deleteCnt2 == 2 {
@@ -394,7 +394,7 @@ func (s *NotifyDistributorTestSuite) Test_RunDistributesNotificationsToEndpoints
 		On("Add", "nid2", mock.AnythingOfType("int64")).
 		Return(context.Background()).
 		On("Delete", "nid1", mock.AnythingOfType("int64")).
-		Return(context.Background()).
+		Return(true).
 		Run(func(args mock.Arguments) {
 			deleteCnt1++
 			if deleteCnt1 == 2 {
@@ -402,7 +402,7 @@ func (s *NotifyDistributorTestSuite) Test_RunDistributesNotificationsToEndpoints
 			}
 		}).
 		On("Delete", "nid2", mock.AnythingOfType("int64")).
-		Return(context.Background()).
+		Return(true).
 		Run(func(args mock.Arguments) {
 			deleteCnt2++
 			if deleteCnt2 == 2 {
