@@ -16,7 +16,7 @@ func TestCancelManagerUnitTestSuite(t *testing.T) {
 }
 
 func (s *CancelManagerTestSuite) Test_Add_IDEqual_CancelsContext_Returns_Context() {
-	cm := NewCancelManager(1)
+	cm := NewCancelManager(1, true)
 	ctx := cm.Add("id1", 1)
 	cm.Add("id1", 2)
 
@@ -37,7 +37,7 @@ L:
 
 func (s *CancelManagerTestSuite) Test_Add_IDNotExist_Returns_Context() {
 
-	cm := NewCancelManager(1)
+	cm := NewCancelManager(1, true)
 	firstCtx := cm.Add("id1", 1)
 	s.NotNil(firstCtx)
 
@@ -46,7 +46,7 @@ func (s *CancelManagerTestSuite) Test_Add_IDNotExist_Returns_Context() {
 }
 
 func (s *CancelManagerTestSuite) Test_Delete_IDEqual_ReqIDNotEqual_DoesNothing() {
-	cm := NewCancelManager(1)
+	cm := NewCancelManager(1, true)
 	cm.Add("id1", 1)
 
 	s.Require().Len(cm.v, 1)
@@ -58,7 +58,7 @@ func (s *CancelManagerTestSuite) Test_Delete_IDEqual_ReqIDNotEqual_DoesNothing()
 }
 
 func (s *CancelManagerTestSuite) Test_Delete_IDEqual_ReqIDEqual_CallsCancel_RemovesFromMemory() {
-	cm := NewCancelManager(1)
+	cm := NewCancelManager(1, true)
 	ctx := cm.Add("id1", 1)
 
 	s.Require().Len(cm.v, 1)
@@ -80,7 +80,7 @@ L:
 
 func (s *CancelManagerTestSuite) Test_Delete_IDEqual_ReqIDEqual_CntNotZero_StaysInMemory() {
 	// Set startingCnt to 2
-	cm := NewCancelManager(2)
+	cm := NewCancelManager(2, true)
 	cm.Add("id1", 1)
 	s.Require().Len(cm.v, 1)
 	s.Require().Contains(cm.v, "id1")
@@ -97,7 +97,7 @@ func (s *CancelManagerTestSuite) Test_Delete_IDEqual_ReqIDEqual_CntNotZero_Stays
 }
 
 func (s *CancelManagerTestSuite) Test_ForceDelete() {
-	cm := NewCancelManager(2)
+	cm := NewCancelManager(2, true)
 	ctx := cm.Add("id1", 1)
 	s.Require().Len(cm.v, 1)
 

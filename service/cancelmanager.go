@@ -20,30 +20,31 @@ type cancelPair struct {
 
 // CancelManager implements the `CancelManaging` interface that is thread safe
 type CancelManager struct {
-	v           map[string]cancelPair
-	mux         sync.Mutex
-	startingCnt int
+	v                  map[string]cancelPair
+	mux                sync.Mutex
+	startingCnt        int
+	cancelBeforeAdding bool
 }
 
 // NewCancelManager creates a new `CancelManager`
 // `startingCnt` is the number of expected request to send out
-func NewCancelManager(startingCnt int) *CancelManager {
+func NewCancelManager(startingCnt int, cancelBeforeAdding bool) *CancelManager {
 	return &CancelManager{
-		v:           map[string]cancelPair{},
-		mux:         sync.Mutex{},
-		startingCnt: startingCnt,
+		v:                  map[string]cancelPair{},
+		mux:                sync.Mutex{},
+		startingCnt:        startingCnt,
+		cancelBeforeAdding: cancelBeforeAdding,
 	}
 }
 
 // Add creates an context for `id` and `reqID` and returns that context.
-// If `id` exists in memory, that task will be canceled.
-// If `id` does not exist, a new task and context will be created.
+// If `id` exists in memory and cancelBeforeAdding is true, the task with that `id` will be canceled.
 func (m *CancelManager) Add(id string, reqID int64) context.Context {
 	m.mux.Lock()
 	defer m.mux.Unlock()
 
 	pair, ok := m.v[id]
-	if ok {
+	if m.cancelBeforeAdding && ok {
 		pair.Cancel()
 		delete(m.v, id)
 	}

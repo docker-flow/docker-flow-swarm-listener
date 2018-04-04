@@ -66,8 +66,8 @@ func (s *SwarmListenerTestSuite) SetupTest() {
 func (s *SwarmListenerTestSuite) Test_Run_ServicesChannel() {
 	s.SwarmListener.IncludeNodeInfo = false
 
-	notifyCnt := 0
-	done := make(chan struct{})
+	receivedBothNotifications := make(chan struct{})
+	deleteCalled := make(chan struct{})
 	ss1 := SwarmService{swarm.Service{ID: "serviceID1",
 		Spec: swarm.ServiceSpec{Annotations: swarm.Annotations{Name: "serviceName1"}}}, nil}
 
@@ -83,20 +83,12 @@ func (s *SwarmListenerTestSuite) Test_Run_ServicesChannel() {
 	s.NotifyDistributorMock.
 		On("HasServiceListeners").Return(true).
 		On("HasNodeListeners").Return(false).
-		On("Run", mock.AnythingOfType("<-chan service.Notification"), mock.AnythingOfType("<-chan service.Notification")).Run(func(args mock.Arguments) {
-		nChan := args.Get(0).(<-chan Notification)
-		go func() {
-			for range nChan {
-				notifyCnt++
-				if notifyCnt == 2 {
-					done <- struct{}{}
-				}
-			}
-		}()
-	})
+		On("Run", mock.AnythingOfType("<-chan service.Notification"), mock.AnythingOfType("<-chan service.Notification"))
 	s.ServiceCancelManagerMock.
 		On("Add", "serviceID1", mock.AnythingOfType("int64")).Return(context.Background()).
-		On("Delete", "serviceID1", mock.AnythingOfType("int64")).Return(true).
+		On("Delete", "serviceID1", mock.AnythingOfType("int64")).Return(true).Run(func(args mock.Arguments) {
+		deleteCalled <- struct{}{}
+	}).
 		On("ForceDelete", "serviceID2").Return(true)
 
 	s.SwarmListener.Run()
@@ -115,22 +107,38 @@ func (s *SwarmListenerTestSuite) Test_Run_ServicesChannel() {
 		}
 	}()
 
+	go func() {
+		notifyCnt := 0
+		for {
+			select {
+			case <-s.SwarmListener.SSNotificationChan:
+				notifyCnt++
+				if notifyCnt == 2 {
+					receivedBothNotifications <- struct{}{}
+					return
+				}
+			}
+		}
+	}()
+
 	timeout := time.NewTimer(time.Second * 5).C
 
 	for {
-		if done == nil {
+		if deleteCalled == nil &&
+			receivedBothNotifications == nil {
 			break
 		}
 		select {
-		case <-done:
-			done = nil
+		case <-deleteCalled:
+			deleteCalled = nil
+		case <-receivedBothNotifications:
+			receivedBothNotifications = nil
 		case <-timeout:
 			s.Fail("Timeout")
 			return
 		}
 	}
 
-	s.Equal(2, notifyCnt)
 	s.SSListenerMock.AssertExpectations(s.T())
 	s.SSClientMock.AssertExpectations(s.T())
 	s.SSCacheMock.AssertExpectations(s.T())
