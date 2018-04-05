@@ -5,6 +5,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"sync"
 	"time"
 
 	"../metrics"
@@ -17,6 +18,41 @@ type SwarmListening interface {
 	NotifyNodes(ignoreCache bool)
 	GetServicesParameters(ctx context.Context) ([]map[string]string, error)
 	GetNodesParameters(ctx context.Context) ([]map[string]string, error)
+}
+
+// createRemoveCancelManager combines two cancel managers for creating and
+// removing services
+type createRemoveCancelManager struct {
+	createCancelManager CancelManaging
+	removeCancelManager CancelManaging
+	mux                 sync.RWMutex
+}
+
+// AddEvent controls canceling for creating and removing services
+// A create event will cancel delete events with the same ID
+// A remove event will cancel create events with the same ID
+func (c *createRemoveCancelManager) AddEvent(event Event) context.Context {
+	c.mux.Lock()
+	defer c.mux.Unlock()
+	if event.Type == EventTypeCreate {
+		c.removeCancelManager.ForceDelete(event.ID)
+		return c.createCancelManager.Add(event.ID, event.TimeNano)
+	}
+	// EventTypeRemove
+	c.createCancelManager.ForceDelete(event.ID)
+	return c.removeCancelManager.Add(event.ID, event.TimeNano)
+}
+
+// RemoveEvent removes and cancels event from its corresponding
+// cancel manager
+func (c *createRemoveCancelManager) RemoveEvent(event Event) bool {
+	c.mux.Lock()
+	defer c.mux.Unlock()
+	if event.Type == EventTypeCreate {
+		return c.createCancelManager.Delete(event.ID, event.TimeNano)
+	}
+	// EventTypeRemove
+	return c.removeCancelManager.Delete(event.ID, event.TimeNano)
 }
 
 // SwarmListener provides public api
@@ -35,12 +71,11 @@ type SwarmListener struct {
 
 	NotifyDistributor NotifyDistributing
 
-	ServiceCreateCancelManager CancelManaging
-	ServiceRemoveCancelManager CancelManaging
-	IncludeNodeInfo            bool
-	IgnoreKey                  string
-	IncludeKey                 string
-	Log                        *log.Logger
+	CreateRemoveCancelManager *createRemoveCancelManager
+	IncludeNodeInfo           bool
+	IgnoreKey                 string
+	IncludeKey                string
+	Log                       *log.Logger
 }
 
 func newSwarmListener(
@@ -63,23 +98,24 @@ func newSwarmListener(
 ) *SwarmListener {
 
 	return &SwarmListener{
-		SSListener:                 ssListener,
-		SSClient:                   ssClient,
-		SSCache:                    ssCache,
-		SSEventChan:                make(chan Event),
-		SSNotificationChan:         make(chan Notification),
-		NodeListener:               nodeListener,
-		NodeClient:                 nodeClient,
-		NodeCache:                  nodeCache,
-		NodeEventChan:              make(chan Event),
-		NodeNotificationChan:       make(chan Notification),
-		NotifyDistributor:          notifyDistributor,
-		ServiceCreateCancelManager: serviceCreateCancelManager,
-		ServiceRemoveCancelManager: serviceRemoveCancelManager,
-		IncludeNodeInfo:            includeNodeInfo,
-		IgnoreKey:                  ignoreKey,
-		IncludeKey:                 includeKey,
-		Log:                        logger,
+		SSListener:           ssListener,
+		SSClient:             ssClient,
+		SSCache:              ssCache,
+		SSEventChan:          make(chan Event),
+		SSNotificationChan:   make(chan Notification),
+		NodeListener:         nodeListener,
+		NodeClient:           nodeClient,
+		NodeCache:            nodeCache,
+		NodeEventChan:        make(chan Event),
+		NodeNotificationChan: make(chan Notification),
+		NotifyDistributor:    notifyDistributor,
+		CreateRemoveCancelManager: &createRemoveCancelManager{
+			createCancelManager: serviceCreateCancelManager,
+			removeCancelManager: serviceRemoveCancelManager},
+		IncludeNodeInfo: includeNodeInfo,
+		IgnoreKey:       ignoreKey,
+		IncludeKey:      includeKey,
+		Log:             logger,
 	}
 }
 
@@ -161,9 +197,8 @@ type internalParams struct {
 }
 
 func (l *SwarmListener) processServiceEventCreate(event Event) {
-	l.ServiceRemoveCancelManager.ForceDelete(event.ID)
-	ctx := l.ServiceCreateCancelManager.Add(event.ID, event.TimeNano)
-	defer l.ServiceCreateCancelManager.Delete(event.ID, event.TimeNano)
+	ctx := l.CreateRemoveCancelManager.AddEvent(event)
+	defer l.CreateRemoveCancelManager.RemoveEvent(event)
 
 	paramsChan := make(chan internalParams)
 
@@ -208,9 +243,8 @@ func (l *SwarmListener) processServiceEventCreate(event Event) {
 }
 
 func (l *SwarmListener) processServiceEventRemove(event Event) {
-	l.ServiceCreateCancelManager.ForceDelete(event.ID)
-	ctx := l.ServiceRemoveCancelManager.Add(event.ID, event.TimeNano)
-	defer l.ServiceRemoveCancelManager.Delete(event.ID, event.TimeNano)
+	ctx := l.CreateRemoveCancelManager.AddEvent(event)
+	defer l.CreateRemoveCancelManager.RemoveEvent(event)
 
 	paramsChan := make(chan internalParams)
 	go func() {
