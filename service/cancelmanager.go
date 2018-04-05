@@ -58,9 +58,10 @@ func (m *CancelManager) Add(id string, reqID int64) context.Context {
 	return ctx
 }
 
-// Delete calls cancel on context with the corresponding `id` and `reqID` and remove 'id'
-// from memory If the corresponding `id` and `reqID` are not present, Delete does nothing.
-// Returns true if item was deleted
+// Delete calls cancel context with the corresponding `id` and `reqID` and
+// removes 'id' from map
+// If the corresponding `id` and `reqID` are not present, Delete does nothing.
+// In all cases, Delete returns true if an item was deleted
 func (m *CancelManager) Delete(id string, reqID int64) bool {
 	m.mux.Lock()
 	defer m.mux.Unlock()

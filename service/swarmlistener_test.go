@@ -24,10 +24,11 @@ type SwarmListenerTestSuite struct {
 
 	NotifyDistributorMock *notifyDistributorMock
 
-	ServiceCancelManagerMock *cancelManagingMock
-	SwarmListener            *SwarmListener
-	Logger                   *log.Logger
-	LogBytes                 *bytes.Buffer
+	ServiceCreateCancelManagerMock *cancelManagingMock
+	ServiceRemoveCancelManagerMock *cancelManagingMock
+	SwarmListener                  *SwarmListener
+	Logger                         *log.Logger
+	LogBytes                       *bytes.Buffer
 }
 
 func TestSwarmListenerUnitTestSuite(t *testing.T) {
@@ -43,7 +44,8 @@ func (s *SwarmListenerTestSuite) SetupTest() {
 	s.NodeClientMock = new(nodeInspectorMock)
 	s.NodeCacheMock = new(nodeCacherMock)
 	s.NotifyDistributorMock = new(notifyDistributorMock)
-	s.ServiceCancelManagerMock = new(cancelManagingMock)
+	s.ServiceCreateCancelManagerMock = new(cancelManagingMock)
+	s.ServiceRemoveCancelManagerMock = new(cancelManagingMock)
 	s.LogBytes = new(bytes.Buffer)
 	s.Logger = log.New(s.LogBytes, "", 0)
 
@@ -55,7 +57,8 @@ func (s *SwarmListenerTestSuite) SetupTest() {
 		s.NodeClientMock,
 		s.NodeCacheMock,
 		s.NotifyDistributorMock,
-		s.ServiceCancelManagerMock,
+		s.ServiceCreateCancelManagerMock,
+		s.ServiceRemoveCancelManagerMock,
 		true,
 		"com.df.notify",
 		"com.docker.stack.namespace",
@@ -67,7 +70,8 @@ func (s *SwarmListenerTestSuite) Test_Run_ServicesChannel() {
 	s.SwarmListener.IncludeNodeInfo = false
 
 	receivedBothNotifications := make(chan struct{})
-	deleteCalled := make(chan struct{})
+	deleteRemoveCalled := make(chan struct{})
+	deleteCreateCalled := make(chan struct{})
 	ss1 := SwarmService{swarm.Service{ID: "serviceID1",
 		Spec: swarm.ServiceSpec{Annotations: swarm.Annotations{Name: "serviceName1"}}}, nil}
 
@@ -84,36 +88,45 @@ func (s *SwarmListenerTestSuite) Test_Run_ServicesChannel() {
 		On("HasServiceListeners").Return(true).
 		On("HasNodeListeners").Return(false).
 		On("Run", mock.AnythingOfType("<-chan service.Notification"), mock.AnythingOfType("<-chan service.Notification"))
-	s.ServiceCancelManagerMock.
-		On("Add", "serviceID1", mock.AnythingOfType("int64")).Return(context.Background()).
-		On("Delete", "serviceID1", mock.AnythingOfType("int64")).Return(true).Run(func(args mock.Arguments) {
-		deleteCalled <- struct{}{}
-	}).
-		On("ForceDelete", "serviceID2").Return(true)
+	s.ServiceCreateCancelManagerMock.
+		On("Add", "serviceID1", int64(1)).Return(context.Background()).
+		On("ForceDelete", "serviceID2").Return(true).
+		On("Delete", "serviceID1", int64(1)).Return(true).Run(func(args mock.Arguments) {
+		deleteCreateCalled <- struct{}{}
+	})
+	s.ServiceRemoveCancelManagerMock.
+		On("Add", "serviceID2", int64(2)).Return(context.Background()).
+		On("ForceDelete", "serviceID1").Return(true).
+		On("Delete", "serviceID2", int64(2)).Return(true).Run(func(args mock.Arguments) {
+		deleteRemoveCalled <- struct{}{}
+	})
 
 	s.SwarmListener.Run()
 
 	go func() {
 		s.SwarmListener.SSEventChan <- Event{
-			ID:   "serviceID1",
-			Type: EventTypeCreate,
+			ID:       "serviceID1",
+			Type:     EventTypeCreate,
+			TimeNano: int64(1),
 		}
 	}()
 
 	go func() {
 		s.SwarmListener.SSEventChan <- Event{
-			ID:   "serviceID2",
-			Type: EventTypeRemove,
+			ID:       "serviceID2",
+			Type:     EventTypeRemove,
+			TimeNano: int64(2),
 		}
 	}()
 
+	notificationMap := map[string]Notification{}
+
 	go func() {
-		notifyCnt := 0
 		for {
 			select {
-			case <-s.SwarmListener.SSNotificationChan:
-				notifyCnt++
-				if notifyCnt == 2 {
+			case n := <-s.SwarmListener.SSNotificationChan:
+				notificationMap[n.ID] = n
+				if len(notificationMap) == 2 {
 					receivedBothNotifications <- struct{}{}
 					return
 				}
@@ -124,13 +137,16 @@ func (s *SwarmListenerTestSuite) Test_Run_ServicesChannel() {
 	timeout := time.NewTimer(time.Second * 5).C
 
 	for {
-		if deleteCalled == nil &&
+		if deleteCreateCalled == nil &&
+			deleteRemoveCalled == nil &&
 			receivedBothNotifications == nil {
 			break
 		}
 		select {
-		case <-deleteCalled:
-			deleteCalled = nil
+		case <-deleteCreateCalled:
+			deleteCreateCalled = nil
+		case <-deleteRemoveCalled:
+			deleteRemoveCalled = nil
 		case <-receivedBothNotifications:
 			receivedBothNotifications = nil
 		case <-timeout:
@@ -139,18 +155,22 @@ func (s *SwarmListenerTestSuite) Test_Run_ServicesChannel() {
 		}
 	}
 
+	s.Len(notificationMap, 2)
+	s.Equal(int64(1), notificationMap["serviceID1"].TimeNano)
+	s.Equal(int64(2), notificationMap["serviceID2"].TimeNano)
+	s.Equal(EventTypeCreate, notificationMap["serviceID1"].EventType)
+	s.Equal(EventTypeRemove, notificationMap["serviceID2"].EventType)
 	s.SSListenerMock.AssertExpectations(s.T())
 	s.SSClientMock.AssertExpectations(s.T())
 	s.SSCacheMock.AssertExpectations(s.T())
 	s.NotifyDistributorMock.AssertExpectations(s.T())
-	s.ServiceCancelManagerMock.AssertExpectations(s.T())
+	s.ServiceCreateCancelManagerMock.AssertExpectations(s.T())
+	s.ServiceRemoveCancelManagerMock.AssertExpectations(s.T())
 
 }
 
 func (s *SwarmListenerTestSuite) Test_Run_NodeChannel() {
 
-	notifyCnt := 0
-	done := make(chan struct{})
 	n1 := swarm.Node{ID: "nodeID1",
 		Description: swarm.NodeDescription{
 			Hostname: "node1Hostname",
@@ -174,51 +194,48 @@ func (s *SwarmListenerTestSuite) Test_Run_NodeChannel() {
 	s.NotifyDistributorMock.
 		On("HasServiceListeners").Return(false).
 		On("HasNodeListeners").Return(true).
-		On("Run", mock.AnythingOfType("<-chan service.Notification"), mock.AnythingOfType("<-chan service.Notification")).
-		Run(func(args mock.Arguments) {
-			nChan := args.Get(1).(<-chan Notification)
-			go func() {
-				for range nChan {
-					notifyCnt++
-					if notifyCnt == 2 {
-						done <- struct{}{}
-					}
-				}
-			}()
-		})
+		On("Run", mock.AnythingOfType("<-chan service.Notification"), mock.AnythingOfType("<-chan service.Notification"))
 
 	s.SwarmListener.Run()
 
 	go func() {
 		s.SwarmListener.NodeEventChan <- Event{
-			ID:   "nodeID1",
-			Type: EventTypeCreate,
+			ID:       "nodeID1",
+			Type:     EventTypeCreate,
+			TimeNano: int64(1),
 		}
 	}()
 
 	go func() {
 		s.SwarmListener.NodeEventChan <- Event{
-			ID:   "nodeID2",
-			Type: EventTypeRemove,
+			ID:       "nodeID2",
+			Type:     EventTypeRemove,
+			TimeNano: int64(2),
 		}
 	}()
 
+	notificationMap := map[string]Notification{}
 	timeout := time.NewTimer(time.Second * 5).C
 
+L:
 	for {
-		if done == nil {
-			break
-		}
 		select {
-		case <-done:
-			done = nil
+		case n := <-s.SwarmListener.NodeNotificationChan:
+			notificationMap[n.ID] = n
+			if len(notificationMap) == 2 {
+				break L
+			}
 		case <-timeout:
 			s.Fail("Timeout")
 			return
 		}
 	}
 
-	s.Equal(2, notifyCnt)
+	s.Len(notificationMap, 2)
+	s.Equal(int64(1), notificationMap["nodeID1"].TimeNano)
+	s.Equal(int64(2), notificationMap["nodeID2"].TimeNano)
+	s.Equal(EventTypeCreate, notificationMap["nodeID1"].EventType)
+	s.Equal(EventTypeRemove, notificationMap["nodeID2"].EventType)
 	s.NodeListeningMock.AssertExpectations(s.T())
 	s.NodeClientMock.AssertExpectations(s.T())
 	s.NodeCacheMock.AssertExpectations(s.T())

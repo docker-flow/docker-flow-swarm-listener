@@ -6,7 +6,6 @@ import (
 	"net/url"
 	"os"
 	"strings"
-	"time"
 )
 
 // Notification is a node notification
@@ -14,12 +13,12 @@ type Notification struct {
 	EventType  EventType
 	ID         string
 	Parameters string
+	TimeNano   int64
 }
 
 type internalNotification struct {
 	Notification
-	ReqID int64
-	Ctx   context.Context
+	Ctx context.Context
 }
 
 // NotifyEndpoint holds Notifiers and channels to watch
@@ -157,7 +156,7 @@ func (d NotifyDistributor) Run(serviceChan <-chan Notification, nodeChan <-chan 
 		go func() {
 			for n := range serviceChan {
 				// Use time as request id
-				ctx := d.ServiceCancelManager.Add(n.ID, time.Now().UTC().UnixNano())
+				ctx := d.ServiceCancelManager.Add(n.ID, n.TimeNano)
 				for _, endpoint := range d.NotifyEndpoints {
 					endpoint.ServiceChan <- internalNotification{
 						Notification: n,
@@ -171,7 +170,7 @@ func (d NotifyDistributor) Run(serviceChan <-chan Notification, nodeChan <-chan 
 		go func() {
 			for n := range nodeChan {
 				// Use time as request id
-				ctx := d.NodeCancelManager.Add(n.ID, time.Now().UTC().UnixNano())
+				ctx := d.NodeCancelManager.Add(n.ID, n.TimeNano)
 				for _, endpoint := range d.NotifyEndpoints {
 					endpoint.NodeChan <- internalNotification{
 						Notification: n,
@@ -189,13 +188,13 @@ func (d NotifyDistributor) watchChannels(endpoint NotifyEndpoint) {
 		case n := <-endpoint.ServiceChan:
 			if n.EventType == EventTypeCreate {
 				err := endpoint.ServiceNotifier.Create(n.Ctx, n.Parameters)
-				d.ServiceCancelManager.Delete(n.ID, n.ReqID)
+				d.ServiceCancelManager.Delete(n.ID, n.TimeNano)
 				if err != nil {
 					d.log.Printf("ERROR: Unable to send ServiceCreateNotify to %s, params: %s", endpoint.ServiceNotifier.GetCreateAddr(), n.Parameters)
 				}
 			} else if n.EventType == EventTypeRemove {
 				err := endpoint.ServiceNotifier.Remove(n.Ctx, n.Parameters)
-				d.ServiceCancelManager.Delete(n.ID, n.ReqID)
+				d.ServiceCancelManager.Delete(n.ID, n.TimeNano)
 				if err != nil {
 					d.log.Printf("ERROR: Unable to send ServiceRemoveNotify to %s, params: %s", endpoint.ServiceNotifier.GetRemoveAddr(), n.Parameters)
 				}
@@ -203,13 +202,13 @@ func (d NotifyDistributor) watchChannels(endpoint NotifyEndpoint) {
 		case n := <-endpoint.NodeChan:
 			if n.EventType == EventTypeCreate {
 				err := endpoint.NodeNotifier.Create(n.Ctx, n.Parameters)
-				d.NodeCancelManager.Delete(n.ID, n.ReqID)
+				d.NodeCancelManager.Delete(n.ID, n.TimeNano)
 				if err != nil {
 					d.log.Printf("ERROR: Unable to send NodeCreateNotify to %s, params: %s", endpoint.NodeNotifier.GetCreateAddr(), n.Parameters)
 				}
 			} else if n.EventType == EventTypeRemove {
 				err := endpoint.NodeNotifier.Remove(n.Ctx, n.Parameters)
-				d.NodeCancelManager.Delete(n.ID, n.ReqID)
+				d.NodeCancelManager.Delete(n.ID, n.TimeNano)
 				if err != nil {
 					d.log.Printf("ERROR: Unable to send NodeRemoveNotify to %s, params: %s", endpoint.NodeNotifier.GetRemoveAddr(), n.Parameters)
 				}
