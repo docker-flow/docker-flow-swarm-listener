@@ -84,8 +84,9 @@ const (
 
 // Event contains information about docker events
 type Event struct {
-	Type EventType
-	ID   string
+	Type     EventType
+	ID       string
+	TimeNano int64
 }
 
 // NodeIP defines a node/addr pair

@@ -290,11 +290,11 @@ func (s *NotifyDistributorTestSuite) Test_RunDistributesNotificationsToEndpoints
 	serviceNotifyMock2.On("Remove", mock.AnythingOfType("*context.emptyCtx"), "hello=world2").
 		Return(nil)
 	serviceCancelManagerMock := new(cancelManagingMock)
-	serviceCancelManagerMock.On("Add", "sid1", mock.AnythingOfType("int64")).
+	serviceCancelManagerMock.On("Add", "sid1", int64(1)).
 		Return(context.Background()).
-		On("Add", "sid2", mock.AnythingOfType("int64")).
+		On("Add", "sid2", int64(2)).
 		Return(context.Background()).
-		On("Delete", "sid1", mock.AnythingOfType("int64")).
+		On("Delete", "sid1", int64(1)).
 		Return(true).
 		Run(func(args mock.Arguments) {
 			deleteCnt1++
@@ -302,7 +302,7 @@ func (s *NotifyDistributorTestSuite) Test_RunDistributesNotificationsToEndpoints
 				serviceCancel1 <- struct{}{}
 			}
 		}).
-		On("Delete", "sid2", mock.AnythingOfType("int64")).
+		On("Delete", "sid2", int64(2)).
 		Return(true).
 		Run(func(args mock.Arguments) {
 			deleteCnt2++
@@ -338,6 +338,7 @@ func (s *NotifyDistributorTestSuite) Test_RunDistributesNotificationsToEndpoints
 			EventType:  EventTypeCreate,
 			ID:         "sid1",
 			Parameters: "hello=world",
+			TimeNano:   int64(1),
 		}
 	}()
 	go func() {
@@ -345,6 +346,7 @@ func (s *NotifyDistributorTestSuite) Test_RunDistributesNotificationsToEndpoints
 			EventType:  EventTypeRemove,
 			ID:         "sid2",
 			Parameters: "hello=world2",
+			TimeNano:   int64(2),
 		}
 	}()
 
@@ -389,11 +391,11 @@ func (s *NotifyDistributorTestSuite) Test_RunDistributesNotificationsToEndpoints
 		Return(nil)
 	serviceCancelManagerMock := new(cancelManagingMock)
 	nodeCancelManagerMock := new(cancelManagingMock)
-	nodeCancelManagerMock.On("Add", "nid1", mock.AnythingOfType("int64")).
+	nodeCancelManagerMock.On("Add", "nid1", int64(1)).
 		Return(context.Background()).
-		On("Add", "nid2", mock.AnythingOfType("int64")).
+		On("Add", "nid2", int64(2)).
 		Return(context.Background()).
-		On("Delete", "nid1", mock.AnythingOfType("int64")).
+		On("Delete", "nid1", int64(1)).
 		Return(true).
 		Run(func(args mock.Arguments) {
 			deleteCnt1++
@@ -401,7 +403,7 @@ func (s *NotifyDistributorTestSuite) Test_RunDistributesNotificationsToEndpoints
 				nodeCancel1 <- struct{}{}
 			}
 		}).
-		On("Delete", "nid2", mock.AnythingOfType("int64")).
+		On("Delete", "nid2", int64(2)).
 		Return(true).
 		Run(func(args mock.Arguments) {
 			deleteCnt2++
@@ -436,6 +438,7 @@ func (s *NotifyDistributorTestSuite) Test_RunDistributesNotificationsToEndpoints
 			EventType:  EventTypeCreate,
 			ID:         "nid1",
 			Parameters: "hello=world",
+			TimeNano:   int64(1),
 		}
 	}()
 	go func() {
@@ -443,6 +446,7 @@ func (s *NotifyDistributorTestSuite) Test_RunDistributesNotificationsToEndpoints
 			EventType:  EventTypeRemove,
 			ID:         "nid2",
 			Parameters: "hello=world2",
+			TimeNano:   int64(2),
 		}
 	}()
 

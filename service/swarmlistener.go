@@ -35,11 +35,12 @@ type SwarmListener struct {
 
 	NotifyDistributor NotifyDistributing
 
-	ServiceCancelManager CancelManaging
-	IncludeNodeInfo      bool
-	IgnoreKey            string
-	IncludeKey           string
-	Log                  *log.Logger
+	ServiceCreateCancelManager CancelManaging
+	ServiceRemoveCancelManager CancelManaging
+	IncludeNodeInfo            bool
+	IgnoreKey                  string
+	IncludeKey                 string
+	Log                        *log.Logger
 }
 
 func newSwarmListener(
@@ -53,7 +54,8 @@ func newSwarmListener(
 
 	notifyDistributor NotifyDistributing,
 
-	serviceCancelManager CancelManaging,
+	serviceCreateCancelManager CancelManaging,
+	serviceRemoveCancelManager CancelManaging,
 	includeNodeInfo bool,
 	ignoreKey string,
 	includeKey string,
@@ -61,22 +63,23 @@ func newSwarmListener(
 ) *SwarmListener {
 
 	return &SwarmListener{
-		SSListener:           ssListener,
-		SSClient:             ssClient,
-		SSCache:              ssCache,
-		SSEventChan:          make(chan Event),
-		SSNotificationChan:   make(chan Notification),
-		NodeListener:         nodeListener,
-		NodeClient:           nodeClient,
-		NodeCache:            nodeCache,
-		NodeEventChan:        make(chan Event),
-		NodeNotificationChan: make(chan Notification),
-		NotifyDistributor:    notifyDistributor,
-		ServiceCancelManager: serviceCancelManager,
-		IncludeNodeInfo:      includeNodeInfo,
-		IgnoreKey:            ignoreKey,
-		IncludeKey:           includeKey,
-		Log:                  logger,
+		SSListener:                 ssListener,
+		SSClient:                   ssClient,
+		SSCache:                    ssCache,
+		SSEventChan:                make(chan Event),
+		SSNotificationChan:         make(chan Notification),
+		NodeListener:               nodeListener,
+		NodeClient:                 nodeClient,
+		NodeCache:                  nodeCache,
+		NodeEventChan:              make(chan Event),
+		NodeNotificationChan:       make(chan Notification),
+		NotifyDistributor:          notifyDistributor,
+		ServiceCreateCancelManager: serviceCreateCancelManager,
+		ServiceRemoveCancelManager: serviceRemoveCancelManager,
+		IncludeNodeInfo:            includeNodeInfo,
+		IgnoreKey:                  ignoreKey,
+		IncludeKey:                 includeKey,
+		Log:                        logger,
 	}
 }
 
@@ -107,6 +110,7 @@ func NewSwarmListenerFromEnv(retries, interval int, logger *log.Logger) (*SwarmL
 		nodeClient,
 		nodeCache,
 		notifyDistributor,
+		NewCancelManager(1, false),
 		NewCancelManager(1, false),
 		includeNodeInfo,
 		ignoreKey,
@@ -157,9 +161,9 @@ type internalParams struct {
 }
 
 func (l *SwarmListener) processServiceEventCreate(event Event) {
-	nowUnixNano := time.Now().UTC().UnixNano()
-	ctx := l.ServiceCancelManager.Add(event.ID, nowUnixNano)
-	defer l.ServiceCancelManager.Delete(event.ID, nowUnixNano)
+	l.ServiceRemoveCancelManager.ForceDelete(event.ID)
+	ctx := l.ServiceCreateCancelManager.Add(event.ID, event.TimeNano)
+	defer l.ServiceCreateCancelManager.Delete(event.ID, event.TimeNano)
 
 	paramsChan := make(chan internalParams)
 
@@ -195,7 +199,7 @@ func (l *SwarmListener) processServiceEventCreate(event Event) {
 	for {
 		select {
 		case params := <-paramsChan:
-			l.placeOnNotificationChan(l.SSNotificationChan, event.Type, params.ID, params.Params)
+			l.placeOnNotificationChan(l.SSNotificationChan, event.Type, event.TimeNano, params.ID, params.Params)
 			return
 		case <-ctx.Done():
 			return
@@ -204,18 +208,35 @@ func (l *SwarmListener) processServiceEventCreate(event Event) {
 }
 
 func (l *SwarmListener) processServiceEventRemove(event Event) {
-	l.ServiceCancelManager.ForceDelete(event.ID)
+	l.ServiceCreateCancelManager.ForceDelete(event.ID)
+	ctx := l.ServiceRemoveCancelManager.Add(event.ID, event.TimeNano)
+	defer l.ServiceRemoveCancelManager.Delete(event.ID, event.TimeNano)
 
-	ssm, ok := l.SSCache.Get(event.ID)
-	if !ok {
-		return
+	paramsChan := make(chan internalParams)
+	go func() {
+		ssm, ok := l.SSCache.Get(event.ID)
+		if !ok {
+			return
+		}
+		l.SSCache.Delete(ssm.ID)
+		metrics.RecordService(l.SSCache.Len())
+
+		params := GetSwarmServiceMiniRemoveParameters(ssm)
+		paramsEncoded := ConvertMapStringStringToURLValues(params).Encode()
+		paramsChan <- internalParams{
+			ID: ssm.ID, Params: paramsEncoded,
+		}
+	}()
+
+	for {
+		select {
+		case params := <-paramsChan:
+			l.placeOnNotificationChan(l.SSNotificationChan, event.Type, event.TimeNano, params.ID, params.Params)
+			return
+		case <-ctx.Done():
+			return
+		}
 	}
-	l.SSCache.Delete(ssm.ID)
-	metrics.RecordService(l.SSCache.Len())
-
-	params := GetSwarmServiceMiniRemoveParameters(ssm)
-	paramsEncoded := ConvertMapStringStringToURLValues(params).Encode()
-	l.placeOnNotificationChan(l.SSNotificationChan, event.Type, ssm.ID, paramsEncoded)
 }
 
 func (l *SwarmListener) connectNodeChannels() {
@@ -244,7 +265,7 @@ func (l *SwarmListener) connectNodeChannels() {
 				}
 				params := GetNodeMiniCreateParameters(nm)
 				paramsEncoded := ConvertMapStringStringToURLValues(params).Encode()
-				l.placeOnNotificationChan(l.NodeNotificationChan, event.Type, nm.ID, paramsEncoded)
+				l.placeOnNotificationChan(l.NodeNotificationChan, event.Type, event.TimeNano, nm.ID, paramsEncoded)
 			} else {
 				// EventTypeRemove
 				nm, ok := l.NodeCache.Get(event.ID)
@@ -255,7 +276,7 @@ func (l *SwarmListener) connectNodeChannels() {
 
 				params := GetNodeMiniRemoveParameters(nm)
 				paramsEncoded := ConvertMapStringStringToURLValues(params).Encode()
-				l.placeOnNotificationChan(l.NodeNotificationChan, event.Type, nm.ID, paramsEncoded)
+				l.placeOnNotificationChan(l.NodeNotificationChan, event.Type, event.TimeNano, nm.ID, paramsEncoded)
 			}
 		}
 	}()
@@ -269,11 +290,12 @@ func (l SwarmListener) NotifyServices(useCache bool) {
 		return
 	}
 
+	nowTimeNano := time.Now().UTC().UnixNano()
 	if useCache {
 		// Send to event chan, which uses the cache
 		go func() {
 			for _, s := range services {
-				l.placeOnEventChan(l.SSEventChan, EventTypeCreate, s.ID)
+				l.placeOnEventChan(l.SSEventChan, EventTypeCreate, s.ID, nowTimeNano)
 			}
 		}()
 	} else {
@@ -284,7 +306,7 @@ func (l SwarmListener) NotifyServices(useCache bool) {
 
 				params := GetSwarmServiceMiniCreateParameters(ssm)
 				paramsEncoded := ConvertMapStringStringToURLValues(params).Encode()
-				l.placeOnNotificationChan(l.SSNotificationChan, EventTypeCreate, ssm.ID, paramsEncoded)
+				l.placeOnNotificationChan(l.SSNotificationChan, EventTypeCreate, nowTimeNano, ssm.ID, paramsEncoded)
 			}
 		}()
 	}
@@ -298,11 +320,12 @@ func (l SwarmListener) NotifyNodes(useCache bool) {
 		return
 	}
 
+	nowTimeNano := time.Now().UTC().UnixNano()
 	if useCache {
 		// Send to event chan, which uses the cache
 		go func() {
 			for _, n := range nodes {
-				l.placeOnEventChan(l.NodeEventChan, EventTypeCreate, n.ID)
+				l.placeOnEventChan(l.NodeEventChan, EventTypeCreate, n.ID, nowTimeNano)
 			}
 		}()
 	} else {
@@ -312,24 +335,26 @@ func (l SwarmListener) NotifyNodes(useCache bool) {
 				nm := MinifyNode(n)
 				params := GetNodeMiniCreateParameters(nm)
 				paramsEncoded := ConvertMapStringStringToURLValues(params).Encode()
-				l.placeOnNotificationChan(l.NodeNotificationChan, EventTypeCreate, nm.ID, paramsEncoded)
+				l.placeOnNotificationChan(l.NodeNotificationChan, EventTypeCreate, nowTimeNano, nm.ID, paramsEncoded)
 			}
 		}()
 	}
 }
 
-func (l SwarmListener) placeOnNotificationChan(notiChan chan<- Notification, eventType EventType, ID string, parameters string) {
+func (l SwarmListener) placeOnNotificationChan(notiChan chan<- Notification, eventType EventType, timeNano int64, ID string, parameters string) {
 	notiChan <- Notification{
 		EventType:  eventType,
 		ID:         ID,
 		Parameters: parameters,
+		TimeNano:   timeNano,
 	}
 }
 
-func (l SwarmListener) placeOnEventChan(eventChan chan<- Event, eventType EventType, ID string) {
+func (l SwarmListener) placeOnEventChan(eventChan chan<- Event, eventType EventType, ID string, timeNano int64) {
 	eventChan <- Event{
-		Type: eventType,
-		ID:   ID,
+		Type:     eventType,
+		ID:       ID,
+		TimeNano: timeNano,
 	}
 }
 
