@@ -20,9 +20,9 @@ type SwarmListening interface {
 	GetNodesParameters(ctx context.Context) ([]map[string]string, error)
 }
 
-// createRemoveCancelManager combines two cancel managers for creating and
+// CreateRemoveCancelManager combines two cancel managers for creating and
 // removing services
-type createRemoveCancelManager struct {
+type CreateRemoveCancelManager struct {
 	createCancelManager CancelManaging
 	removeCancelManager CancelManaging
 	mux                 sync.RWMutex
@@ -31,21 +31,21 @@ type createRemoveCancelManager struct {
 // AddEvent controls canceling for creating and removing services
 // A create event will cancel delete events with the same ID
 // A remove event will cancel create events with the same ID
-func (c *createRemoveCancelManager) AddEvent(event Event) context.Context {
+func (c *CreateRemoveCancelManager) AddEvent(event Event) context.Context {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 	if event.Type == EventTypeCreate {
 		c.removeCancelManager.ForceDelete(event.ID)
-		return c.createCancelManager.Add(event.ID, event.TimeNano)
+		return c.createCancelManager.Add(context.Background(), event.ID, event.TimeNano)
 	}
 	// EventTypeRemove
 	c.createCancelManager.ForceDelete(event.ID)
-	return c.removeCancelManager.Add(event.ID, event.TimeNano)
+	return c.removeCancelManager.Add(context.Background(), event.ID, event.TimeNano)
 }
 
 // RemoveEvent removes and cancels event from its corresponding
 // cancel manager
-func (c *createRemoveCancelManager) RemoveEvent(event Event) bool {
+func (c *CreateRemoveCancelManager) RemoveEvent(event Event) bool {
 	c.mux.Lock()
 	defer c.mux.Unlock()
 	if event.Type == EventTypeCreate {
@@ -71,11 +71,12 @@ type SwarmListener struct {
 
 	NotifyDistributor NotifyDistributing
 
-	CreateRemoveCancelManager *createRemoveCancelManager
-	IncludeNodeInfo           bool
-	IgnoreKey                 string
-	IncludeKey                string
-	Log                       *log.Logger
+	ServiceCreateRemoveCancelManager *CreateRemoveCancelManager
+	NodeCreateRemoveCancelManager    *CreateRemoveCancelManager
+	IncludeNodeInfo                  bool
+	IgnoreKey                        string
+	IncludeKey                       string
+	Log                              *log.Logger
 }
 
 func newSwarmListener(
@@ -91,6 +92,8 @@ func newSwarmListener(
 
 	serviceCreateCancelManager CancelManaging,
 	serviceRemoveCancelManager CancelManaging,
+	nodeCreateCancelManager CancelManaging,
+	nodeRemoveCancelManager CancelManaging,
 	includeNodeInfo bool,
 	ignoreKey string,
 	includeKey string,
@@ -109,9 +112,12 @@ func newSwarmListener(
 		NodeEventChan:        make(chan Event),
 		NodeNotificationChan: make(chan Notification),
 		NotifyDistributor:    notifyDistributor,
-		CreateRemoveCancelManager: &createRemoveCancelManager{
+		ServiceCreateRemoveCancelManager: &CreateRemoveCancelManager{
 			createCancelManager: serviceCreateCancelManager,
 			removeCancelManager: serviceRemoveCancelManager},
+		NodeCreateRemoveCancelManager: &CreateRemoveCancelManager{
+			createCancelManager: nodeCreateCancelManager,
+			removeCancelManager: nodeRemoveCancelManager},
 		IncludeNodeInfo: includeNodeInfo,
 		IgnoreKey:       ignoreKey,
 		IncludeKey:      includeKey,
@@ -146,8 +152,10 @@ func NewSwarmListenerFromEnv(retries, interval int, logger *log.Logger) (*SwarmL
 		nodeClient,
 		nodeCache,
 		notifyDistributor,
-		NewCancelManager(1, false),
-		NewCancelManager(1, false),
+		NewCancelManager(false),
+		NewCancelManager(false),
+		NewCancelManager(false),
+		NewCancelManager(false),
 		includeNodeInfo,
 		ignoreKey,
 		"com.docker.stack.namespace",
@@ -191,24 +199,18 @@ func (l *SwarmListener) connectServiceChannels() {
 	}()
 }
 
-type internalParams struct {
-	ID     string
-	Params string
-}
-
 func (l *SwarmListener) processServiceEventCreate(event Event) {
-	ctx := l.CreateRemoveCancelManager.AddEvent(event)
-	defer l.CreateRemoveCancelManager.RemoveEvent(event)
+	ctx := l.ServiceCreateRemoveCancelManager.AddEvent(event)
+	defer l.ServiceCreateRemoveCancelManager.RemoveEvent(event)
 
-	paramsChan := make(chan internalParams)
+	doneChan := make(chan struct{})
 
 	go func() {
 		service, err := l.SSClient.SwarmServiceInspect(ctx, event.ID, l.IncludeNodeInfo)
 		if err != nil {
-			if strings.Contains(err.Error(), "context canceled") {
-				return
+			if !strings.Contains(err.Error(), "context canceled") {
+				l.Log.Printf("ERROR: %v", err)
 			}
-			l.Log.Printf("ERROR: %v", err)
 			return
 		}
 		// Ignored service (filtered by `com.df.notify`)
@@ -226,15 +228,13 @@ func (l *SwarmListener) processServiceEventCreate(event Event) {
 
 		params := GetSwarmServiceMiniCreateParameters(ssm)
 		paramsEncoded := ConvertMapStringStringToURLValues(params).Encode()
-		paramsChan <- internalParams{
-			ID: ssm.ID, Params: paramsEncoded,
-		}
+		l.placeOnNotificationChan(
+			l.SSNotificationChan, event.Type, event.TimeNano, ssm.ID, paramsEncoded, doneChan)
 	}()
 
 	for {
 		select {
-		case params := <-paramsChan:
-			l.placeOnNotificationChan(l.SSNotificationChan, event.Type, event.TimeNano, params.ID, params.Params)
+		case <-doneChan:
 			return
 		case <-ctx.Done():
 			return
@@ -243,10 +243,11 @@ func (l *SwarmListener) processServiceEventCreate(event Event) {
 }
 
 func (l *SwarmListener) processServiceEventRemove(event Event) {
-	ctx := l.CreateRemoveCancelManager.AddEvent(event)
-	defer l.CreateRemoveCancelManager.RemoveEvent(event)
+	ctx := l.ServiceCreateRemoveCancelManager.AddEvent(event)
+	defer l.ServiceCreateRemoveCancelManager.RemoveEvent(event)
 
-	paramsChan := make(chan internalParams)
+	doneChan := make(chan struct{})
+
 	go func() {
 		ssm, ok := l.SSCache.Get(event.ID)
 		if !ok {
@@ -257,15 +258,13 @@ func (l *SwarmListener) processServiceEventRemove(event Event) {
 
 		params := GetSwarmServiceMiniRemoveParameters(ssm)
 		paramsEncoded := ConvertMapStringStringToURLValues(params).Encode()
-		paramsChan <- internalParams{
-			ID: ssm.ID, Params: paramsEncoded,
-		}
+		l.placeOnNotificationChan(
+			l.SSNotificationChan, event.Type, event.TimeNano, ssm.ID, paramsEncoded, doneChan)
 	}()
 
 	for {
 		select {
-		case params := <-paramsChan:
-			l.placeOnNotificationChan(l.SSNotificationChan, event.Type, event.TimeNano, params.ID, params.Params)
+		case <-doneChan:
 			return
 		case <-ctx.Done():
 			return
@@ -285,35 +284,76 @@ func (l *SwarmListener) connectNodeChannels() {
 	go func() {
 		for event := range l.NodeEventChan {
 			if event.Type == EventTypeCreate {
-				node, err := l.NodeClient.NodeInspect(event.ID)
-				if err != nil {
-					l.Log.Printf("ERROR: %v", err)
-					continue
-				}
-				nm := MinifyNode(node)
-
-				// Store in cache
-				isUpdated := l.NodeCache.InsertAndCheck(nm)
-				if !isUpdated {
-					continue
-				}
-				params := GetNodeMiniCreateParameters(nm)
-				paramsEncoded := ConvertMapStringStringToURLValues(params).Encode()
-				l.placeOnNotificationChan(l.NodeNotificationChan, event.Type, event.TimeNano, nm.ID, paramsEncoded)
+				go l.processNodeEventCreate(event)
 			} else {
-				// EventTypeRemove
-				nm, ok := l.NodeCache.Get(event.ID)
-				if !ok {
-					continue
-				}
-				l.NodeCache.Delete(nm.ID)
-
-				params := GetNodeMiniRemoveParameters(nm)
-				paramsEncoded := ConvertMapStringStringToURLValues(params).Encode()
-				l.placeOnNotificationChan(l.NodeNotificationChan, event.Type, event.TimeNano, nm.ID, paramsEncoded)
+				go l.processNodeEventRemove(event)
 			}
 		}
 	}()
+}
+
+func (l *SwarmListener) processNodeEventCreate(event Event) {
+	ctx := l.NodeCreateRemoveCancelManager.AddEvent(event)
+	defer l.NodeCreateRemoveCancelManager.RemoveEvent(event)
+
+	doneChan := make(chan struct{})
+
+	go func() {
+
+		node, err := l.NodeClient.NodeInspect(event.ID)
+		if err != nil {
+			if !strings.Contains(err.Error(), "context canceled") {
+				l.Log.Printf("ERROR: %v", err)
+			}
+			return
+		}
+		nm := MinifyNode(node)
+
+		// Store in cache
+		isUpdated := l.NodeCache.InsertAndCheck(nm)
+		if !isUpdated {
+			return
+		}
+		params := GetNodeMiniCreateParameters(nm)
+		paramsEncoded := ConvertMapStringStringToURLValues(params).Encode()
+		l.placeOnNotificationChan(l.NodeNotificationChan, event.Type, event.TimeNano, nm.ID, paramsEncoded, doneChan)
+	}()
+
+	for {
+		select {
+		case <-doneChan:
+			return
+		case <-ctx.Done():
+			return
+		}
+	}
+}
+
+func (l *SwarmListener) processNodeEventRemove(event Event) {
+	ctx := l.NodeCreateRemoveCancelManager.AddEvent(event)
+	defer l.NodeCreateRemoveCancelManager.RemoveEvent(event)
+
+	doneChan := make(chan struct{})
+	go func() {
+		nm, ok := l.NodeCache.Get(event.ID)
+		if !ok {
+			return
+		}
+		l.NodeCache.Delete(nm.ID)
+
+		params := GetNodeMiniRemoveParameters(nm)
+		paramsEncoded := ConvertMapStringStringToURLValues(params).Encode()
+		l.placeOnNotificationChan(l.NodeNotificationChan, event.Type, event.TimeNano, nm.ID, paramsEncoded, doneChan)
+	}()
+
+	for {
+		select {
+		case <-doneChan:
+			return
+		case <-ctx.Done():
+			return
+		}
+	}
 }
 
 // NotifyServices places all services on queue to notify services on service events
@@ -340,7 +380,7 @@ func (l SwarmListener) NotifyServices(useCache bool) {
 
 				params := GetSwarmServiceMiniCreateParameters(ssm)
 				paramsEncoded := ConvertMapStringStringToURLValues(params).Encode()
-				l.placeOnNotificationChan(l.SSNotificationChan, EventTypeCreate, nowTimeNano, ssm.ID, paramsEncoded)
+				l.placeOnNotificationChan(l.SSNotificationChan, EventTypeCreate, nowTimeNano, ssm.ID, paramsEncoded, nil)
 			}
 		}()
 	}
@@ -369,18 +409,19 @@ func (l SwarmListener) NotifyNodes(useCache bool) {
 				nm := MinifyNode(n)
 				params := GetNodeMiniCreateParameters(nm)
 				paramsEncoded := ConvertMapStringStringToURLValues(params).Encode()
-				l.placeOnNotificationChan(l.NodeNotificationChan, EventTypeCreate, nowTimeNano, nm.ID, paramsEncoded)
+				l.placeOnNotificationChan(l.NodeNotificationChan, EventTypeCreate, nowTimeNano, nm.ID, paramsEncoded, nil)
 			}
 		}()
 	}
 }
 
-func (l SwarmListener) placeOnNotificationChan(notiChan chan<- Notification, eventType EventType, timeNano int64, ID string, parameters string) {
+func (l SwarmListener) placeOnNotificationChan(notiChan chan<- Notification, eventType EventType, timeNano int64, ID string, parameters string, doneChan chan struct{}) {
 	notiChan <- Notification{
 		EventType:  eventType,
 		ID:         ID,
 		Parameters: parameters,
 		TimeNano:   timeNano,
+		Done:       doneChan,
 	}
 }
 
