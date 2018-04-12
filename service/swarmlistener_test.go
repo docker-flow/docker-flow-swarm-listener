@@ -24,11 +24,9 @@ type SwarmListenerTestSuite struct {
 
 	NotifyDistributorMock *notifyDistributorMock
 
-	ServiceCreateCancelManagerMock *cancelManagingMock
-	ServiceRemoveCancelManagerMock *cancelManagingMock
-	SwarmListener                  *SwarmListener
-	Logger                         *log.Logger
-	LogBytes                       *bytes.Buffer
+	SwarmListener *SwarmListener
+	Logger        *log.Logger
+	LogBytes      *bytes.Buffer
 }
 
 func TestSwarmListenerUnitTestSuite(t *testing.T) {
@@ -44,8 +42,6 @@ func (s *SwarmListenerTestSuite) SetupTest() {
 	s.NodeClientMock = new(nodeInspectorMock)
 	s.NodeCacheMock = new(nodeCacherMock)
 	s.NotifyDistributorMock = new(notifyDistributorMock)
-	s.ServiceCreateCancelManagerMock = new(cancelManagingMock)
-	s.ServiceRemoveCancelManagerMock = new(cancelManagingMock)
 	s.LogBytes = new(bytes.Buffer)
 	s.Logger = log.New(s.LogBytes, "", 0)
 
@@ -57,8 +53,10 @@ func (s *SwarmListenerTestSuite) SetupTest() {
 		s.NodeClientMock,
 		s.NodeCacheMock,
 		s.NotifyDistributorMock,
-		s.ServiceCreateCancelManagerMock,
-		s.ServiceRemoveCancelManagerMock,
+		NewCancelManager(true),
+		NewCancelManager(true),
+		NewCancelManager(true),
+		NewCancelManager(true),
 		true,
 		"com.df.notify",
 		"com.docker.stack.namespace",
@@ -70,8 +68,6 @@ func (s *SwarmListenerTestSuite) Test_Run_ServicesChannel() {
 	s.SwarmListener.IncludeNodeInfo = false
 
 	receivedBothNotifications := make(chan struct{})
-	deleteRemoveCalled := make(chan struct{})
-	deleteCreateCalled := make(chan struct{})
 	ss1 := SwarmService{swarm.Service{ID: "serviceID1",
 		Spec: swarm.ServiceSpec{Annotations: swarm.Annotations{Name: "serviceName1"}}}, nil}
 
@@ -79,7 +75,7 @@ func (s *SwarmListenerTestSuite) Test_Run_ServicesChannel() {
 	ss2m := SwarmServiceMini{ID: "serviceID2", Name: "serviceName2", Labels: map[string]string{}}
 
 	s.SSListenerMock.On("ListenForServiceEvents", mock.AnythingOfType("chan<- service.Event"))
-	s.SSClientMock.On("SwarmServiceInspect", mock.AnythingOfType("*context.emptyCtx"), "serviceID1", false).Return(&ss1, nil)
+	s.SSClientMock.On("SwarmServiceInspect", mock.AnythingOfType("*context.cancelCtx"), "serviceID1", false).Return(&ss1, nil)
 	s.SSCacheMock.On("InsertAndCheck", ss1m).Return(true).
 		On("Get", "serviceID2").Return(ss2m, true).
 		On("Delete", "serviceID2").
@@ -88,19 +84,6 @@ func (s *SwarmListenerTestSuite) Test_Run_ServicesChannel() {
 		On("HasServiceListeners").Return(true).
 		On("HasNodeListeners").Return(false).
 		On("Run", mock.AnythingOfType("<-chan service.Notification"), mock.AnythingOfType("<-chan service.Notification"))
-	s.ServiceCreateCancelManagerMock.
-		On("Add", "serviceID1", int64(1)).Return(context.Background()).
-		On("ForceDelete", "serviceID2").Return(true).
-		On("Delete", "serviceID1", int64(1)).Return(true).Run(func(args mock.Arguments) {
-		deleteCreateCalled <- struct{}{}
-	})
-	s.ServiceRemoveCancelManagerMock.
-		On("Add", "serviceID2", int64(2)).Return(context.Background()).
-		On("ForceDelete", "serviceID1").Return(true).
-		On("Delete", "serviceID2", int64(2)).Return(true).Run(func(args mock.Arguments) {
-		deleteRemoveCalled <- struct{}{}
-	})
-
 	s.SwarmListener.Run()
 
 	go func() {
@@ -137,16 +120,10 @@ func (s *SwarmListenerTestSuite) Test_Run_ServicesChannel() {
 	timeout := time.NewTimer(time.Second * 5).C
 
 	for {
-		if deleteCreateCalled == nil &&
-			deleteRemoveCalled == nil &&
-			receivedBothNotifications == nil {
+		if receivedBothNotifications == nil {
 			break
 		}
 		select {
-		case <-deleteCreateCalled:
-			deleteCreateCalled = nil
-		case <-deleteRemoveCalled:
-			deleteRemoveCalled = nil
 		case <-receivedBothNotifications:
 			receivedBothNotifications = nil
 		case <-timeout:
@@ -164,8 +141,6 @@ func (s *SwarmListenerTestSuite) Test_Run_ServicesChannel() {
 	s.SSClientMock.AssertExpectations(s.T())
 	s.SSCacheMock.AssertExpectations(s.T())
 	s.NotifyDistributorMock.AssertExpectations(s.T())
-	s.ServiceCreateCancelManagerMock.AssertExpectations(s.T())
-	s.ServiceRemoveCancelManagerMock.AssertExpectations(s.T())
 
 }
 

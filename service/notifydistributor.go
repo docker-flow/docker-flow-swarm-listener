@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"os"
 	"strings"
+	"sync"
 )
 
 // Notification is a node notification
@@ -14,6 +15,8 @@ type Notification struct {
 	ID         string
 	Parameters string
 	TimeNano   int64
+	Context    context.Context
+	Done       chan struct{}
 }
 
 type internalNotification struct {
@@ -98,8 +101,8 @@ func newNotifyDistributorfromStrings(serviceCreateAddrs, serviceRemoveAddrs, nod
 
 	return newNotifyDistributor(
 		notifyEndpoints,
-		NewCancelManager(len(notifyEndpoints), true),
-		NewCancelManager(len(notifyEndpoints), true),
+		NewCancelManager(true),
+		NewCancelManager(true),
 		interval,
 		logger)
 }
@@ -149,20 +152,12 @@ func NewNotifyDistributorFromEnv(retries, interval int, logger *log.Logger) *Not
 // Run starts the distributor
 func (d NotifyDistributor) Run(serviceChan <-chan Notification, nodeChan <-chan Notification) {
 
-	for _, endpoint := range d.NotifyEndpoints {
-		go d.watchChannels(endpoint)
-	}
 	if serviceChan != nil {
 		go func() {
 			for n := range serviceChan {
 				// Use time as request id
-				ctx := d.ServiceCancelManager.Add(n.ID, n.TimeNano)
-				for _, endpoint := range d.NotifyEndpoints {
-					endpoint.ServiceChan <- internalNotification{
-						Notification: n,
-						Ctx:          ctx,
-					}
-				}
+				ctx := d.ServiceCancelManager.Add(context.Background(), n.ID, n.TimeNano)
+				go d.distributeServiceNotification(ctx, n)
 			}
 		}()
 	}
@@ -170,49 +165,82 @@ func (d NotifyDistributor) Run(serviceChan <-chan Notification, nodeChan <-chan 
 		go func() {
 			for n := range nodeChan {
 				// Use time as request id
-				ctx := d.NodeCancelManager.Add(n.ID, n.TimeNano)
-				for _, endpoint := range d.NotifyEndpoints {
-					endpoint.NodeChan <- internalNotification{
-						Notification: n,
-						Ctx:          ctx,
-					}
-				}
+				ctx := d.NodeCancelManager.Add(context.Background(), n.ID, n.TimeNano)
+				go d.distributeNodeNotification(ctx, n)
 			}
 		}()
 	}
 }
 
-func (d NotifyDistributor) watchChannels(endpoint NotifyEndpoint) {
-	for {
-		select {
-		case n := <-endpoint.ServiceChan:
-			if n.EventType == EventTypeCreate {
-				err := endpoint.ServiceNotifier.Create(n.Ctx, n.Parameters)
-				d.ServiceCancelManager.Delete(n.ID, n.TimeNano)
-				if err != nil {
-					d.log.Printf("ERROR: Unable to send ServiceCreateNotify to %s, params: %s", endpoint.ServiceNotifier.GetCreateAddr(), n.Parameters)
-				}
-			} else if n.EventType == EventTypeRemove {
-				err := endpoint.ServiceNotifier.Remove(n.Ctx, n.Parameters)
-				d.ServiceCancelManager.Delete(n.ID, n.TimeNano)
-				if err != nil {
-					d.log.Printf("ERROR: Unable to send ServiceRemoveNotify to %s, params: %s", endpoint.ServiceNotifier.GetRemoveAddr(), n.Parameters)
-				}
-			}
-		case n := <-endpoint.NodeChan:
-			if n.EventType == EventTypeCreate {
-				err := endpoint.NodeNotifier.Create(n.Ctx, n.Parameters)
-				d.NodeCancelManager.Delete(n.ID, n.TimeNano)
-				if err != nil {
-					d.log.Printf("ERROR: Unable to send NodeCreateNotify to %s, params: %s", endpoint.NodeNotifier.GetCreateAddr(), n.Parameters)
-				}
-			} else if n.EventType == EventTypeRemove {
-				err := endpoint.NodeNotifier.Remove(n.Ctx, n.Parameters)
-				d.NodeCancelManager.Delete(n.ID, n.TimeNano)
-				if err != nil {
-					d.log.Printf("ERROR: Unable to send NodeRemoveNotify to %s, params: %s", endpoint.NodeNotifier.GetRemoveAddr(), n.Parameters)
-				}
-			}
+func (d NotifyDistributor) distributeServiceNotification(
+	ctx context.Context, n Notification) {
+	defer d.ServiceCancelManager.Delete(n.ID, n.TimeNano)
+	var wg sync.WaitGroup
+
+	for _, endpoint := range d.NotifyEndpoints {
+		wg.Add(1)
+		go func(endpoint NotifyEndpoint) {
+			defer wg.Done()
+			d.processServiceNotification(ctx, n, endpoint)
+		}(endpoint)
+	}
+	wg.Wait()
+
+	if n.Done != nil {
+		n.Done <- struct{}{}
+	}
+}
+
+func (d NotifyDistributor) distributeNodeNotification(
+	ctx context.Context, n Notification) {
+	defer d.NodeCancelManager.Delete(n.ID, n.TimeNano)
+	var wg sync.WaitGroup
+
+	for _, endpoint := range d.NotifyEndpoints {
+		wg.Add(1)
+		go func(endpoint NotifyEndpoint) {
+			defer wg.Done()
+			d.processNodeNotification(ctx, n, endpoint)
+		}(endpoint)
+	}
+	wg.Wait()
+	if n.Done != nil {
+		n.Done <- struct{}{}
+	}
+}
+
+func (d NotifyDistributor) processServiceNotification(
+	ctx context.Context, n Notification, endpoint NotifyEndpoint) {
+
+	if n.EventType == EventTypeCreate {
+		err := endpoint.ServiceNotifier.Create(ctx, n.Parameters)
+		if err != nil && !strings.Contains(err.Error(), "context canceled") {
+			d.log.Printf("ERROR: Unable to send ServiceCreateNotify to %s, params: %s", endpoint.ServiceNotifier.GetCreateAddr(), n.Parameters)
+		}
+	} else if n.EventType == EventTypeRemove {
+		err := endpoint.ServiceNotifier.Remove(ctx, n.Parameters)
+		d.ServiceCancelManager.Delete(n.ID, n.TimeNano)
+		if err != nil && !strings.Contains(err.Error(), "context canceled") {
+			d.log.Printf("ERROR: Unable to send ServiceRemoveNotify to %s, params: %s", endpoint.ServiceNotifier.GetRemoveAddr(), n.Parameters)
+		}
+	}
+}
+
+func (d NotifyDistributor) processNodeNotification(
+	ctx context.Context, n Notification, endpoint NotifyEndpoint) {
+	if n.EventType == EventTypeCreate {
+		err := endpoint.NodeNotifier.Create(ctx, n.Parameters)
+		d.NodeCancelManager.Delete(n.ID, n.TimeNano)
+		if err != nil {
+			d.log.Printf("ERROR: Unable to send NodeCreateNotify to %s, params: %s",
+				endpoint.NodeNotifier.GetCreateAddr(), n.Parameters)
+		}
+	} else if n.EventType == EventTypeRemove {
+		err := endpoint.NodeNotifier.Remove(ctx, n.Parameters)
+		d.NodeCancelManager.Delete(n.ID, n.TimeNano)
+		if err != nil {
+			d.log.Printf("ERROR: Unable to send NodeRemoveNotify to %s, params: %s",
+				endpoint.NodeNotifier.GetRemoveAddr(), n.Parameters)
 		}
 	}
 }
