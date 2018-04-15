@@ -15,7 +15,7 @@ pipeline {
           def dateFormat = new SimpleDateFormat("yy.MM.dd")
           currentBuild.displayName = dateFormat.format(new Date()) + "-" + env.BUILD_NUMBER
         }
-        dfBuild("docker-flow-swarm-listener")
+        dfBuild2("docker-flow-swarm-listener")
         sh "docker-compose run --rm tests"
       }
     }
@@ -24,8 +24,8 @@ pipeline {
         branch "master"
       }
       steps {
-        dfRelease("docker-flow-swarm-listener")
-        dfReleaseGithub("docker-flow-swarm-listener")
+        dfRelease2("docker-flow-swarm-listener")
+        dfReleaseGithub2("docker-flow-swarm-listener")
       }
     }
     stage("deploy") {
@@ -36,8 +36,8 @@ pipeline {
         label "prod"
       }
       steps {
-        dfDeploy("docker-flow-swarm-listener", "swarm-listener_swarm-listener", "swarm-listener_docs")
-        dfDeploy("docker-flow-swarm-listener", "monitor_swarm-listener", "")
+        dfDeploy2("docker-flow-swarm-listener", "swarm-listener_swarm-listener", "swarm-listener_docs")
+        dfDeploy2("docker-flow-swarm-listener", "monitor_swarm-listener", "")
       }
     }
   }
