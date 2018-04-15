@@ -8,7 +8,7 @@ pages:
     - Release Notes: release-notes.md
     - Feedback and Contribution: feedback-and-contribution.md
     - License: license.md
-repo_url: https://github.com/vfarcic/docker-flow-swarm-listener
+repo_url: https://github.com/docker-flow/docker-flow-swarm-listener
 site_author: Viktor Farcic
 copyright: Copyright © 2017 Viktor Farcic
 strict: true

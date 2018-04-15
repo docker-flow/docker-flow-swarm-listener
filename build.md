@@ -9,18 +9,18 @@ go test --cover
 ```bash
 docker run --rm -v $PWD:/usr/src/myapp -w /usr/src/myapp -v /tmp/linux-go:/go golang:1.9 sh -c "go get -d -v -t && CGO_ENABLED=0 GOOS=linux go build -v -o docker-flow-swarm-listener"
 
-docker build -t vfarcic/docker-flow-swarm-listener:latest .
+docker build -t dockerflow/docker-flow-swarm-listener:latest .
 ```
 ## Publish
 
 ```bash
 VERSION=0.7
 
-docker tag vfarcic/docker-flow-swarm-listener:latest vfarcic/docker-flow-swarm-listener:$VERSION
+docker tag dockerflow/docker-flow-swarm-listener:latest dockerflow/docker-flow-swarm-listener:$VERSION
 
-docker push vfarcic/docker-flow-swarm-listener:$VERSION
+docker push dockerflow/docker-flow-swarm-listener:$VERSION
 
-docker push vfarcic/docker-flow-swarm-listener:latest
+docker push dockerflow/docker-flow-swarm-listener:latest
 ```
 
 ## Manual Tests
@@ -34,7 +34,7 @@ docker swarm init --advertise-addr $(docker-machine ip test)
 
 docker run --rm -v $PWD:/usr/src/myapp -w /usr/src/myapp -v go:/go golang:1.9 bash -c "go get -d -v -t && go build -v -o docker-flow-swarm-listener"
 
-docker build -t vfarcic/docker-flow-swarm-listener:beta .
+docker build -t dockerflow/docker-flow-swarm-listener:beta .
 
 docker network create --driver overlay proxy
 
@@ -43,7 +43,7 @@ docker service create --name swarm-listener \
     --mount "type=bind,source=/var/run/docker.sock,target=/var/run/docker.sock" \
     -e DF_NOTIFY_CREATE_SERVICE_URL=http://proxy:8080/v1/docker-flow-proxy/reconfigure \
     -e DF_NOTIFY_REMOVE_SERVICE_URL=http://proxy:8080/v1/docker-flow-proxy/remove \
-    vfarcic/docker-flow-swarm-listener:beta
+    dockerflow/docker-flow-swarm-listener:beta
 
 docker service create --name go-demo-db \
   --network proxy \
@@ -67,11 +67,11 @@ docker service create --name proxy \
     -p 8080:8080 \
     --network proxy \
     -e MODE=swarm \
-    vfarcic/docker-flow-proxy
+    dockerflow/docker-flow-proxy
 
 docker service ls
 
-PROXY_ID=$(docker ps -q --filter "ancestor=vfarcic/docker-flow-proxy")
+PROXY_ID=$(docker ps -q --filter "ancestor=dockerflow/docker-flow-proxy")
 
 docker exec -it $PROXY_ID cat /cfg/haproxy.cfg
 
@@ -87,11 +87,11 @@ docker exec -it $UTIL_ID curl swarm-listener:8080/v1/docker-flow-swarm-listener/
 
 docker exec -it $PROXY_ID cat /cfg/haproxy.cfg
 
-DFSL_ID=$(docker ps -q -f ancestor=vfarcic/docker-flow-swarm-listener)
+DFSL_ID=$(docker ps -q -f ancestor=dockerflow/docker-flow-swarm-listener)
 
 docker logs $DFSL_ID
 
-DFP_ID=$(docker ps -q -f ancestor=vfarcic/docker-flow-proxy)
+DFP_ID=$(docker ps -q -f ancestor=dockerflow/docker-flow-proxy)
 
 docker exec -it $DFP_ID cat /cfg/haproxy.cfg
 

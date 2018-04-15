@@ -4,7 +4,7 @@ version: '3.2'
 services:
 
   tests:
-    image: vfarcic/docker-flow-swarm-listener-test
+    image: dockerflow/docker-flow-swarm-listener-test
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - $PWD:/src
@@ -18,7 +18,7 @@ services:
     command: bash -c "pip install pygments && pip install pymdown-extensions && mkdocs build"
 
   tests_local:
-    image: vfarcic/docker-flow-swarm-listener-test
+    image: dockerflow/docker-flow-swarm-listener-test
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - $PWD:/src

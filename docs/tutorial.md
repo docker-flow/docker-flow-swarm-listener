@@ -7,9 +7,9 @@ This tutorial will walk you through some of the most common use cases.
 
 ## Sending Notification Requests On Service Creation and Removal
 
-The example that follows will use the *Swarm Listener* to reconfigure the [Docker Flow: Proxy](https://github.com/vfarcic/docker-flow-proxy) whenever a new service is created.
+The example that follows will use the *Swarm Listener* to reconfigure the [Docker Flow: Proxy](https://github.com/docker-flow/docker-flow-proxy) whenever a new service is created.
 
-I will assume that you already have a Swarm cluster set up with Docker Machines. If that's not the case, feel free to use the [scripts/dm-swarm.sh](https://github.com/vfarcic/docker-flow-swarm-listener/blob/master/scripts/dm-swarm.sh) script to create a three nodes cluster.
+I will assume that you already have a Swarm cluster set up with Docker Machines. If that's not the case, feel free to use the [scripts/dm-swarm.sh](https://github.com/docker-flow/docker-flow-swarm-listener/blob/master/scripts/dm-swarm.sh) script to create a three nodes cluster.
 
 Let's run the Proxy service. We'll use it as a way to demonstrate how *Swarm Listener* works.
 
@@ -22,7 +22,7 @@ docker service create --name proxy \
     -p 8080:8080 \
     --network proxy \
     -e MODE=swarm \
-    vfarcic/docker-flow-proxy
+    dockerflow/docker-flow-proxy
 ```
 
 Next, we'll create the `swarm-listener` service.
@@ -34,7 +34,7 @@ docker service create --name swarm-listener \
     -e DF_NOTIFY_CREATE_SERVICE_URL=http://proxy:8080/v1/docker-flow-proxy/reconfigure \
     -e DF_NOTIFY_REMOVE_SERVICE_URL=http://proxy:8080/v1/docker-flow-proxy/remove \
     --constraint 'node.role==manager' \
-    vfarcic/docker-flow-swarm-listener
+    dockerflow/docker-flow-swarm-listener
 ```
 
 The service is attached to the proxy network (just as the `proxy` service), mounts the Docker socket, and declares the environment variables `DF_NOTIFY_CREATE_SERVICE_URL` and `DF_NOTIFY_REMOVE_SERVICE_URL`. We'll see the purpose of the variables soon.

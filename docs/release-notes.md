@@ -1,3 +1,3 @@
 # Release Notes
 
-Please visit [project releases](https://github.com/vfarcic/docker-flow-swarm-listener/releases).
+Please visit [project releases](https://github.com/docker-flow/docker-flow-swarm-listener/releases).

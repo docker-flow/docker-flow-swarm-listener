@@ -8,7 +8,7 @@ The *Docker Flow Swarm Listener* project welcomes, and depends, on contributions
 
 ## Reporting an Issue
 
-Feel fee to [create a new issue](https://github.com/vfarcic/docker-flow-swarm-listener/issues). Include as much detail as you can.
+Feel fee to [create a new issue](https://github.com/docker-flow/docker-flow-swarm-listener/issues). Include as much detail as you can.
 
 If an issue is a bug, please provide steps to reproduce it.
 
@@ -28,7 +28,7 @@ Once you are finish implementing a new feature or fixing a bug, run the *Complet
 
 ### Repository
 
-Fork [docker-flow-swarm-listener](https://github.com/vfarcic/docker-flow-swarm-listener).
+Fork [docker-flow-swarm-listener](https://github.com/docker-flow/docker-flow-swarm-listener).
 
 ### Unit Testing
 

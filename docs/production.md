@@ -8,7 +8,7 @@ docker network create \
     proxy
 
 curl -o swarm-listener.yml \
-    https://raw.githubusercontent.com/vfarcic/docker-flow-swarm-listener/master/stack.yml
+    https://raw.githubusercontent.com/docker-flow/docker-flow-swarm-listener/master/stack.yml
 
 docker stack deploy \
     -c swarm-listener.yml \

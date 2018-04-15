@@ -1,9 +1,9 @@
 # Docker Flow Swarm Listener
 
-[![GitHub release](https://img.shields.io/github/release/vfarcic/docker-flow-swarm-listener.svg)]()
-[![license](https://img.shields.io/github/license/vfarcic/docker-flow-swarm-listener.svg)]()
+[![GitHub release](https://img.shields.io/github/release/docker-flow/docker-flow-swarm-listener.svg)]()
+[![license](https://img.shields.io/github/license/docker-flow/docker-flow-swarm-listener.svg)]()
 [![Docker Pulls](https://img.shields.io/docker/pulls/vfarcic/docker-flow-swarm-listener.svg)]()
-[![Go Report Card](https://goreportcard.com/badge/github.com/vfarcic/docker-flow-swarm-listener)](https://goreportcard.com/report/github.com/vfarcic/docker-flow-swarm-listener)
+[![Go Report Card](https://goreportcard.com/badge/github.com/docker-flow/docker-flow-swarm-listener)](https://goreportcard.com/report/github.com/docker-flow/docker-flow-swarm-listener)
 
 The goal of the *Docker Flow Swarm Listener* project is to listen to Docker Swarm events and send requests when a change occurs. At the moment, the only supported option is to send a notification when a new service is created, or an existing service was removed from the cluster. More extensive feature support is coming soon.
 
