@@ -26,6 +26,13 @@ type Serve struct {
 	Log           *log.Logger
 }
 
+type server interface {
+	NotifyServices(w http.ResponseWriter, req *http.Request)
+	GetServices(w http.ResponseWriter, req *http.Request)
+	GetNodes(w http.ResponseWriter, req *http.Request)
+	PingHandler(w http.ResponseWriter, req *http.Request)
+}
+
 // NewServe returns a new instance of the `Serve`
 func NewServe(swarmListener service.SwarmListening, logger *log.Logger) *Serve {
 	return &Serve{
@@ -35,17 +42,24 @@ func NewServe(swarmListener service.SwarmListening, logger *log.Logger) *Serve {
 }
 
 // Run executes a server
-func (m *Serve) Run() error {
-	mux := http.NewServeMux()
-	mux.HandleFunc("/v1/docker-flow-swarm-listener/notify-services", m.NotifyServices)
-	mux.HandleFunc("/v1/docker-flow-swarm-listener/get-services", m.GetServices)
-	mux.HandleFunc("/v1/docker-flow-swarm-listener/ping", m.PingHandler)
-	mux.Handle("/metrics", prometheus.Handler())
+func Run(s server) error {
+	mux := attachRoutes(s)
 	return httpListenAndServe(":8080", mux)
 }
 
+// attachRoutes attaches routes to services and returns the mux
+func attachRoutes(s server) *http.ServeMux {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/v1/docker-flow-swarm-listener/notify-services", s.NotifyServices)
+	mux.HandleFunc("/v1/docker-flow-swarm-listener/get-nodes", s.GetNodes)
+	mux.HandleFunc("/v1/docker-flow-swarm-listener/get-services", s.GetServices)
+	mux.HandleFunc("/v1/docker-flow-swarm-listener/ping", s.PingHandler)
+	mux.Handle("/metrics", prometheus.Handler())
+	return mux
+}
+
 // NotifyServices notifies all configured endpoints of new, updated, or removed services
-func (m *Serve) NotifyServices(w http.ResponseWriter, req *http.Request) {
+func (m Serve) NotifyServices(w http.ResponseWriter, req *http.Request) {
 	m.SwarmListener.NotifyServices(false)
 	js, _ := json.Marshal(Response{Status: "OK"})
 	httpWriterSetContentType(w, "application/json")
@@ -54,7 +68,7 @@ func (m *Serve) NotifyServices(w http.ResponseWriter, req *http.Request) {
 }
 
 // GetServices retrieves all services with the `com.df.notify` label set to `true`
-func (m *Serve) GetServices(w http.ResponseWriter, req *http.Request) {
+func (m Serve) GetServices(w http.ResponseWriter, req *http.Request) {
 	parameters, err := m.SwarmListener.GetServicesParameters(req.Context())
 	if err != nil {
 		m.Log.Printf("ERROR: Unable to prepare response: %s", err)
@@ -75,7 +89,7 @@ func (m *Serve) GetServices(w http.ResponseWriter, req *http.Request) {
 }
 
 // GetNodes retrieves all nodes
-func (m *Serve) GetNodes(w http.ResponseWriter, req *http.Request) {
+func (m Serve) GetNodes(w http.ResponseWriter, req *http.Request) {
 	parameters, err := m.SwarmListener.GetNodesParameters(req.Context())
 	if err != nil {
 		m.Log.Printf("ERROR: Unable to prepare response: %s", err)
@@ -96,7 +110,7 @@ func (m *Serve) GetNodes(w http.ResponseWriter, req *http.Request) {
 }
 
 // PingHandler is used for health checks
-func (m *Serve) PingHandler(w http.ResponseWriter, req *http.Request) {
+func (m Serve) PingHandler(w http.ResponseWriter, req *http.Request) {
 	js, _ := json.Marshal(Response{Status: "OK"})
 	httpWriterSetContentType(w, "application/json")
 	w.WriteHeader(http.StatusOK)
