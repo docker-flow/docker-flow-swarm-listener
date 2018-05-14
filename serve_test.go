@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"net/http/httptest"
 	"os"
 	"testing"
 
@@ -43,7 +44,7 @@ func (s *ServerTestSuite) Test_Run_InvokesHTTPListenAndServe() {
 	}
 
 	serve := Serve{}
-	serve.Run()
+	Run(serve)
 
 	s.Equal(expected, actual)
 }
@@ -58,9 +59,60 @@ func (s *ServerTestSuite) Test_Run_ReturnsError_WhenHTTPListenAndServeFails() {
 	}
 
 	serve := Serve{}
-	actual := serve.Run()
+	actual := Run(serve)
 
 	s.Error(actual)
+}
+
+func (s *ServerTestSuite) Test_RestNotifyServices_RoutesTo_NotifyServices() {
+	sm := new(serverMock)
+	sm.On("NotifyServices", mock.Anything, mock.Anything).Return(nil)
+	mux := attachRoutes(sm)
+
+	req := httptest.NewRequest("GET", "/v1/docker-flow-swarm-listener/notify-services", nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	sm.AssertExpectations(s.T())
+}
+
+func (s *ServerTestSuite) Test_RestGetNodes_RoutesTo_GetNodes() {
+
+	sm := new(serverMock)
+	sm.On("GetNodes", mock.Anything, mock.Anything).Return(nil)
+	mux := attachRoutes(sm)
+
+	req := httptest.NewRequest("GET", "/v1/docker-flow-swarm-listener/get-nodes", nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	sm.AssertExpectations(s.T())
+}
+
+func (s *ServerTestSuite) Test_RestGetServices_RoutesTo_GetServices() {
+
+	sm := new(serverMock)
+	sm.On("GetServices", mock.Anything, mock.Anything).Return(nil)
+	mux := attachRoutes(sm)
+
+	req := httptest.NewRequest("GET", "/v1/docker-flow-swarm-listener/get-services", nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	sm.AssertExpectations(s.T())
+}
+
+func (s *ServerTestSuite) Test_RestPing_RoutesTo_GetPing() {
+
+	sm := new(serverMock)
+	sm.On("PingHandler", mock.Anything, mock.Anything).Return(nil)
+	mux := attachRoutes(sm)
+
+	req := httptest.NewRequest("GET", "/v1/docker-flow-swarm-listener/ping", nil)
+	w := httptest.NewRecorder()
+	mux.ServeHTTP(w, req)
+
+	sm.AssertExpectations(s.T())
 }
 
 func (s *ServerTestSuite) Test_NotifyServices_ReturnsStatus200() {
@@ -211,4 +263,23 @@ func (m *SwarmListeningMock) GetServicesParameters(ctx context.Context) ([]map[s
 func (m *SwarmListeningMock) GetNodesParameters(ctx context.Context) ([]map[string]string, error) {
 	args := m.Called(ctx)
 	return args.Get(0).([]map[string]string), args.Error(1)
+}
+
+type serverMock struct {
+	mock.Mock
+}
+
+func (m *serverMock) NotifyServices(w http.ResponseWriter, req *http.Request) {
+	m.Called(w, req)
+}
+
+func (m *serverMock) GetServices(w http.ResponseWriter, req *http.Request) {
+	m.Called(w, req)
+}
+
+func (m *serverMock) GetNodes(w http.ResponseWriter, req *http.Request) {
+	m.Called(w, req)
+}
+func (m *serverMock) PingHandler(w http.ResponseWriter, req *http.Request) {
+	m.Called(w, req)
 }
