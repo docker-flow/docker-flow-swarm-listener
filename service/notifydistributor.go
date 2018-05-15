@@ -155,28 +155,25 @@ func (d NotifyDistributor) Run(serviceChan <-chan Notification, nodeChan <-chan 
 	if serviceChan != nil {
 		go func() {
 			for n := range serviceChan {
-				// Use time as request id
-				ctx := d.ServiceCancelManager.Add(context.Background(), n.ID, n.TimeNano)
-				go d.distributeServiceNotification(ctx, n)
+				go d.distributeServiceNotification(n)
 			}
 		}()
 	}
 	if nodeChan != nil {
 		go func() {
 			for n := range nodeChan {
-				// Use time as request id
-				ctx := d.NodeCancelManager.Add(context.Background(), n.ID, n.TimeNano)
-				go d.distributeNodeNotification(ctx, n)
+				go d.distributeNodeNotification(n)
 			}
 		}()
 	}
 }
 
-func (d NotifyDistributor) distributeServiceNotification(
-	ctx context.Context, n Notification) {
+func (d NotifyDistributor) distributeServiceNotification(n Notification) {
+	// Use time as request id
+	ctx := d.ServiceCancelManager.Add(context.Background(), n.ID, n.TimeNano)
 	defer d.ServiceCancelManager.Delete(n.ID, n.TimeNano)
-	var wg sync.WaitGroup
 
+	var wg sync.WaitGroup
 	for _, endpoint := range d.NotifyEndpoints {
 		wg.Add(1)
 		go func(endpoint NotifyEndpoint) {
@@ -191,11 +188,12 @@ func (d NotifyDistributor) distributeServiceNotification(
 	}
 }
 
-func (d NotifyDistributor) distributeNodeNotification(
-	ctx context.Context, n Notification) {
+func (d NotifyDistributor) distributeNodeNotification(n Notification) {
+	// Use time as request id
+	ctx := d.NodeCancelManager.Add(context.Background(), n.ID, n.TimeNano)
 	defer d.NodeCancelManager.Delete(n.ID, n.TimeNano)
-	var wg sync.WaitGroup
 
+	var wg sync.WaitGroup
 	for _, endpoint := range d.NotifyEndpoints {
 		wg.Add(1)
 		go func(endpoint NotifyEndpoint) {
