@@ -26,9 +26,7 @@ type internalNotification struct {
 
 // NotifyEndpoint holds Notifiers and channels to watch
 type NotifyEndpoint struct {
-	ServiceChan     chan internalNotification
 	ServiceNotifier NotificationSender
-	NodeChan        chan internalNotification
 	NodeNotifier    NotificationSender
 }
 
@@ -75,7 +73,6 @@ func newNotifyDistributorfromStrings(serviceCreateAddrs, serviceRemoveAddrs, nod
 	for hostname, addrMap := range tempNotifyEP {
 		ep := NotifyEndpoint{}
 		if len(addrMap["createService"]) > 0 || len(addrMap["removeService"]) > 0 {
-			ep.ServiceChan = make(chan internalNotification)
 			ep.ServiceNotifier = NewNotifier(
 				addrMap["createService"],
 				addrMap["removeService"],
@@ -86,7 +83,6 @@ func newNotifyDistributorfromStrings(serviceCreateAddrs, serviceRemoveAddrs, nod
 			)
 		}
 		if len(addrMap["createNode"]) > 0 || len(addrMap["removeNode"]) > 0 {
-			ep.NodeChan = make(chan internalNotification)
 			ep.NodeNotifier = NewNotifier(
 				addrMap["createNode"],
 				addrMap["removeNode"],
@@ -96,7 +92,9 @@ func newNotifyDistributorfromStrings(serviceCreateAddrs, serviceRemoveAddrs, nod
 				logger,
 			)
 		}
-		notifyEndpoints[hostname] = ep
+		if ep.ServiceNotifier != nil || ep.NodeNotifier != nil {
+			notifyEndpoints[hostname] = ep
+		}
 	}
 
 	return newNotifyDistributor(

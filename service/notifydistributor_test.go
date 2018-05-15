@@ -295,15 +295,11 @@ func (s *NotifyDistributorTestSuite) Test_RunDistributesNotificationsToEndpoints
 
 	endpoints := map[string]NotifyEndpoint{
 		"host1": {
-			ServiceChan:     make(chan internalNotification),
 			ServiceNotifier: &serviceNotifyMock1,
-			NodeChan:        nil,
 			NodeNotifier:    nil,
 		},
 		"host2": {
-			ServiceChan:     make(chan internalNotification),
 			ServiceNotifier: &serviceNotifyMock2,
-			NodeChan:        nil,
 			NodeNotifier:    nil,
 		},
 	}
@@ -374,15 +370,11 @@ func (s *NotifyDistributorTestSuite) Test_RunDistributesNotificationsToEndpoints
 
 	endpoints := map[string]NotifyEndpoint{
 		"host1": {
-			ServiceChan:     nil,
 			ServiceNotifier: nil,
-			NodeChan:        make(chan internalNotification),
 			NodeNotifier:    &nodesNotifyMock1,
 		},
 		"host2": {
-			ServiceChan:     nil,
 			ServiceNotifier: nil,
-			NodeChan:        make(chan internalNotification),
 			NodeNotifier:    &nodesNotifyMock2,
 		},
 	}
@@ -449,13 +441,6 @@ func (s *NotifyDistributorTestSuite) AssertEndpoints(endpoint NotifyEndpoint, se
 		s.Require().NotNil(endpoint.NodeNotifier)
 		s.Equal(nodeCreateAddr, endpoint.NodeNotifier.GetCreateAddr())
 		s.Equal(nodeRemoveAddr, endpoint.NodeNotifier.GetRemoveAddr())
-	}
-
-	if len(serviceCreateAddr) > 0 || len(serviceRemoveAddr) > 0 {
-		s.NotNil(endpoint.ServiceChan)
-	}
-	if len(nodeCreateAddr) > 0 || len(nodeRemoveAddr) > 0 {
-		s.NotNil(endpoint.NodeChan)
 	}
 
 }
