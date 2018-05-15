@@ -114,27 +114,18 @@ func (s *SwarmServiceClientTestSuite) Test_SwarmServiceInspect_IncorrectName() {
 	s.Error(err)
 }
 
-func (s *SwarmServiceClientTestSuite) Test_SwarmServiceList_NodeInfo() {
-	services, err := s.SClient.SwarmServiceList(context.Background(), true)
+func (s *SwarmServiceClientTestSuite) Test_SwarmServiceList_GetNodeInfo() {
+	services, err := s.SClient.SwarmServiceList(context.Background())
 	s.Require().NoError(err)
 	s.Len(services, 3)
 
 	for _, ss := range services {
+		nodeInfo, err := s.SClient.GetNodeInfo(context.Background(), ss, false)
+		s.Require().NoError(err)
 		if ss.Spec.Name == "util-1" || ss.Spec.Name == "util-4" {
-			s.NotNil(ss.NodeInfo)
+			s.NotNil(nodeInfo)
 		} else {
-			s.Nil(ss.NodeInfo)
+			s.Nil(nodeInfo)
 		}
-	}
-}
-
-func (s *SwarmServiceClientTestSuite) Test_SwarmServiceList_NoNodeInfo() {
-
-	services, err := s.SClient.SwarmServiceList(context.Background(), false)
-	s.Require().NoError(err)
-	s.Len(services, 3)
-
-	for _, ss := range services {
-		s.Nil(ss.NodeInfo)
 	}
 }

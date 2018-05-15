@@ -48,9 +48,14 @@ func (m *swarmServiceInspector) SwarmServiceInspect(ctx context.Context, service
 	return args.Get(0).(*SwarmService), args.Error(1)
 }
 
-func (m *swarmServiceInspector) SwarmServiceList(ctx context.Context, includeNodeIPInfo bool) ([]SwarmService, error) {
-	args := m.Called(ctx, includeNodeIPInfo)
+func (m *swarmServiceInspector) SwarmServiceList(ctx context.Context) ([]SwarmService, error) {
+	args := m.Called(ctx)
 	return args.Get(0).([]SwarmService), args.Error(1)
+}
+
+func (m *swarmServiceInspector) GetNodeInfo(ctx context.Context, ss SwarmService, earlyExit bool) (NodeIPSet, error) {
+	args := m.Called(ctx, ss, earlyExit)
+	return args.Get(0).(NodeIPSet), args.Error(1)
 }
 
 type swarmServiceCacherMock struct {

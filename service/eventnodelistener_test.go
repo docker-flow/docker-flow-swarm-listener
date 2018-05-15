@@ -73,6 +73,7 @@ func (s *EventListenerNodeTestSuite) Test_ListenForNodeEvents_NodeCreate() {
 	// Wait for events
 	event, err := s.waitForEvent(eventChan)
 	s.Require().NoError(err)
+	s.True(event.UseCache)
 
 	node1ID, err := getNodeID("node1", "node0")
 	s.Require().NoError(err)
@@ -125,6 +126,7 @@ func (s *EventListenerNodeTestSuite) Test_ListenForNodeEvents_NodeUpdateLabel() 
 	// Wait for events
 	event, err := s.waitForEvent(eventChan)
 	s.Require().NoError(err)
+	s.True(event.UseCache)
 
 	node0ID, err := getNodeID(s.Node0, s.Node0)
 	s.Require().NoError(err)
@@ -138,6 +140,7 @@ func (s *EventListenerNodeTestSuite) Test_ListenForNodeEvents_NodeUpdateLabel() 
 	// Wait for events
 	event, err = s.waitForEvent(eventChan)
 	s.Require().NoError(err)
+	s.True(event.UseCache)
 
 	s.Equal(node0ID, event.ID)
 	s.Equal(EventTypeCreate, event.Type)

@@ -87,6 +87,7 @@ type Event struct {
 	Type     EventType
 	ID       string
 	TimeNano int64
+	UseCache bool
 }
 
 // NodeIP defines a node/addr pair
