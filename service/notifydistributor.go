@@ -212,6 +212,10 @@ func (d NotifyDistributor) distributeNodeNotification(
 func (d NotifyDistributor) processServiceNotification(
 	ctx context.Context, n Notification, endpoint NotifyEndpoint) {
 
+	if endpoint.ServiceNotifier == nil {
+		return
+	}
+
 	if n.EventType == EventTypeCreate {
 		err := endpoint.ServiceNotifier.Create(ctx, n.Parameters)
 		if err != nil && !strings.Contains(err.Error(), "context canceled") {
@@ -219,7 +223,6 @@ func (d NotifyDistributor) processServiceNotification(
 		}
 	} else if n.EventType == EventTypeRemove {
 		err := endpoint.ServiceNotifier.Remove(ctx, n.Parameters)
-		d.ServiceCancelManager.Delete(n.ID, n.TimeNano)
 		if err != nil && !strings.Contains(err.Error(), "context canceled") {
 			d.log.Printf("ERROR: Unable to send ServiceRemoveNotify to %s, params: %s", endpoint.ServiceNotifier.GetRemoveAddr(), n.Parameters)
 		}
@@ -228,16 +231,19 @@ func (d NotifyDistributor) processServiceNotification(
 
 func (d NotifyDistributor) processNodeNotification(
 	ctx context.Context, n Notification, endpoint NotifyEndpoint) {
+
+	if endpoint.NodeNotifier == nil {
+		return
+	}
+
 	if n.EventType == EventTypeCreate {
 		err := endpoint.NodeNotifier.Create(ctx, n.Parameters)
-		d.NodeCancelManager.Delete(n.ID, n.TimeNano)
 		if err != nil {
 			d.log.Printf("ERROR: Unable to send NodeCreateNotify to %s, params: %s",
 				endpoint.NodeNotifier.GetCreateAddr(), n.Parameters)
 		}
 	} else if n.EventType == EventTypeRemove {
 		err := endpoint.NodeNotifier.Remove(ctx, n.Parameters)
-		d.NodeCancelManager.Delete(n.ID, n.TimeNano)
 		if err != nil {
 			d.log.Printf("ERROR: Unable to send NodeRemoveNotify to %s, params: %s",
 				endpoint.NodeNotifier.GetRemoveAddr(), n.Parameters)
