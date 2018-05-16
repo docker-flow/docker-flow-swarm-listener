@@ -53,8 +53,8 @@ func (m *swarmServiceInspector) SwarmServiceList(ctx context.Context) ([]SwarmSe
 	return args.Get(0).([]SwarmService), args.Error(1)
 }
 
-func (m *swarmServiceInspector) GetNodeInfo(ctx context.Context, ss SwarmService, earlyExit bool) (NodeIPSet, error) {
-	args := m.Called(ctx, ss, earlyExit)
+func (m *swarmServiceInspector) GetNodeInfo(ctx context.Context, ss SwarmService) (NodeIPSet, error) {
+	args := m.Called(ctx, ss)
 	return args.Get(0).(NodeIPSet), args.Error(1)
 }
 

@@ -431,7 +431,7 @@ func (l SwarmListener) GetServicesParameters(ctx context.Context) ([]map[string]
 		go func(ss SwarmService) {
 			defer wg.Done()
 			if l.IncludeNodeInfo {
-				if nodeInfo, err := l.SSClient.GetNodeInfo(ctx, ss, true); err == nil {
+				if nodeInfo, err := l.SSClient.GetNodeInfo(ctx, ss); err == nil {
 					ss.NodeInfo = nodeInfo
 				}
 			}

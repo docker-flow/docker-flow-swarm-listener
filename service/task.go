@@ -87,7 +87,7 @@ type progressUpdater interface {
 }
 
 // GetTaskList returns tasks when it is the service is converged
-func GetTaskList(ctx context.Context, client *client.Client, serviceID string, earlyExit bool) ([]swarm.Task, error) {
+func GetTaskList(ctx context.Context, client *client.Client, serviceID string) ([]swarm.Task, error) {
 
 	taskFilter := filters.NewArgs()
 	taskFilter.Add("service", serviceID)
@@ -168,10 +168,6 @@ func GetTaskList(ctx context.Context, client *client.Client, serviceID string, e
 			}
 		} else {
 			convergedAt = time.Time{}
-		}
-
-		if !converged && earlyExit {
-			return taskList, fmt.Errorf("service %s did not converge yet", service.Spec.Name)
 		}
 
 		<-time.After(200 * time.Millisecond)

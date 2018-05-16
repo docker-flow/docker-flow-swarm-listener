@@ -120,7 +120,7 @@ func (s *SwarmServiceClientTestSuite) Test_SwarmServiceList_GetNodeInfo() {
 	s.Len(services, 3)
 
 	for _, ss := range services {
-		nodeInfo, err := s.SClient.GetNodeInfo(context.Background(), ss, false)
+		nodeInfo, err := s.SClient.GetNodeInfo(context.Background(), ss)
 		s.Require().NoError(err)
 		if ss.Spec.Name == "util-1" || ss.Spec.Name == "util-4" {
 			s.NotNil(nodeInfo)

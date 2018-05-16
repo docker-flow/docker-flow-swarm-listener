@@ -16,7 +16,7 @@ import (
 type SwarmServiceInspector interface {
 	SwarmServiceInspect(ctx context.Context, serviceID string, includeNodeIPInfo bool) (*SwarmService, error)
 	SwarmServiceList(ctx context.Context) ([]SwarmService, error)
-	GetNodeInfo(ctx context.Context, ss SwarmService, earlyExit bool) (NodeIPSet, error)
+	GetNodeInfo(ctx context.Context, ss SwarmService) (NodeIPSet, error)
 }
 
 // SwarmServiceClient implements `SwarmServiceInspector` for docker
@@ -56,7 +56,7 @@ func (c SwarmServiceClient) SwarmServiceInspect(ctx context.Context, serviceID s
 	ss := SwarmService{service, nil}
 
 	// Always wait for service to converge
-	taskList, err := GetTaskList(ctx, c.DockerClient, ss.ID, false)
+	taskList, err := GetTaskList(ctx, c.DockerClient, ss.ID)
 	if err != nil {
 		return nil, err
 	}
@@ -85,7 +85,7 @@ func (c SwarmServiceClient) SwarmServiceList(ctx context.Context) ([]SwarmServic
 }
 
 // GetNodeInfo returns node info for swarm service
-func (c SwarmServiceClient) GetNodeInfo(ctx context.Context, ss SwarmService, earlyExit bool) (NodeIPSet, error) {
+func (c SwarmServiceClient) GetNodeInfo(ctx context.Context, ss SwarmService) (NodeIPSet, error) {
 
 	// For services that do not have `ScrapeNetLabel` will
 	// early exit, and avoid getting the task list
@@ -94,7 +94,7 @@ func (c SwarmServiceClient) GetNodeInfo(ctx context.Context, ss SwarmService, ea
 		return nil, nil
 	}
 
-	taskList, err := GetTaskList(ctx, c.DockerClient, ss.ID, earlyExit)
+	taskList, err := GetTaskList(ctx, c.DockerClient, ss.ID)
 	if err != nil {
 		return NodeIPSet{}, err
 	}

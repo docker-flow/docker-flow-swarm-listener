@@ -406,9 +406,9 @@ func (s *SwarmListenerTestSuite) Test_GetServices_WithNodeInfo() {
 	expServices := []SwarmService{s1, s2}
 	s.SSClientMock.On("SwarmServiceList", mock.AnythingOfType("*context.emptyCtx")).
 		Return(expServices, nil).
-		On("GetNodeInfo", mock.AnythingOfType("*context.emptyCtx"), s1, true).
+		On("GetNodeInfo", mock.AnythingOfType("*context.emptyCtx"), s1).
 		Return(s1NodeInfo, nil).
-		On("GetNodeInfo", mock.AnythingOfType("*context.emptyCtx"), s2, true).
+		On("GetNodeInfo", mock.AnythingOfType("*context.emptyCtx"), s2).
 		Return(s2NodeInfo, nil)
 
 	params, err := s.SwarmListener.GetServicesParameters(context.Background())
