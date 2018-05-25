@@ -327,8 +327,10 @@ func (l *SwarmListener) processNodeEventCreate(event Event) {
 	for {
 		select {
 		case <-doneChan:
+			l.NotifyServices(true)
 			return
 		case <-ctx.Done():
+			l.NotifyServices(true)
 			return
 		}
 	}
@@ -354,8 +356,10 @@ func (l *SwarmListener) processNodeEventRemove(event Event) {
 	for {
 		select {
 		case <-doneChan:
+			l.NotifyServices(true)
 			return
 		case <-ctx.Done():
+			l.NotifyServices(true)
 			return
 		}
 	}

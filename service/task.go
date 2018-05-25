@@ -92,6 +92,8 @@ func GetTaskList(ctx context.Context, client *client.Client, serviceID string) (
 	taskFilter := filters.NewArgs()
 	taskFilter.Add("service", serviceID)
 	taskFilter.Add("_up-to-date", "true")
+	taskFilter.Add("desired-state", "running")
+	taskFilter.Add("desired-state", "accepted")
 
 	getUpToDateTasks := func() ([]swarm.Task, error) {
 		return client.TaskList(ctx, types.TaskListOptions{Filters: taskFilter})
