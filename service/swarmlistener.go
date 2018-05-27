@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"os"
 	"strings"
@@ -203,18 +204,17 @@ func (l *SwarmListener) processServiceEventCreate(event Event) {
 	ctx := l.ServiceCreateRemoveCancelManager.AddEvent(event)
 	defer l.ServiceCreateRemoveCancelManager.RemoveEvent(event)
 
-	doneChan := make(chan struct{})
+	errChan := make(chan error)
 
 	go func() {
 		service, err := l.SSClient.SwarmServiceInspect(ctx, event.ID, l.IncludeNodeInfo)
 		if err != nil {
-			if !strings.Contains(err.Error(), "context canceled") {
-				l.Log.Printf("ERROR: %v", err)
-			}
+			errChan <- err
 			return
 		}
 		// Ignored service (filtered by `com.df.notify`)
 		if service == nil {
+			errChan <- nil
 			return
 		}
 		ssm := MinifySwarmService(*service, l.IgnoreKey, l.IncludeKey)
@@ -223,6 +223,7 @@ func (l *SwarmListener) processServiceEventCreate(event Event) {
 			// Store in cache
 			isUpdated := l.SSCache.InsertAndCheck(ssm)
 			if !isUpdated {
+				errChan <- nil
 				return
 			}
 			metrics.RecordService(l.SSCache.Len())
@@ -231,12 +232,17 @@ func (l *SwarmListener) processServiceEventCreate(event Event) {
 		params := GetSwarmServiceMiniCreateParameters(ssm)
 		paramsEncoded := ConvertMapStringStringToURLValues(params).Encode()
 		l.placeOnNotificationChan(
-			l.SSNotificationChan, event.Type, event.TimeNano, ssm.ID, paramsEncoded, doneChan)
+			l.SSNotificationChan, event.Type, event.TimeNano, ssm.ID, paramsEncoded, errChan)
 	}()
 
 	for {
 		select {
-		case <-doneChan:
+		case err := <-errChan:
+			if err != nil {
+				if !strings.Contains(err.Error(), "context canceled") {
+					l.Log.Printf("ERROR: %v", err)
+				}
+			}
 			return
 		case <-ctx.Done():
 			return
@@ -248,26 +254,32 @@ func (l *SwarmListener) processServiceEventRemove(event Event) {
 	ctx := l.ServiceCreateRemoveCancelManager.AddEvent(event)
 	defer l.ServiceCreateRemoveCancelManager.RemoveEvent(event)
 
-	doneChan := make(chan struct{})
+	errChan := make(chan error)
 
 	go func() {
 
 		ssm, ok := l.SSCache.Get(event.ID)
 		if !ok {
+			errChan <- fmt.Errorf("%s not in cache", event.ID)
 			return
 		}
-		l.SSCache.Delete(ssm.ID)
-		metrics.RecordService(l.SSCache.Len())
-
 		params := GetSwarmServiceMiniRemoveParameters(ssm)
 		paramsEncoded := ConvertMapStringStringToURLValues(params).Encode()
 		l.placeOnNotificationChan(
-			l.SSNotificationChan, event.Type, event.TimeNano, ssm.ID, paramsEncoded, doneChan)
+			l.SSNotificationChan, event.Type, event.TimeNano, ssm.ID, paramsEncoded, errChan)
 	}()
 
 	for {
 		select {
-		case <-doneChan:
+		case err := <-errChan:
+			if err != nil {
+				if !strings.Contains(err.Error(), "not in cache") {
+					l.Log.Printf("ERROR: %v", err)
+				}
+				return
+			}
+			l.SSCache.Delete(event.ID)
+			metrics.RecordService(l.SSCache.Len())
 			return
 		case <-ctx.Done():
 			return
@@ -299,15 +311,13 @@ func (l *SwarmListener) processNodeEventCreate(event Event) {
 	ctx := l.NodeCreateRemoveCancelManager.AddEvent(event)
 	defer l.NodeCreateRemoveCancelManager.RemoveEvent(event)
 
-	doneChan := make(chan struct{})
+	errChan := make(chan error)
 
 	go func() {
 
 		node, err := l.NodeClient.NodeInspect(event.ID)
 		if err != nil {
-			if !strings.Contains(err.Error(), "context canceled") {
-				l.Log.Printf("ERROR: %v", err)
-			}
+			errChan <- err
 			return
 		}
 		nm := MinifyNode(node)
@@ -316,17 +326,24 @@ func (l *SwarmListener) processNodeEventCreate(event Event) {
 			// Store in cache
 			isUpdated := l.NodeCache.InsertAndCheck(nm)
 			if !isUpdated {
+				errChan <- nil
 				return
 			}
 		}
 		params := GetNodeMiniCreateParameters(nm)
 		paramsEncoded := ConvertMapStringStringToURLValues(params).Encode()
-		l.placeOnNotificationChan(l.NodeNotificationChan, event.Type, event.TimeNano, nm.ID, paramsEncoded, doneChan)
+		l.placeOnNotificationChan(l.NodeNotificationChan, event.Type, event.TimeNano, nm.ID, paramsEncoded, errChan)
 	}()
 
 	for {
 		select {
-		case <-doneChan:
+		case err := <-errChan:
+			if err != nil {
+				if !strings.Contains(err.Error(), "context canceled") {
+					l.Log.Printf("ERROR: %v", err)
+				}
+				return
+			}
 			l.NotifyServices(true)
 			return
 		case <-ctx.Done():
@@ -339,22 +356,29 @@ func (l *SwarmListener) processNodeEventRemove(event Event) {
 	ctx := l.NodeCreateRemoveCancelManager.AddEvent(event)
 	defer l.NodeCreateRemoveCancelManager.RemoveEvent(event)
 
-	doneChan := make(chan struct{})
+	errChan := make(chan error)
 	go func() {
 		nm, ok := l.NodeCache.Get(event.ID)
 		if !ok {
+			errChan <- fmt.Errorf("%s not in cache", event.ID)
 			return
 		}
-		l.NodeCache.Delete(nm.ID)
 
 		params := GetNodeMiniRemoveParameters(nm)
 		paramsEncoded := ConvertMapStringStringToURLValues(params).Encode()
-		l.placeOnNotificationChan(l.NodeNotificationChan, event.Type, event.TimeNano, nm.ID, paramsEncoded, doneChan)
+		l.placeOnNotificationChan(l.NodeNotificationChan, event.Type, event.TimeNano, nm.ID, paramsEncoded, errChan)
 	}()
 
 	for {
 		select {
-		case <-doneChan:
+		case err := <-errChan:
+			if err != nil {
+				if !strings.Contains(err.Error(), "not in cache") {
+					l.Log.Printf("ERROR: %v", err)
+				}
+				return
+			}
+			l.NodeCache.Delete(event.ID)
 			l.NotifyServices(true)
 			return
 		case <-ctx.Done():
@@ -395,13 +419,13 @@ func (l SwarmListener) NotifyNodes(useCache bool) {
 	}()
 }
 
-func (l SwarmListener) placeOnNotificationChan(notiChan chan<- Notification, eventType EventType, timeNano int64, ID string, parameters string, doneChan chan struct{}) {
+func (l SwarmListener) placeOnNotificationChan(notiChan chan<- Notification, eventType EventType, timeNano int64, ID string, parameters string, errorChan chan error) {
 	notiChan <- Notification{
 		EventType:  eventType,
 		ID:         ID,
 		Parameters: parameters,
 		TimeNano:   timeNano,
-		Done:       doneChan,
+		ErrorChan:  errorChan,
 	}
 }
 

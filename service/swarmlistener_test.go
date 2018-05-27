@@ -81,7 +81,6 @@ func (s *SwarmListenerTestSuite) Test_Run_ServicesChannel() {
 	s.SSClientMock.On("SwarmServiceInspect", mock.AnythingOfType("*context.cancelCtx"), "serviceID1", true).Return(&ss1, nil)
 	s.SSCacheMock.On("InsertAndCheck", ss1m).Return(true).
 		On("Get", "serviceID2").Return(ss2m, true).
-		On("Delete", "serviceID2").
 		On("Len").Return(2)
 	s.NotifyDistributorMock.
 		On("HasServiceListeners").Return(true).
@@ -169,8 +168,7 @@ func (s *SwarmListenerTestSuite) Test_Run_NodeChannel() {
 	s.NodeListeningMock.On("ListenForNodeEvents", mock.AnythingOfType("chan<- service.Event"))
 	s.NodeClientMock.On("NodeInspect", "nodeID1").Return(n1, nil)
 	s.NodeCacheMock.On("InsertAndCheck", n1m).Return(true).
-		On("Get", "nodeID2").Return(n2m, true).
-		On("Delete", "nodeID2")
+		On("Get", "nodeID2").Return(n2m, true)
 	s.NotifyDistributorMock.
 		On("HasServiceListeners").Return(false).
 		On("HasNodeListeners").Return(true).

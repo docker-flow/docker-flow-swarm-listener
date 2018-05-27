@@ -277,8 +277,8 @@ func (s *NotifyDistributorTestSuite) Test_NewNotifyDistributorFromEnv_Node() {
 
 func (s *NotifyDistributorTestSuite) Test_RunDistributesNotificationsToEndpoints_Servies() {
 
-	service1Done := make(chan struct{})
-	service2Done := make(chan struct{})
+	service1ErrChan := make(chan error)
+	service2ErrChan := make(chan error)
 
 	serviceNotifyMock1 := notificationSenderMock{}
 	serviceNotifyMock1.On("Create", mock.AnythingOfType("*context.cancelCtx"), "hello=world").
@@ -317,7 +317,7 @@ func (s *NotifyDistributorTestSuite) Test_RunDistributesNotificationsToEndpoints
 			Parameters: "hello=world",
 			TimeNano:   int64(1),
 			Context:    s.ctx,
-			Done:       service1Done,
+			ErrorChan:  service1ErrChan,
 		}
 	}()
 	go func() {
@@ -327,21 +327,21 @@ func (s *NotifyDistributorTestSuite) Test_RunDistributesNotificationsToEndpoints
 			Parameters: "hello=world2",
 			TimeNano:   int64(2),
 			Context:    s.ctx,
-			Done:       service2Done,
+			ErrorChan:  service2ErrChan,
 		}
 	}()
 
 	timer := time.NewTimer(time.Second * 5).C
 
 	for {
-		if service1Done == nil && service2Done == nil {
+		if service1ErrChan == nil && service2ErrChan == nil {
 			break
 		}
 		select {
-		case <-service1Done:
-			service1Done = nil
-		case <-service2Done:
-			service2Done = nil
+		case <-service1ErrChan:
+			service1ErrChan = nil
+		case <-service2ErrChan:
+			service2ErrChan = nil
 		case <-timer:
 			s.Fail("Timeout")
 			return
@@ -353,8 +353,8 @@ func (s *NotifyDistributorTestSuite) Test_RunDistributesNotificationsToEndpoints
 }
 
 func (s *NotifyDistributorTestSuite) Test_RunDistributesNotificationsToEndpoints_Nodes1() {
-	node1Done := make(chan struct{})
-	node2Done := make(chan struct{})
+	node1ErrChan := make(chan error)
+	node2ErrChan := make(chan error)
 
 	nodesNotifyMock1 := notificationSenderMock{}
 	nodesNotifyMock1.On("Create", mock.AnythingOfType("*context.cancelCtx"), "hello=world").
@@ -392,7 +392,7 @@ func (s *NotifyDistributorTestSuite) Test_RunDistributesNotificationsToEndpoints
 			Parameters: "hello=world",
 			TimeNano:   int64(1),
 			Context:    s.ctx,
-			Done:       node1Done,
+			ErrorChan:  node1ErrChan,
 		}
 	}()
 	go func() {
@@ -402,21 +402,21 @@ func (s *NotifyDistributorTestSuite) Test_RunDistributesNotificationsToEndpoints
 			Parameters: "hello=world2",
 			TimeNano:   int64(2),
 			Context:    s.ctx,
-			Done:       node2Done,
+			ErrorChan:  node2ErrChan,
 		}
 	}()
 
 	timer := time.NewTimer(time.Second * 5).C
 
 	for {
-		if node1Done == nil && node2Done == nil {
+		if node1ErrChan == nil && node2ErrChan == nil {
 			break
 		}
 		select {
-		case <-node1Done:
-			node1Done = nil
-		case <-node2Done:
-			node2Done = nil
+		case <-node1ErrChan:
+			node1ErrChan = nil
+		case <-node2ErrChan:
+			node2ErrChan = nil
 		case <-timer:
 			s.Fail("Timeout")
 			return

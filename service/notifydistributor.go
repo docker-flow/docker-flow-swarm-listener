@@ -16,7 +16,7 @@ type Notification struct {
 	Parameters string
 	TimeNano   int64
 	Context    context.Context
-	Done       chan struct{}
+	ErrorChan  chan error
 }
 
 type internalNotification struct {
@@ -181,8 +181,8 @@ func (d NotifyDistributor) distributeServiceNotification(n Notification) {
 	}
 	wg.Wait()
 
-	if n.Done != nil {
-		n.Done <- struct{}{}
+	if n.ErrorChan != nil {
+		n.ErrorChan <- nil
 	}
 }
 
@@ -200,8 +200,8 @@ func (d NotifyDistributor) distributeNodeNotification(n Notification) {
 		}(endpoint)
 	}
 	wg.Wait()
-	if n.Done != nil {
-		n.Done <- struct{}{}
+	if n.ErrorChan != nil {
+		n.ErrorChan <- nil
 	}
 }
 
