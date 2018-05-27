@@ -330,7 +330,6 @@ func (l *SwarmListener) processNodeEventCreate(event Event) {
 			l.NotifyServices(true)
 			return
 		case <-ctx.Done():
-			l.NotifyServices(true)
 			return
 		}
 	}
@@ -359,7 +358,6 @@ func (l *SwarmListener) processNodeEventRemove(event Event) {
 			l.NotifyServices(true)
 			return
 		case <-ctx.Done():
-			l.NotifyServices(true)
 			return
 		}
 	}
