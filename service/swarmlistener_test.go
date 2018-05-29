@@ -236,6 +236,7 @@ func (s *SwarmListenerTestSuite) Test_NotifyServices_WithCache() {
 		},
 	}
 	s.SSClientMock.On("SwarmServiceList", mock.AnythingOfType("*context.emptyCtx")).Return(expServices, nil)
+	s.NotifyDistributorMock.On("HasServiceListeners").Return(true)
 
 	s.SwarmListener.NotifyServices(true)
 
@@ -274,6 +275,7 @@ func (s *SwarmListenerTestSuite) Test_NotifyServices_WithoutCache() {
 		},
 	}
 	s.SSClientMock.On("SwarmServiceList", mock.AnythingOfType("*context.emptyCtx")).Return(expServices, nil)
+	s.NotifyDistributorMock.On("HasServiceListeners").Return(true)
 
 	s.SwarmListener.NotifyServices(false)
 
@@ -309,6 +311,7 @@ func (s *SwarmListenerTestSuite) Test_NotifyNodes_WithoutCache() {
 		},
 	}
 	s.NodeClientMock.On("NodeList", mock.AnythingOfType("*context.emptyCtx")).Return(expNodes, nil)
+	s.NotifyDistributorMock.On("HasNodeListeners").Return(true)
 
 	s.SwarmListener.NotifyNodes(false)
 
@@ -344,6 +347,7 @@ func (s *SwarmListenerTestSuite) Test_NotifyNodes_WithCache() {
 		},
 	}
 	s.NodeClientMock.On("NodeList", mock.AnythingOfType("*context.emptyCtx")).Return(expNodes, nil)
+	s.NotifyDistributorMock.On("HasNodeListeners").Return(true)
 
 	s.SwarmListener.NotifyNodes(true)
 

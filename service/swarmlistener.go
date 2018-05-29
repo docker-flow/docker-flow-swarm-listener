@@ -135,15 +135,26 @@ func NewSwarmListenerFromEnv(retries, interval int, logger *log.Logger) (*SwarmL
 	if err != nil {
 		return nil, err
 	}
-	ssListener := NewSwarmServiceListener(dockerClient, logger)
-	ssClient := NewSwarmServiceClient(dockerClient, ignoreKey, "com.df.scrapeNetwork", logger)
-	ssCache := NewSwarmServiceCache()
-
-	nodeListener := NewNodeListener(dockerClient, logger)
-	nodeClient := NewNodeClient(dockerClient)
-	nodeCache := NewNodeCache()
-
 	notifyDistributor := NewNotifyDistributorFromEnv(retries, interval, logger)
+
+	var ssListener *SwarmServiceListener
+	var ssClient *SwarmServiceClient
+	var ssCache *SwarmServiceCache
+	var nodeListener *NodeListener
+	var nodeClient *NodeClient
+	var nodeCache *NodeCache
+
+	if notifyDistributor.HasServiceListeners() {
+		ssListener = NewSwarmServiceListener(dockerClient, logger)
+		ssClient = NewSwarmServiceClient(dockerClient, ignoreKey, "com.df.scrapeNetwork", logger)
+		ssCache = NewSwarmServiceCache()
+	}
+
+	if notifyDistributor.HasNodeListeners() {
+		nodeListener = NewNodeListener(dockerClient, logger)
+		nodeClient = NewNodeClient(dockerClient)
+		nodeCache = NewNodeCache()
+	}
 
 	return newSwarmListener(
 		ssListener,
@@ -167,13 +178,13 @@ func NewSwarmListenerFromEnv(retries, interval int, logger *log.Logger) (*SwarmL
 
 // Run starts swarm listener
 func (l *SwarmListener) Run() {
-	l.connectServiceChannels()
-	l.connectNodeChannels()
 
-	if l.SSEventChan != nil {
+	if l.NotifyDistributor.HasServiceListeners() {
+		l.connectServiceChannels()
 		l.SSListener.ListenForServiceEvents(l.SSEventChan)
 	}
-	if l.NodeEventChan != nil {
+	if l.NotifyDistributor.HasNodeListeners() {
+		l.connectNodeChannels()
 		l.NodeListener.ListenForNodeEvents(l.NodeEventChan)
 	}
 
@@ -181,13 +192,6 @@ func (l *SwarmListener) Run() {
 }
 
 func (l *SwarmListener) connectServiceChannels() {
-
-	// Remove service channels if there are no service listeners
-	if !l.NotifyDistributor.HasServiceListeners() {
-		l.SSEventChan = nil
-		l.SSNotificationChan = nil
-		return
-	}
 
 	go func() {
 		for event := range l.SSEventChan {
@@ -289,13 +293,6 @@ func (l *SwarmListener) processServiceEventRemove(event Event) {
 
 func (l *SwarmListener) connectNodeChannels() {
 
-	// Remove node channels if there are no service listeners
-	if !l.NotifyDistributor.HasNodeListeners() {
-		l.NodeEventChan = nil
-		l.NodeNotificationChan = nil
-		return
-	}
-
 	go func() {
 		for event := range l.NodeEventChan {
 			if event.Type == EventTypeCreate {
@@ -389,6 +386,11 @@ func (l *SwarmListener) processNodeEventRemove(event Event) {
 
 // NotifyServices places all services on queue to notify services on service events
 func (l SwarmListener) NotifyServices(useCache bool) {
+
+	if !l.NotifyDistributor.HasServiceListeners() {
+		return
+	}
+
 	services, err := l.SSClient.SwarmServiceList(context.Background())
 	if err != nil {
 		l.Log.Printf("ERROR: NotifyService, %v", err)
@@ -405,6 +407,11 @@ func (l SwarmListener) NotifyServices(useCache bool) {
 
 // NotifyNodes places all services on queue to notify serivces on node events
 func (l SwarmListener) NotifyNodes(useCache bool) {
+
+	if !l.NotifyDistributor.HasNodeListeners() {
+		return
+	}
+
 	nodes, err := l.NodeClient.NodeList(context.Background())
 	if err != nil {
 		l.Log.Printf("ERROR: NotifyNodes, %v", err)
