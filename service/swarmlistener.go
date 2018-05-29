@@ -84,10 +84,14 @@ func newSwarmListener(
 	ssListener SwarmServiceListening,
 	ssClient SwarmServiceInspector,
 	ssCache SwarmServiceCacher,
+	ssEventChan chan Event,
+	ssNotificationChan chan Notification,
 
 	nodeListener NodeListening,
 	nodeClient NodeInspector,
 	nodeCache NodeCacher,
+	nodeEventChan chan Event,
+	nodeNotificationChan chan Notification,
 
 	notifyDistributor NotifyDistributing,
 
@@ -105,13 +109,13 @@ func newSwarmListener(
 		SSListener:           ssListener,
 		SSClient:             ssClient,
 		SSCache:              ssCache,
-		SSEventChan:          make(chan Event),
-		SSNotificationChan:   make(chan Notification),
+		SSEventChan:          ssEventChan,
+		SSNotificationChan:   ssNotificationChan,
 		NodeListener:         nodeListener,
 		NodeClient:           nodeClient,
 		NodeCache:            nodeCache,
-		NodeEventChan:        make(chan Event),
-		NodeNotificationChan: make(chan Notification),
+		NodeEventChan:        nodeEventChan,
+		NodeNotificationChan: nodeNotificationChan,
 		NotifyDistributor:    notifyDistributor,
 		ServiceCreateRemoveCancelManager: &CreateRemoveCancelManager{
 			createCancelManager: serviceCreateCancelManager,
@@ -140,29 +144,42 @@ func NewSwarmListenerFromEnv(retries, interval int, logger *log.Logger) (*SwarmL
 	var ssListener *SwarmServiceListener
 	var ssClient *SwarmServiceClient
 	var ssCache *SwarmServiceCache
+	var ssEventChan chan Event
+	var ssNotificationChan chan Notification
+
 	var nodeListener *NodeListener
 	var nodeClient *NodeClient
 	var nodeCache *NodeCache
+	var nodeEventChan chan Event
+	var nodeNotificationChan chan Notification
 
 	if notifyDistributor.HasServiceListeners() {
 		ssListener = NewSwarmServiceListener(dockerClient, logger)
 		ssClient = NewSwarmServiceClient(dockerClient, ignoreKey, "com.df.scrapeNetwork", logger)
 		ssCache = NewSwarmServiceCache()
+		ssEventChan = make(chan Event)
+		ssNotificationChan = make(chan Notification)
 	}
 
 	if notifyDistributor.HasNodeListeners() {
 		nodeListener = NewNodeListener(dockerClient, logger)
 		nodeClient = NewNodeClient(dockerClient)
 		nodeCache = NewNodeCache()
+		nodeEventChan = make(chan Event)
+		nodeNotificationChan = make(chan Notification)
 	}
 
 	return newSwarmListener(
 		ssListener,
 		ssClient,
 		ssCache,
+		ssEventChan,
+		ssNotificationChan,
 		nodeListener,
 		nodeClient,
 		nodeCache,
+		nodeEventChan,
+		nodeNotificationChan,
 		notifyDistributor,
 		NewCancelManager(false),
 		NewCancelManager(false),
