@@ -16,6 +16,7 @@ type SwarmServicePoller struct {
 	SSClient        SwarmServiceInspector
 	SSCache         SwarmServiceCacher
 	PollingInterval int
+	IncludeNodeInfo bool
 	MinifyFunc      func(SwarmService) SwarmServiceMini
 	Log             *log.Logger
 }
@@ -25,6 +26,7 @@ func NewSwarmServicePoller(
 	ssClient SwarmServiceInspector,
 	ssCache SwarmServiceCacher,
 	pollingInterval int,
+	includeNodeInfo bool,
 	minifyFunc func(SwarmService) SwarmServiceMini,
 	log *log.Logger,
 ) *SwarmServicePoller {
@@ -32,6 +34,7 @@ func NewSwarmServicePoller(
 		SSClient:        ssClient,
 		SSCache:         ssCache,
 		PollingInterval: pollingInterval,
+		IncludeNodeInfo: includeNodeInfo,
 		MinifyFunc:      minifyFunc,
 		Log:             log,
 	}
@@ -45,10 +48,13 @@ func (s SwarmServicePoller) Run(
 		return
 	}
 
+	ctx := context.Background()
+
 	s.Log.Printf("Polling for Service Changes")
 	time.Sleep(time.Duration(s.PollingInterval) * time.Second)
+
 	for {
-		services, err := s.SSClient.SwarmServiceList(context.Background())
+		services, err := s.SSClient.SwarmServiceList(ctx)
 		if err != nil {
 			s.Log.Printf("ERROR (SwarmServicePolling): %v", err)
 		} else {
@@ -56,6 +62,13 @@ func (s SwarmServicePoller) Run(
 			keys := s.SSCache.Keys()
 			for _, ss := range services {
 				delete(keys, ss.ID)
+
+				if s.IncludeNodeInfo {
+					if nodeInfo, err := s.SSClient.GetNodeInfo(ctx, ss); err == nil {
+						ss.NodeInfo = nodeInfo
+					}
+				}
+
 				ssMini := s.MinifyFunc(ss)
 				if s.SSCache.IsNewOrUpdated(ssMini) {
 					eventChan <- Event{

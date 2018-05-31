@@ -40,6 +40,7 @@ func (s *ServicePollerTestSuite) SetupTest() {
 		s.SSClientMock,
 		s.SSCacheMock,
 		1,
+		false,
 		s.MinifyFunc,
 		s.Logger,
 	)

@@ -186,7 +186,7 @@ func NewSwarmListenerFromEnv(
 	}
 
 	ssPoller := NewSwarmServicePoller(
-		ssClient, ssCache, servicePollingInterval,
+		ssClient, ssCache, servicePollingInterval, includeNodeInfo,
 		func(ss SwarmService) SwarmServiceMini {
 			return MinifySwarmService(ss, ignoreKey, "com.docker.stack.namespace")
 		}, logger)

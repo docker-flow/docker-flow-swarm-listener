@@ -107,7 +107,10 @@ func GetTaskList(ctx context.Context, client *client.Client, serviceID string) (
 		rollback    bool
 	)
 
-	taskList := []swarm.Task{}
+	taskList, err := getUpToDateTasks()
+	if err != nil {
+		return taskList, err
+	}
 
 	for {
 		service, _, err := client.ServiceInspectWithRaw(ctx, serviceID, types.ServiceInspectOptions{})
