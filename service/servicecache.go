@@ -5,9 +5,11 @@ import "sync"
 // SwarmServiceCacher caches sevices
 type SwarmServiceCacher interface {
 	InsertAndCheck(ss SwarmServiceMini) bool
+	IsNewOrUpdated(ss SwarmServiceMini) bool
 	Delete(ID string)
 	Get(ID string) (SwarmServiceMini, bool)
 	Len() int
+	Keys() map[string]struct{}
 }
 
 // SwarmServiceCache implements `SwarmServiceCacher`
@@ -36,6 +38,15 @@ func (c *SwarmServiceCache) InsertAndCheck(ss SwarmServiceMini) bool {
 
 }
 
+// IsNewOrUpdated returns true if service is new or updated
+func (c *SwarmServiceCache) IsNewOrUpdated(ss SwarmServiceMini) bool {
+	c.mux.RLock()
+	defer c.mux.RUnlock()
+
+	cachedService, ok := c.cache[ss.ID]
+	return !ok || !ss.Equal(cachedService)
+}
+
 // Delete delets service from cache
 func (c *SwarmServiceCache) Delete(ID string) {
 	c.mux.Lock()
@@ -56,4 +67,15 @@ func (c *SwarmServiceCache) Len() int {
 	c.mux.RLock()
 	defer c.mux.RUnlock()
 	return len(c.cache)
+}
+
+// Keys returns the keys of the cache
+func (c *SwarmServiceCache) Keys() map[string]struct{} {
+	c.mux.RLock()
+	defer c.mux.RUnlock()
+	output := map[string]struct{}{}
+	for key := range c.cache {
+		output[key] = struct{}{}
+	}
+	return output
 }

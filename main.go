@@ -12,7 +12,7 @@ func main() {
 
 	l.Printf("Starting Docker Flow: Swarm Listener")
 	args := getArgs()
-	swarmListener, err := service.NewSwarmListenerFromEnv(args.Retry, args.RetryInterval, l)
+	swarmListener, err := service.NewSwarmListenerFromEnv(args.Retry, args.RetryInterval, args.ServicePollingInterval, l)
 	if err != nil {
 		l.Printf("Failed to initialize Docker Flow: Swarm Listener")
 		l.Printf("ERROR: %v", err)

@@ -22,6 +22,8 @@ type SwarmListenerTestSuite struct {
 	NodeClientMock    *nodeInspectorMock
 	NodeCacheMock     *nodeCacherMock
 
+	SSPoller *swarmServicePollingMock
+
 	NotifyDistributorMock *notifyDistributorMock
 
 	SwarmListener *SwarmListener
@@ -41,6 +43,9 @@ func (s *SwarmListenerTestSuite) SetupTest() {
 	s.NodeListeningMock = new(nodeListeningMock)
 	s.NodeClientMock = new(nodeInspectorMock)
 	s.NodeCacheMock = new(nodeCacherMock)
+
+	s.SSPoller = new(swarmServicePollingMock)
+
 	s.NotifyDistributorMock = new(notifyDistributorMock)
 	s.LogBytes = new(bytes.Buffer)
 	s.Logger = log.New(s.LogBytes, "", 0)
@@ -49,6 +54,7 @@ func (s *SwarmListenerTestSuite) SetupTest() {
 		s.SSListenerMock,
 		s.SSClientMock,
 		s.SSCacheMock,
+		s.SSPoller,
 		make(chan Event),
 		make(chan Notification),
 		s.NodeListeningMock,
@@ -62,6 +68,7 @@ func (s *SwarmListenerTestSuite) SetupTest() {
 		NewCancelManager(true),
 		NewCancelManager(true),
 		false,
+		true,
 		"com.df.notify",
 		"com.docker.stack.namespace",
 		s.Logger,
@@ -90,6 +97,9 @@ func (s *SwarmListenerTestSuite) Test_Run_ServicesChannel() {
 		On("HasServiceListeners").Return(true).
 		On("HasNodeListeners").Return(false).
 		On("Run", mock.AnythingOfType("<-chan service.Notification"), mock.AnythingOfType("<-chan service.Notification"))
+	s.SSPoller.
+		On("Run", mock.AnythingOfType("chan<- service.Event"))
+
 	s.SwarmListener.Run()
 
 	go func() {
@@ -149,6 +159,7 @@ func (s *SwarmListenerTestSuite) Test_Run_ServicesChannel() {
 	s.SSClientMock.AssertExpectations(s.T())
 	s.SSCacheMock.AssertExpectations(s.T())
 	s.NotifyDistributorMock.AssertExpectations(s.T())
+	s.SSPoller.AssertExpectations(s.T())
 
 }
 

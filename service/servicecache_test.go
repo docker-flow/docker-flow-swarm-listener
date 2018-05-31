@@ -132,9 +132,44 @@ func (s *SwarmServiceCacheTestSuite) Test_GetAndRemove_InCache_ReturnsSwarmServi
 	s.Cache.Delete(s.SSMini.ID)
 	s.AssertNotInCache(s.SSMini)
 	s.Equal(s.SSMini, removedSSMini)
+}
+
+func (s *SwarmServiceCacheTestSuite) Test_Keys() {
+	s.Cache.InsertAndCheck(s.SSMini)
+	s.AssertInCache(s.SSMini)
+
+	keys := s.Cache.Keys()
+
+	s.Require().Len(keys, 1)
+	s.Contains(keys, s.SSMini.ID)
 
 }
 
+func (s *SwarmServiceCacheTestSuite) Test_IsNewOrUpdated_ServiceInCache() {
+	s.Cache.InsertAndCheck(s.SSMini)
+	s.AssertInCache(s.SSMini)
+
+	newOrUpdated := s.Cache.IsNewOrUpdated(s.SSMini)
+	s.False(newOrUpdated)
+}
+
+func (s *SwarmServiceCacheTestSuite) Test_IsNewOrUpdated_ServiceNotInCache() {
+	newOrUpdated := s.Cache.IsNewOrUpdated(s.SSMini)
+	s.True(newOrUpdated)
+}
+
+func (s *SwarmServiceCacheTestSuite) Test_IsNewOrUpdated_ServiceIsDifferentCache() {
+
+	s.Cache.InsertAndCheck(s.SSMini)
+	s.AssertInCache(s.SSMini)
+
+	anotherSSMini := getNewSwarmServiceMini()
+	anotherSSMini.Name = "anotherName"
+
+	newOrUpdated := s.Cache.IsNewOrUpdated(anotherSSMini)
+	s.True(newOrUpdated)
+
+}
 func (s *SwarmServiceCacheTestSuite) Test_GetAndRemove_NotInCache_ReturnsFalse() {
 
 	_, ok := s.Cache.Get(s.SSMini.ID)

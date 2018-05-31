@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
@@ -58,9 +59,11 @@ func (c *CreateRemoveCancelManager) RemoveEvent(event Event) bool {
 
 // SwarmListener provides public api
 type SwarmListener struct {
-	SSListener         SwarmServiceListening
-	SSClient           SwarmServiceInspector
-	SSCache            SwarmServiceCacher
+	SSListener SwarmServiceListening
+	SSClient   SwarmServiceInspector
+	SSCache    SwarmServiceCacher
+	SSPoller   SwarmServicePolling
+
 	SSEventChan        chan Event
 	SSNotificationChan chan Notification
 
@@ -75,6 +78,7 @@ type SwarmListener struct {
 	ServiceCreateRemoveCancelManager *CreateRemoveCancelManager
 	NodeCreateRemoveCancelManager    *CreateRemoveCancelManager
 	IncludeNodeInfo                  bool
+	UseDockerServiceEvents           bool
 	IgnoreKey                        string
 	IncludeKey                       string
 	Log                              *log.Logger
@@ -84,6 +88,7 @@ func newSwarmListener(
 	ssListener SwarmServiceListening,
 	ssClient SwarmServiceInspector,
 	ssCache SwarmServiceCacher,
+	ssPoller SwarmServicePolling,
 	ssEventChan chan Event,
 	ssNotificationChan chan Notification,
 
@@ -100,6 +105,7 @@ func newSwarmListener(
 	nodeCreateCancelManager CancelManaging,
 	nodeRemoveCancelManager CancelManaging,
 	includeNodeInfo bool,
+	useDockerServiceEvents bool,
 	ignoreKey string,
 	includeKey string,
 	logger *log.Logger,
@@ -109,6 +115,7 @@ func newSwarmListener(
 		SSListener:           ssListener,
 		SSClient:             ssClient,
 		SSCache:              ssCache,
+		SSPoller:             ssPoller,
 		SSEventChan:          ssEventChan,
 		SSNotificationChan:   ssNotificationChan,
 		NodeListener:         nodeListener,
@@ -123,17 +130,26 @@ func newSwarmListener(
 		NodeCreateRemoveCancelManager: &CreateRemoveCancelManager{
 			createCancelManager: nodeCreateCancelManager,
 			removeCancelManager: nodeRemoveCancelManager},
-		IncludeNodeInfo: includeNodeInfo,
-		IgnoreKey:       ignoreKey,
-		IncludeKey:      includeKey,
-		Log:             logger,
+		IncludeNodeInfo:        includeNodeInfo,
+		UseDockerServiceEvents: useDockerServiceEvents,
+		IgnoreKey:              ignoreKey,
+		IncludeKey:             includeKey,
+		Log:                    logger,
 	}
 }
 
 // NewSwarmListenerFromEnv creats `SwarmListener` from environment variables
-func NewSwarmListenerFromEnv(retries, interval int, logger *log.Logger) (*SwarmListener, error) {
+func NewSwarmListenerFromEnv(
+	retries, interval, servicePollingInterval int, logger *log.Logger) (*SwarmListener, error) {
 	ignoreKey := os.Getenv("DF_NOTIFY_LABEL")
-	includeNodeInfo := os.Getenv("DF_INCLUDE_NODE_IP_INFO") == "true"
+	includeNodeInfo, err := strconv.ParseBool(os.Getenv("DF_INCLUDE_NODE_IP_INFO"))
+	if err != nil {
+		includeNodeInfo = false
+	}
+	useDockerServiceEvents, err := strconv.ParseBool(os.Getenv("DF_USE_DOCKER_SERVICE_EVENTS"))
+	if err != nil {
+		useDockerServiceEvents = false
+	}
 
 	dockerClient, err := NewDockerClientFromEnv()
 	if err != nil {
@@ -169,10 +185,17 @@ func NewSwarmListenerFromEnv(retries, interval int, logger *log.Logger) (*SwarmL
 		nodeNotificationChan = make(chan Notification)
 	}
 
+	ssPoller := NewSwarmServicePoller(
+		ssClient, ssCache, servicePollingInterval,
+		func(ss SwarmService) SwarmServiceMini {
+			return MinifySwarmService(ss, ignoreKey, "com.docker.stack.namespace")
+		}, logger)
+
 	return newSwarmListener(
 		ssListener,
 		ssClient,
 		ssCache,
+		ssPoller,
 		ssEventChan,
 		ssNotificationChan,
 		nodeListener,
@@ -186,6 +209,7 @@ func NewSwarmListenerFromEnv(retries, interval int, logger *log.Logger) (*SwarmL
 		NewCancelManager(false),
 		NewCancelManager(false),
 		includeNodeInfo,
+		useDockerServiceEvents,
 		ignoreKey,
 		"com.docker.stack.namespace",
 		logger,
@@ -198,11 +222,18 @@ func (l *SwarmListener) Run() {
 
 	if l.NotifyDistributor.HasServiceListeners() {
 		l.connectServiceChannels()
-		l.SSListener.ListenForServiceEvents(l.SSEventChan)
+
+		if l.UseDockerServiceEvents {
+			l.SSListener.ListenForServiceEvents(l.SSEventChan)
+			l.Log.Printf("Listening to Docker Service Events")
+		}
+
+		go l.SSPoller.Run(l.SSEventChan)
 	}
 	if l.NotifyDistributor.HasNodeListeners() {
 		l.connectNodeChannels()
 		l.NodeListener.ListenForNodeEvents(l.NodeEventChan)
+		l.Log.Printf("Listening to Docker Node Events")
 	}
 
 	l.NotifyDistributor.Run(l.SSNotificationChan, l.NodeNotificationChan)

@@ -67,6 +67,11 @@ func (m *swarmServiceCacherMock) InsertAndCheck(ss SwarmServiceMini) bool {
 	return args.Bool(0)
 }
 
+func (m *swarmServiceCacherMock) IsNewOrUpdated(ss SwarmServiceMini) bool {
+	args := m.Called(ss)
+	return args.Bool(0)
+}
+
 func (m *swarmServiceCacherMock) Delete(ID string) {
 	m.Called(ID)
 }
@@ -79,6 +84,11 @@ func (m *swarmServiceCacherMock) Get(ID string) (SwarmServiceMini, bool) {
 func (m *swarmServiceCacherMock) Len() int {
 	args := m.Called()
 	return args.Int(0)
+}
+
+func (m *swarmServiceCacherMock) Keys() map[string]struct{} {
+	args := m.Called()
+	return args.Get(0).(map[string]struct{})
 }
 
 type nodeListeningMock struct {
@@ -135,4 +145,12 @@ func (m *notifyDistributorMock) HasServiceListeners() bool {
 
 func (m *notifyDistributorMock) HasNodeListeners() bool {
 	return m.Called().Bool(0)
+}
+
+type swarmServicePollingMock struct {
+	mock.Mock
+}
+
+func (m *swarmServicePollingMock) Run(eventChan chan<- Event) {
+	m.Called(eventChan)
 }

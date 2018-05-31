@@ -13,3 +13,5 @@ The following environment variables can be used when creating the `swarm-listene
 |DF_NOTIFY_REMOVE_NODE_URL |Comma separated list of URLs that will be used to send notification requests when a node is remove.<br>**Example**: `url1,url2`|
 |DF_RETRY           |Number of notification request retries<br>**Default**: `50`<br>**Example**: `100`|
 |DF_RETRY_INTERVAL  |Time between each notificationo request retry, in seconds.<br>**Default**: `5`<br>**Example**:`10`|
+|DF_SERVICE_POLLING_INTERVAL |Time between each service polling request, in seconds. When this value is set less than or equal to zero, service polling is disabled.<br>**Default**: `-1`<br>**Example**:`20`|
+|DF_USE_DOCKER_SERVICE_EVENTS|Use docker events api to get service updates.<br>**Default**:`true`|

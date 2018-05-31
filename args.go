@@ -6,12 +6,14 @@ import (
 )
 
 type args struct {
-	Retry         int
-	RetryInterval int
+	ServicePollingInterval int
+	Retry                  int
+	RetryInterval          int
 }
 
 func getArgs() *args {
 	return &args{
+		ServicePollingInterval: getValue(-1, "DF_SERVICE_POLLING_INTERVAL"),
 		Retry:         getValue(1, "DF_RETRY"),
 		RetryInterval: getValue(0, "DF_RETRY_INTERVAL"),
 	}
