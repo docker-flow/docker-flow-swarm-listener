@@ -8,12 +8,13 @@ import (
 
 // SwarmServiceMini is a optimized version of `SwarmService` for caching purposes
 type SwarmServiceMini struct {
-	ID       string
-	Name     string
-	Labels   map[string]string
-	Global   bool
-	Replicas uint64
-	NodeInfo NodeIPSet
+	ID             string
+	Name           string
+	Labels         map[string]string
+	Global         bool
+	Replicas       uint64
+	ContainerImage string
+	NodeInfo       NodeIPSet
 }
 
 // Equal returns when SwarmServiceMini is equal to `other`
@@ -24,6 +25,7 @@ func (ssm SwarmServiceMini) Equal(other SwarmServiceMini) bool {
 		EqualMapStringString(ssm.Labels, other.Labels) &&
 		(ssm.Global == other.Global) &&
 		(ssm.Replicas == other.Replicas) &&
+		(ssm.ContainerImage == other.ContainerImage) &&
 		EqualNodeIPSet(ssm.NodeInfo, other.NodeInfo)
 }
 

@@ -54,6 +54,10 @@ func MinifySwarmService(ss SwarmService, ignoreKey string, includeKey string) Sw
 		NodeInfo: ss.NodeInfo,
 	}
 
+	if ss.Spec.TaskTemplate.ContainerSpec != nil {
+		ssm.ContainerImage = ss.Spec.TaskTemplate.ContainerSpec.Image
+	}
+
 	if ss.Spec.Mode.Global != nil {
 		ssm.Global = true
 		return ssm
