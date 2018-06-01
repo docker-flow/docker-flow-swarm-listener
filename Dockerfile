@@ -18,7 +18,9 @@ ENV DF_DOCKER_HOST="unix:///var/run/docker.sock" \
     DF_NOTIFY_LABEL="com.df.notify" \
     DF_INCLUDE_NODE_IP_INFO="false" \
     DF_SERVICE_POLLING_INTERVAL="-1" \
-    DF_USE_DOCKER_SERVICE_EVENTS="true"
+    DF_USE_DOCKER_SERVICE_EVENTS="true" \
+    DF_NODE_POLLING_INTERVAL="-1" \
+    DF_USE_DOCKER_NODE_EVENTS="true"
 
 EXPOSE 8080
 

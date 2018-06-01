@@ -32,9 +32,11 @@ type SwarmListener struct {
 	SSEventChan        chan Event
 	SSNotificationChan chan Notification
 
-	NodeListener         NodeListening
-	NodeClient           NodeInspector
-	NodeCache            NodeCacher
+	NodeListener NodeListening
+	NodeClient   NodeInspector
+	NodeCache    NodeCacher
+	NodePoller   NodePolling
+
 	NodeEventChan        chan Event
 	NodeNotificationChan chan Notification
 
@@ -44,6 +46,7 @@ type SwarmListener struct {
 	NodeCancelManager      CancelManaging
 	IncludeNodeInfo        bool
 	UseDockerServiceEvents bool
+	UseDockerNodeEvents    bool
 	IgnoreKey              string
 	IncludeKey             string
 	Log                    *log.Logger
@@ -60,6 +63,8 @@ func newSwarmListener(
 	nodeListener NodeListening,
 	nodeClient NodeInspector,
 	nodeCache NodeCacher,
+	nodePoller NodePolling,
+
 	nodeEventChan chan Event,
 	nodeNotificationChan chan Notification,
 
@@ -69,28 +74,32 @@ func newSwarmListener(
 	nodeCancelManager CancelManaging,
 	includeNodeInfo bool,
 	useDockerServiceEvents bool,
+	useDockerNodeEvents bool,
 	ignoreKey string,
 	includeKey string,
 	logger *log.Logger,
 ) *SwarmListener {
 
 	return &SwarmListener{
-		SSListener:             ssListener,
-		SSClient:               ssClient,
-		SSCache:                ssCache,
-		SSPoller:               ssPoller,
-		SSEventChan:            ssEventChan,
-		SSNotificationChan:     ssNotificationChan,
-		NodeListener:           nodeListener,
-		NodeClient:             nodeClient,
-		NodeCache:              nodeCache,
-		NodeEventChan:          nodeEventChan,
-		NodeNotificationChan:   nodeNotificationChan,
-		NotifyDistributor:      notifyDistributor,
-		ServiceCancelManager:   serviceCancelManager,
-		NodeCancelManager:      nodeCancelManager,
+		SSListener:           ssListener,
+		SSClient:             ssClient,
+		SSCache:              ssCache,
+		SSPoller:             ssPoller,
+		SSEventChan:          ssEventChan,
+		SSNotificationChan:   ssNotificationChan,
+		NodeListener:         nodeListener,
+		NodeClient:           nodeClient,
+		NodeCache:            nodeCache,
+		NodePoller:           nodePoller,
+		NodeEventChan:        nodeEventChan,
+		NodeNotificationChan: nodeNotificationChan,
+		NotifyDistributor:    notifyDistributor,
+		ServiceCancelManager: serviceCancelManager,
+		NodeCancelManager:    nodeCancelManager,
+
 		IncludeNodeInfo:        includeNodeInfo,
 		UseDockerServiceEvents: useDockerServiceEvents,
+		UseDockerNodeEvents:    useDockerNodeEvents,
 		IgnoreKey:              ignoreKey,
 		IncludeKey:             includeKey,
 		Log:                    logger,
@@ -99,7 +108,8 @@ func newSwarmListener(
 
 // NewSwarmListenerFromEnv creats `SwarmListener` from environment variables
 func NewSwarmListenerFromEnv(
-	retries, interval, servicePollingInterval int, logger *log.Logger) (*SwarmListener, error) {
+	retries, interval, servicePollingInterval,
+	nodePollingInterval int, logger *log.Logger) (*SwarmListener, error) {
 	ignoreKey := os.Getenv("DF_NOTIFY_LABEL")
 	includeNodeInfo, err := strconv.ParseBool(os.Getenv("DF_INCLUDE_NODE_IP_INFO"))
 	if err != nil {
@@ -108,6 +118,10 @@ func NewSwarmListenerFromEnv(
 	useDockerServiceEvents, err := strconv.ParseBool(os.Getenv("DF_USE_DOCKER_SERVICE_EVENTS"))
 	if err != nil {
 		useDockerServiceEvents = false
+	}
+	useDockerNodeEvents, err := strconv.ParseBool(os.Getenv("DF_USE_DOCKER_NODE_EVENTS"))
+	if err != nil {
+		useDockerNodeEvents = false
 	}
 
 	dockerClient, err := NewDockerClientFromEnv()
@@ -143,12 +157,13 @@ func NewSwarmListenerFromEnv(
 		nodeEventChan = make(chan Event)
 		nodeNotificationChan = make(chan Notification)
 	}
-
 	ssPoller := NewSwarmServicePoller(
 		ssClient, ssCache, servicePollingInterval, includeNodeInfo,
 		func(ss SwarmService) SwarmServiceMini {
 			return MinifySwarmService(ss, ignoreKey, "com.docker.stack.namespace")
 		}, logger)
+	nodePoller := NewNodePoller(
+		nodeClient, nodeCache, nodePollingInterval, MinifyNode, logger)
 
 	return newSwarmListener(
 		ssListener,
@@ -160,6 +175,7 @@ func NewSwarmListenerFromEnv(
 		nodeListener,
 		nodeClient,
 		nodeCache,
+		nodePoller,
 		nodeEventChan,
 		nodeNotificationChan,
 		notifyDistributor,
@@ -167,6 +183,7 @@ func NewSwarmListenerFromEnv(
 		NewCancelManager(),
 		includeNodeInfo,
 		useDockerServiceEvents,
+		useDockerNodeEvents,
 		ignoreKey,
 		"com.docker.stack.namespace",
 		logger,
@@ -189,8 +206,13 @@ func (l *SwarmListener) Run() {
 	}
 	if l.NotifyDistributor.HasNodeListeners() {
 		l.connectNodeChannels()
-		l.NodeListener.ListenForNodeEvents(l.NodeEventChan)
-		l.Log.Printf("Listening to Docker Node Events")
+
+		if l.UseDockerNodeEvents {
+			l.NodeListener.ListenForNodeEvents(l.NodeEventChan)
+			l.Log.Printf("Listening to Docker Node Events")
+		}
+
+		go l.NodePoller.Run(l.NodeEventChan)
 	}
 
 	l.NotifyDistributor.Run(l.SSNotificationChan, l.NodeNotificationChan)

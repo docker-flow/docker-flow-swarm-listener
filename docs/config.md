@@ -15,3 +15,5 @@ The following environment variables can be used when creating the `swarm-listene
 |DF_RETRY_INTERVAL  |Time between each notificationo request retry, in seconds.<br>**Default**: `5`<br>**Example**:`10`|
 |DF_SERVICE_POLLING_INTERVAL |Time between each service polling request, in seconds. When this value is set less than or equal to zero, service polling is disabled.<br>**Default**: `-1`<br>**Example**:`20`|
 |DF_USE_DOCKER_SERVICE_EVENTS|Use docker events api to get service updates.<br>**Default**:`true`|
+|DF_NODE_POLLING_INTERVAL |Time between each node polling request, in seconds. When this value is set less than or equal to zero, node polling is disabled.<br>**Default**: `-1`<br>**Example**:`20`|
+|DF_USE_DOCKER_NODE_EVENTS|Use docker events api to get node updates.<br>**Default**:`true`|

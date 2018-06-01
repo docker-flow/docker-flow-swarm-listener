@@ -149,6 +149,43 @@ func (s *NodeCacheTestSuite) Test_GetAndRemove_NotInCache_ReturnsFalse() {
 	s.False(ok)
 }
 
+func (s *NodeCacheTestSuite) Test_IsNewOrUpdated_NodeInCache() {
+	s.Cache.InsertAndCheck(s.NMini)
+	s.AssertInCache(s.NMini)
+
+	newOrUpdated := s.Cache.IsNewOrUpdated(s.NMini)
+	s.False(newOrUpdated)
+}
+
+func (s *NodeCacheTestSuite) Test_IsNewOrUpdated_NodeNotInCache() {
+	newOrUpdated := s.Cache.IsNewOrUpdated(s.NMini)
+	s.True(newOrUpdated)
+}
+
+func (s *NodeCacheTestSuite) Test_IsNewOrUpdated_NodeIsDifferentCache() {
+
+	s.Cache.InsertAndCheck(s.NMini)
+	s.AssertInCache(s.NMini)
+
+	anotherNMini := getNewNodeMini()
+	anotherNMini.State = swarm.NodeStateDown
+
+	newOrUpdated := s.Cache.IsNewOrUpdated(anotherNMini)
+	s.True(newOrUpdated)
+
+}
+
+func (s *NodeCacheTestSuite) Test_Keys() {
+	s.Cache.InsertAndCheck(s.NMini)
+	s.AssertInCache(s.NMini)
+
+	keys := s.Cache.Keys()
+
+	s.Require().Len(keys, 1)
+	s.Contains(keys, s.NMini.ID)
+
+}
+
 func (s *NodeCacheTestSuite) AssertInCache(nm NodeMini) {
 	ss, ok := s.Cache.Get(nm.ID)
 	s.True(ok)

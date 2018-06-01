@@ -131,6 +131,16 @@ func (m *nodeCacherMock) Get(ID string) (NodeMini, bool) {
 	return args.Get(0).(NodeMini), args.Bool(1)
 }
 
+func (m *nodeCacherMock) IsNewOrUpdated(n NodeMini) bool {
+	args := m.Called(n)
+	return args.Bool(0)
+}
+
+func (m *nodeCacherMock) Keys() map[string]struct{} {
+	args := m.Called()
+	return args.Get(0).(map[string]struct{})
+}
+
 type notifyDistributorMock struct {
 	mock.Mock
 }
@@ -152,5 +162,13 @@ type swarmServicePollingMock struct {
 }
 
 func (m *swarmServicePollingMock) Run(eventChan chan<- Event) {
+	m.Called(eventChan)
+}
+
+type nodePollingMock struct {
+	mock.Mock
+}
+
+func (m *nodePollingMock) Run(eventChan chan<- Event) {
 	m.Called(eventChan)
 }
