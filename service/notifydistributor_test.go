@@ -304,8 +304,8 @@ func (s *NotifyDistributorTestSuite) Test_RunDistributesNotificationsToEndpoints
 		},
 	}
 
-	notifyD := newNotifyDistributor(endpoints, NewCancelManager(true),
-		NewCancelManager(true), 1, s.log)
+	notifyD := newNotifyDistributor(endpoints, NewCancelManager(),
+		NewCancelManager(), 1, s.log)
 	serviceChan := make(chan Notification)
 
 	notifyD.Run(serviceChan, nil)
@@ -379,8 +379,8 @@ func (s *NotifyDistributorTestSuite) Test_RunDistributesNotificationsToEndpoints
 		},
 	}
 
-	notifyD := newNotifyDistributor(endpoints, NewCancelManager(true),
-		NewCancelManager(true), 1, s.log)
+	notifyD := newNotifyDistributor(endpoints, NewCancelManager(),
+		NewCancelManager(), 1, s.log)
 	nodeChan := make(chan Notification)
 
 	notifyD.Run(nil, nodeChan)

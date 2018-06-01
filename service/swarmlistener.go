@@ -22,41 +22,6 @@ type SwarmListening interface {
 	GetNodesParameters(ctx context.Context) ([]map[string]string, error)
 }
 
-// CreateRemoveCancelManager combines two cancel managers for creating and
-// removing services
-type CreateRemoveCancelManager struct {
-	createCancelManager CancelManaging
-	removeCancelManager CancelManaging
-	mux                 sync.RWMutex
-}
-
-// AddEvent controls canceling for creating and removing services
-// A create event will cancel delete events with the same ID
-// A remove event will cancel create events with the same ID
-func (c *CreateRemoveCancelManager) AddEvent(event Event) context.Context {
-	c.mux.Lock()
-	defer c.mux.Unlock()
-	if event.Type == EventTypeCreate {
-		c.removeCancelManager.ForceDelete(event.ID)
-		return c.createCancelManager.Add(context.Background(), event.ID, event.TimeNano)
-	}
-	// EventTypeRemove
-	c.createCancelManager.ForceDelete(event.ID)
-	return c.removeCancelManager.Add(context.Background(), event.ID, event.TimeNano)
-}
-
-// RemoveEvent removes and cancels event from its corresponding
-// cancel manager
-func (c *CreateRemoveCancelManager) RemoveEvent(event Event) bool {
-	c.mux.Lock()
-	defer c.mux.Unlock()
-	if event.Type == EventTypeCreate {
-		return c.createCancelManager.Delete(event.ID, event.TimeNano)
-	}
-	// EventTypeRemove
-	return c.removeCancelManager.Delete(event.ID, event.TimeNano)
-}
-
 // SwarmListener provides public api
 type SwarmListener struct {
 	SSListener SwarmServiceListening
@@ -75,13 +40,13 @@ type SwarmListener struct {
 
 	NotifyDistributor NotifyDistributing
 
-	ServiceCreateRemoveCancelManager *CreateRemoveCancelManager
-	NodeCreateRemoveCancelManager    *CreateRemoveCancelManager
-	IncludeNodeInfo                  bool
-	UseDockerServiceEvents           bool
-	IgnoreKey                        string
-	IncludeKey                       string
-	Log                              *log.Logger
+	ServiceCancelManager   CancelManaging
+	NodeCancelManager      CancelManaging
+	IncludeNodeInfo        bool
+	UseDockerServiceEvents bool
+	IgnoreKey              string
+	IncludeKey             string
+	Log                    *log.Logger
 }
 
 func newSwarmListener(
@@ -100,10 +65,8 @@ func newSwarmListener(
 
 	notifyDistributor NotifyDistributing,
 
-	serviceCreateCancelManager CancelManaging,
-	serviceRemoveCancelManager CancelManaging,
-	nodeCreateCancelManager CancelManaging,
-	nodeRemoveCancelManager CancelManaging,
+	serviceCancelManager CancelManaging,
+	nodeCancelManager CancelManaging,
 	includeNodeInfo bool,
 	useDockerServiceEvents bool,
 	ignoreKey string,
@@ -112,24 +75,20 @@ func newSwarmListener(
 ) *SwarmListener {
 
 	return &SwarmListener{
-		SSListener:           ssListener,
-		SSClient:             ssClient,
-		SSCache:              ssCache,
-		SSPoller:             ssPoller,
-		SSEventChan:          ssEventChan,
-		SSNotificationChan:   ssNotificationChan,
-		NodeListener:         nodeListener,
-		NodeClient:           nodeClient,
-		NodeCache:            nodeCache,
-		NodeEventChan:        nodeEventChan,
-		NodeNotificationChan: nodeNotificationChan,
-		NotifyDistributor:    notifyDistributor,
-		ServiceCreateRemoveCancelManager: &CreateRemoveCancelManager{
-			createCancelManager: serviceCreateCancelManager,
-			removeCancelManager: serviceRemoveCancelManager},
-		NodeCreateRemoveCancelManager: &CreateRemoveCancelManager{
-			createCancelManager: nodeCreateCancelManager,
-			removeCancelManager: nodeRemoveCancelManager},
+		SSListener:             ssListener,
+		SSClient:               ssClient,
+		SSCache:                ssCache,
+		SSPoller:               ssPoller,
+		SSEventChan:            ssEventChan,
+		SSNotificationChan:     ssNotificationChan,
+		NodeListener:           nodeListener,
+		NodeClient:             nodeClient,
+		NodeCache:              nodeCache,
+		NodeEventChan:          nodeEventChan,
+		NodeNotificationChan:   nodeNotificationChan,
+		NotifyDistributor:      notifyDistributor,
+		ServiceCancelManager:   serviceCancelManager,
+		NodeCancelManager:      nodeCancelManager,
 		IncludeNodeInfo:        includeNodeInfo,
 		UseDockerServiceEvents: useDockerServiceEvents,
 		IgnoreKey:              ignoreKey,
@@ -204,10 +163,8 @@ func NewSwarmListenerFromEnv(
 		nodeEventChan,
 		nodeNotificationChan,
 		notifyDistributor,
-		NewCancelManager(true),
-		NewCancelManager(true),
-		NewCancelManager(true),
-		NewCancelManager(true),
+		NewCancelManager(),
+		NewCancelManager(),
 		includeNodeInfo,
 		useDockerServiceEvents,
 		ignoreKey,
@@ -253,8 +210,8 @@ func (l *SwarmListener) connectServiceChannels() {
 }
 
 func (l *SwarmListener) processServiceEventCreate(event Event) {
-	ctx := l.ServiceCreateRemoveCancelManager.AddEvent(event)
-	defer l.ServiceCreateRemoveCancelManager.RemoveEvent(event)
+	ctx := l.ServiceCancelManager.Add(context.Background(), event.ID, event.TimeNano)
+	defer l.ServiceCancelManager.Delete(event.ID, event.TimeNano)
 
 	errChan := make(chan error)
 
@@ -303,8 +260,8 @@ func (l *SwarmListener) processServiceEventCreate(event Event) {
 }
 
 func (l *SwarmListener) processServiceEventRemove(event Event) {
-	ctx := l.ServiceCreateRemoveCancelManager.AddEvent(event)
-	defer l.ServiceCreateRemoveCancelManager.RemoveEvent(event)
+	ctx := l.ServiceCancelManager.Add(context.Background(), event.ID, event.TimeNano)
+	defer l.ServiceCancelManager.Delete(event.ID, event.TimeNano)
 
 	errChan := make(chan error)
 
@@ -353,8 +310,8 @@ func (l *SwarmListener) connectNodeChannels() {
 }
 
 func (l *SwarmListener) processNodeEventCreate(event Event) {
-	ctx := l.NodeCreateRemoveCancelManager.AddEvent(event)
-	defer l.NodeCreateRemoveCancelManager.RemoveEvent(event)
+	ctx := l.NodeCancelManager.Add(context.Background(), event.ID, event.TimeNano)
+	defer l.NodeCancelManager.Delete(event.ID, event.TimeNano)
 
 	errChan := make(chan error)
 
@@ -398,8 +355,8 @@ func (l *SwarmListener) processNodeEventCreate(event Event) {
 }
 
 func (l *SwarmListener) processNodeEventRemove(event Event) {
-	ctx := l.NodeCreateRemoveCancelManager.AddEvent(event)
-	defer l.NodeCreateRemoveCancelManager.RemoveEvent(event)
+	ctx := l.NodeCancelManager.Add(context.Background(), event.ID, event.TimeNano)
+	defer l.NodeCancelManager.Delete(event.ID, event.TimeNano)
 
 	errChan := make(chan error)
 	go func() {

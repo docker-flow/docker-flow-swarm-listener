@@ -9,7 +9,6 @@ import (
 type CancelManaging interface {
 	Add(rootCtx context.Context, id string, reqID int64) context.Context
 	Delete(id string, reqID int64) bool
-	ForceDelete(id string) bool
 }
 
 type cancelPair struct {
@@ -19,28 +18,26 @@ type cancelPair struct {
 
 // CancelManager implements the `CancelManaging` interface that is thread safe
 type CancelManager struct {
-	v                  map[string]cancelPair
-	mux                sync.Mutex
-	cancelBeforeAdding bool
+	v   map[string]cancelPair
+	mux sync.Mutex
 }
 
 // NewCancelManager creates a new `CancelManager`
-func NewCancelManager(cancelBeforeAdding bool) *CancelManager {
+func NewCancelManager() *CancelManager {
 	return &CancelManager{
-		v:                  map[string]cancelPair{},
-		mux:                sync.Mutex{},
-		cancelBeforeAdding: cancelBeforeAdding,
+		v:   map[string]cancelPair{},
+		mux: sync.Mutex{},
 	}
 }
 
 // Add creates an context for `id` and `reqID` and returns that context.
-// If `id` exists in memory and cancelBeforeAdding is true, the task with that `id` will be canceled.
+// If `id` exists in memory, the task with that `id` will be canceled.
 func (m *CancelManager) Add(rootCtx context.Context, id string, reqID int64) context.Context {
 	m.mux.Lock()
 	defer m.mux.Unlock()
 
 	pair, ok := m.v[id]
-	if m.cancelBeforeAdding && ok {
+	if ok {
 		pair.Cancel()
 		delete(m.v, id)
 	}
@@ -64,22 +61,6 @@ func (m *CancelManager) Delete(id string, reqID int64) bool {
 	pair, ok := m.v[id]
 
 	if !ok || pair.ReqID != reqID {
-		return false
-	}
-
-	pair.Cancel()
-	delete(m.v, id)
-	return true
-}
-
-// ForceDelete deletes an id without looking at the `reqID` and count
-func (m *CancelManager) ForceDelete(id string) bool {
-	m.mux.Lock()
-	defer m.mux.Unlock()
-
-	pair, ok := m.v[id]
-
-	if !ok {
 		return false
 	}
 
