@@ -128,6 +128,9 @@ func NewSwarmListenerFromEnv(
 	if err != nil {
 		return nil, err
 	}
+
+	logger.Printf("Using Docker Client API version: %s", dockerClient.ClientVersion())
+
 	notifyDistributor := NewNotifyDistributorFromEnv(retries, interval, logger)
 
 	var ssListener *SwarmServiceListener
