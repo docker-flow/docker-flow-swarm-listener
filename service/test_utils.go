@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"os/exec"
 	"strings"
@@ -23,7 +24,12 @@ func destroyNode(name string) {
 func newTestNodeDockerClient(nodeName string) (*client.Client, error) {
 	host := fmt.Sprintf("tcp://%s:2375", nodeName)
 	defaultHeaders := map[string]string{"User-Agent": "engine-api-cli-1.0"}
-	return client.NewClient(host, dockerAPIVersion, nil, defaultHeaders)
+	cli, err := client.NewClient(host, dockerAPIVersion, nil, defaultHeaders)
+	if err != nil {
+		return cli, err
+	}
+	cli.NegotiateAPIVersion(context.Background())
+	return cli, err
 }
 
 func getWorkerToken(nodeName string) string {
