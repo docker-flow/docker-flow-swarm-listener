@@ -134,20 +134,20 @@ func NewSwarmListenerFromEnv(
 	notifyDistributor := NewNotifyDistributorFromEnv(retries, interval, logger)
 
 	var ssListener *SwarmServiceListener
-	var ssClient *SwarmServiceClient
 	var ssCache *SwarmServiceCache
 	var ssEventChan chan Event
 	var ssNotificationChan chan Notification
 
 	var nodeListener *NodeListener
-	var nodeClient *NodeClient
 	var nodeCache *NodeCache
 	var nodeEventChan chan Event
 	var nodeNotificationChan chan Notification
 
+	ssClient := NewSwarmServiceClient(dockerClient, ignoreKey, "com.df.scrapeNetwork", logger)
+	nodeClient := NewNodeClient(dockerClient)
+
 	if notifyDistributor.HasServiceListeners() {
 		ssListener = NewSwarmServiceListener(dockerClient, logger)
-		ssClient = NewSwarmServiceClient(dockerClient, ignoreKey, "com.df.scrapeNetwork", logger)
 		ssCache = NewSwarmServiceCache()
 		ssEventChan = make(chan Event)
 		ssNotificationChan = make(chan Notification)
@@ -155,11 +155,11 @@ func NewSwarmListenerFromEnv(
 
 	if notifyDistributor.HasNodeListeners() {
 		nodeListener = NewNodeListener(dockerClient, logger)
-		nodeClient = NewNodeClient(dockerClient)
 		nodeCache = NewNodeCache()
 		nodeEventChan = make(chan Event)
 		nodeNotificationChan = make(chan Notification)
 	}
+
 	ssPoller := NewSwarmServicePoller(
 		ssClient, ssCache, servicePollingInterval, includeNodeInfo,
 		func(ss SwarmService) SwarmServiceMini {
