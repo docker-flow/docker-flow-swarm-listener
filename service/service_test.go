@@ -26,14 +26,6 @@ func TestSwarmServiceClientTestSuite(t *testing.T) {
 }
 
 func (s *SwarmServiceClientTestSuite) SetupSuite() {
-	c, err := NewDockerClientFromEnv()
-	s.Require().NoError(err)
-
-	s.LogBytes = new(bytes.Buffer)
-	s.Logger = log.New(s.LogBytes, "", 0)
-
-	s.SClient = NewSwarmServiceClient(c, "com.df.notify=true", "com.df.scrapeNetwork", s.Logger)
-
 	createTestOverlayNetwork("util-network")
 	createTestService("util-1", []string{"com.df.notify=true", "com.df.scrapeNetwork=util-network"}, false, "", "util-network")
 	createTestService("util-2", []string{}, false, "", "util-network")
@@ -58,6 +50,16 @@ func (s *SwarmServiceClientTestSuite) SetupSuite() {
 	s.Util4ID = ID4
 }
 
+func (s *SwarmServiceClientTestSuite) SetupTest() {
+	c, err := NewDockerClientFromEnv()
+	s.Require().NoError(err)
+
+	s.LogBytes = new(bytes.Buffer)
+	s.Logger = log.New(s.LogBytes, "", 0)
+
+	s.SClient = NewSwarmServiceClient(c, "com.df.notify=true", "com.df.scrapeNetwork", "", s.Logger)
+}
+
 func (s *SwarmServiceClientTestSuite) TearDownSuite() {
 	removeTestService("util-1")
 	removeTestService("util-2")
@@ -74,6 +76,17 @@ func (s *SwarmServiceClientTestSuite) Test_SwarmServiceInspect_NodeInfo_Undefine
 
 	s.Equal(s.Util3ID, util3Service.ID)
 	s.Nil(util3Service.NodeInfo)
+}
+func (s *SwarmServiceClientTestSuite) Test_SwarmServiceInspect_With_Service_Name_Prefix() {
+	s.SClient.ServiceNamePrefix = "dev1"
+
+	util1Service, err := s.SClient.SwarmServiceInspect(context.Background(), s.Util1ID, false)
+	s.Require().NoError(err)
+	s.Require().NotNil(util1Service)
+
+	s.Equal(s.Util1ID, util1Service.ID)
+	s.Require().Nil(util1Service.NodeInfo)
+	s.Equal("dev1_util-1", util1Service.Spec.Name)
 }
 
 func (s *SwarmServiceClientTestSuite) Test_ServiceList_Filtered() {
@@ -127,5 +140,16 @@ func (s *SwarmServiceClientTestSuite) Test_SwarmServiceList_GetNodeInfo() {
 		} else {
 			s.Nil(nodeInfo)
 		}
+	}
+}
+func (s *SwarmServiceClientTestSuite) Test_SwarmServiceList_ServiceNamePrefix() {
+	s.SClient.ServiceNamePrefix = "dev1"
+	services, err := s.SClient.SwarmServiceList(context.Background())
+	s.Require().NoError(err)
+	s.Len(services, 3)
+
+	expectedNames := []string{"dev1_util-1", "dev1_util-3", "dev1_util-4"}
+	for _, ss := range services {
+		s.Contains(expectedNames, ss.Spec.Name)
 	}
 }

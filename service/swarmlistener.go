@@ -123,6 +123,7 @@ func NewSwarmListenerFromEnv(
 	if err != nil {
 		useDockerNodeEvents = false
 	}
+	serviceNamePrefix := os.Getenv("DF_SERVICE_NAME_PREFIX")
 
 	dockerClient, err := NewDockerClientFromEnv()
 	if err != nil {
@@ -143,7 +144,8 @@ func NewSwarmListenerFromEnv(
 	var nodeEventChan chan Event
 	var nodeNotificationChan chan Notification
 
-	ssClient := NewSwarmServiceClient(dockerClient, ignoreKey, "com.df.scrapeNetwork", logger)
+	ssClient := NewSwarmServiceClient(
+		dockerClient, ignoreKey, "com.df.scrapeNetwork", serviceNamePrefix, logger)
 	nodeClient := NewNodeClient(dockerClient)
 
 	if notifyDistributor.HasServiceListeners() {

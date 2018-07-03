@@ -21,21 +21,24 @@ type SwarmServiceInspector interface {
 
 // SwarmServiceClient implements `SwarmServiceInspector` for docker
 type SwarmServiceClient struct {
-	DockerClient   *client.Client
-	FilterLabel    string
-	FilterKey      string
-	ScrapeNetLabel string
-	Log            *log.Logger
+	DockerClient      *client.Client
+	FilterLabel       string
+	FilterKey         string
+	ScrapeNetLabel    string
+	ServiceNamePrefix string
+	Log               *log.Logger
 }
 
 // NewSwarmServiceClient creates a `SwarmServiceClient`
-func NewSwarmServiceClient(c *client.Client, filterLabel, scrapNetLabel string, logger *log.Logger) *SwarmServiceClient {
+func NewSwarmServiceClient(
+	c *client.Client, filterLabel, scrapNetLabel string, serviceNamePrefix string, logger *log.Logger) *SwarmServiceClient {
 	key := strings.SplitN(filterLabel, "=", 2)[0]
 	return &SwarmServiceClient{DockerClient: c,
-		FilterLabel:    filterLabel,
-		FilterKey:      key,
-		ScrapeNetLabel: scrapNetLabel,
-		Log:            logger,
+		FilterLabel:       filterLabel,
+		FilterKey:         key,
+		ScrapeNetLabel:    scrapNetLabel,
+		ServiceNamePrefix: serviceNamePrefix,
+		Log:               logger,
 	}
 }
 
@@ -51,6 +54,10 @@ func (c SwarmServiceClient) SwarmServiceInspect(ctx context.Context, serviceID s
 	// Check if service has label
 	if _, ok := service.Spec.Labels[c.FilterKey]; !ok {
 		return nil, nil
+	}
+
+	if len(c.ServiceNamePrefix) > 0 {
+		service.Spec.Name = fmt.Sprintf("%s_%s", c.ServiceNamePrefix, service.Spec.Name)
 	}
 
 	ss := SwarmService{service, nil}
@@ -78,6 +85,9 @@ func (c SwarmServiceClient) SwarmServiceList(ctx context.Context) ([]SwarmServic
 	}
 	swarmServices := []SwarmService{}
 	for _, s := range services {
+		if len(c.ServiceNamePrefix) > 0 {
+			s.Spec.Name = fmt.Sprintf("%s_%s", c.ServiceNamePrefix, s.Spec.Name)
+		}
 		ss := SwarmService{s, nil}
 		swarmServices = append(swarmServices, ss)
 	}
