@@ -77,6 +77,44 @@ func (s *NotifierTestSuite) Test_Create_SendsRequests() {
 	s.Contains(logMsgs, fmt.Sprintf("Sending service created notification to %s", urlObj1.String()))
 }
 
+func (s *NotifierTestSuite) Test_Create_SendsRequestsWithParams() {
+
+	var query1 string
+	httpSrv := httptest.NewServer(http.HandlerFunc(func(
+		w http.ResponseWriter, r *http.Request) {
+		if r.Method == "GET" {
+			switch r.URL.Path {
+			case "/v1/docker-flow-proxy/reconfigure":
+				w.WriteHeader(http.StatusOK)
+				w.Header().Set("Content-Type", "application/json")
+				query1 = r.URL.Query().Encode()
+			default:
+				w.WriteHeader(http.StatusNotFound)
+			}
+		}
+	}))
+	defer httpSrv.Close()
+
+	url1 := fmt.Sprintf("%s/v1/docker-flow-proxy/reconfigure?hello=world", httpSrv.URL)
+
+	n := NewNotifier(url1, "", "service", 5, 1, s.Logger)
+	s.Equal(url1, n.GetCreateAddr())
+	err := n.Create(context.Background(), s.Params)
+	s.Require().NoError(err)
+
+	newParams := "hello=world&serviceName=hello"
+
+	s.Equal(newParams, query1)
+
+	urlObj1, err := url.Parse(url1)
+	s.Require().NoError(err)
+
+	urlObj1.RawQuery = newParams
+
+	logMsgs := s.LogBytes.String()
+	s.Contains(logMsgs, fmt.Sprintf("Sending service created notification to %s", urlObj1.String()))
+}
+
 func (s *NotifierTestSuite) Test_Create_ReturnsAndLogsError_WhenUrlCannotBeParsed() {
 	n := NewNotifier("%%%", "", "service", 5, 1, s.Logger)
 	err := n.Create(context.Background(), s.Params)

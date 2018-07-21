@@ -65,7 +65,41 @@ func (s *NotifyDistributorTestSuite) Test_NewNotifyDistributorFromStrings() {
 
 	s.True(notifyD.HasServiceListeners())
 	s.True(notifyD.HasNodeListeners())
+}
 
+func (s *NotifyDistributorTestSuite) Test_NewNotifyDistributorFromStringsWithParameters() {
+	notifyD := newNotifyDistributorfromStrings(
+		"http://host1:8080/recofigureservice?hello=world,http://host2:8080/recofigureservice",
+		"http://host1:8080/removeservice,http://host2:8080/removeservice",
+		"http://host1:8080/reconfigurenode?dog=cat&bear=fox",
+		"http://host2:8080/removenode?service=aws",
+		5, 10, s.log)
+
+	s.Len(notifyD.NotifyEndpoints, 2)
+	host1EP, ok := notifyD.NotifyEndpoints["host1:8080"]
+
+	s.Require().True(ok)
+
+	s.AssertEndpoints(
+		host1EP,
+		"http://host1:8080/recofigureservice?hello=world",
+		"http://host1:8080/removeservice",
+		"http://host1:8080/reconfigurenode?dog=cat&bear=fox",
+		"",
+	)
+
+	host2EP, ok := notifyD.NotifyEndpoints["host2:8080"]
+	s.Require().True(ok)
+	s.AssertEndpoints(
+		host2EP,
+		"http://host2:8080/recofigureservice",
+		"http://host2:8080/removeservice",
+		"",
+		"http://host2:8080/removenode?service=aws",
+	)
+
+	s.True(notifyD.HasServiceListeners())
+	s.True(notifyD.HasNodeListeners())
 }
 func (s *NotifyDistributorTestSuite) Test_NewNotifyDistributorFromStrings_SeparateListeners() {
 	notifyD := newNotifyDistributorfromStrings(

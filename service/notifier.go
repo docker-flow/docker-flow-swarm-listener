@@ -74,7 +74,15 @@ func (n Notifier) Create(ctx context.Context, params string) error {
 		metrics.RecordError(n.createErrorMetric)
 		return err
 	}
-	urlObj.RawQuery = params
+
+	if len(params) > 0 {
+		if currentParams := urlObj.Query().Encode(); len(currentParams) > 0 {
+			newParams := fmt.Sprintf("%s&%s", currentParams, params)
+			urlObj.RawQuery = newParams
+		} else {
+			urlObj.RawQuery = params
+		}
+	}
 	fullURL := urlObj.String()
 	req, err := http.NewRequest(http.MethodGet, fullURL, nil)
 	if err != nil {
