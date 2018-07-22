@@ -27,7 +27,9 @@ type NotificationSender interface {
 // Notifier implements `NotificationSender`
 type Notifier struct {
 	createAddr        string
+	createHTTPMethod  string
 	removeAddr        string
+	removeHTTPMethod  string
 	notifyType        string
 	retries           int
 	interval          int
@@ -38,11 +40,14 @@ type Notifier struct {
 
 // NewNotifier returns a `Notifier`
 func NewNotifier(
-	createAddr, removeAddr, notifyType string,
+	createAddr, removeAddr, createHTTPMethod,
+	removeHTTPMethod, notifyType string,
 	retries int, interval int, logger *log.Logger) *Notifier {
 	return &Notifier{
 		createAddr:        createAddr,
+		createHTTPMethod:  createHTTPMethod,
 		removeAddr:        removeAddr,
+		removeHTTPMethod:  removeHTTPMethod,
 		notifyType:        notifyType,
 		retries:           retries,
 		interval:          interval,
@@ -83,8 +88,9 @@ func (n Notifier) Create(ctx context.Context, params string) error {
 			urlObj.RawQuery = params
 		}
 	}
+
 	fullURL := urlObj.String()
-	req, err := http.NewRequest(http.MethodGet, fullURL, nil)
+	req, err := http.NewRequest(n.createHTTPMethod, fullURL, nil)
 	if err != nil {
 		n.log.Printf("ERROR: Incorrect fullURL: %s", fullURL)
 		metrics.RecordError(n.createErrorMetric)
@@ -163,7 +169,7 @@ func (n Notifier) Remove(ctx context.Context, params string) error {
 	}
 	urlObj.RawQuery = params
 	fullURL := urlObj.String()
-	req, err := http.NewRequest(http.MethodGet, fullURL, nil)
+	req, err := http.NewRequest(n.removeHTTPMethod, fullURL, nil)
 	if err != nil {
 		n.log.Printf("ERROR: Incorrect fullURL: %s", fullURL)
 		metrics.RecordError(n.removeErrorMetric)

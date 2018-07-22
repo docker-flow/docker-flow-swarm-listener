@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"log"
+	"net/http"
 	"net/url"
 	"os"
 	"strings"
@@ -60,13 +61,24 @@ func newNotifyDistributor(notifyEndpoints map[string]NotifyEndpoint,
 	}
 }
 
-func newNotifyDistributorfromStrings(serviceCreateAddrs, serviceRemoveAddrs, nodeCreateAddrs, nodeRemoveAddrs string, retries, interval int, logger *log.Logger) *NotifyDistributor {
+func newNotifyDistributorfromStrings(
+	serviceCreateAddrs, serviceRemoveAddrs, nodeCreateAddrs, nodeRemoveAddrs,
+	serviceCreateMethods, serviceRemoveMethods string,
+	retries, interval int, logger *log.Logger) *NotifyDistributor {
 	tempNotifyEP := map[string]map[string]string{}
 
-	insertAddrStringIntoMap(tempNotifyEP, "createService", serviceCreateAddrs)
-	insertAddrStringIntoMap(tempNotifyEP, "removeService", serviceRemoveAddrs)
-	insertAddrStringIntoMap(tempNotifyEP, "createNode", nodeCreateAddrs)
-	insertAddrStringIntoMap(tempNotifyEP, "removeNode", nodeRemoveAddrs)
+	insertAddrStringIntoMap(
+		tempNotifyEP, "createService", serviceCreateAddrs,
+		"createServiceMethod", serviceCreateMethods)
+	insertAddrStringIntoMap(
+		tempNotifyEP, "removeService", serviceRemoveAddrs,
+		"removeServiceMethod", serviceRemoveMethods)
+	insertAddrStringIntoMap(
+		tempNotifyEP, "createNode", nodeCreateAddrs,
+		"createNodeMethod", http.MethodGet)
+	insertAddrStringIntoMap(
+		tempNotifyEP, "removeNode", nodeRemoveAddrs,
+		"removeNodeMethod", http.MethodGet)
 
 	notifyEndpoints := map[string]NotifyEndpoint{}
 
@@ -76,6 +88,8 @@ func newNotifyDistributorfromStrings(serviceCreateAddrs, serviceRemoveAddrs, nod
 			ep.ServiceNotifier = NewNotifier(
 				addrMap["createService"],
 				addrMap["removeService"],
+				addrMap["createServiceMethod"],
+				addrMap["removeServiceMethod"],
 				"service",
 				retries,
 				interval,
@@ -86,6 +100,8 @@ func newNotifyDistributorfromStrings(serviceCreateAddrs, serviceRemoveAddrs, nod
 			ep.NodeNotifier = NewNotifier(
 				addrMap["createNode"],
 				addrMap["removeNode"],
+				addrMap["createNodeMethod"],
+				addrMap["removeNodeMethod"],
 				"node",
 				retries,
 				interval,
@@ -105,8 +121,14 @@ func newNotifyDistributorfromStrings(serviceCreateAddrs, serviceRemoveAddrs, nod
 		logger)
 }
 
-func insertAddrStringIntoMap(tempEP map[string]map[string]string, key, addrs string) {
-	for _, v := range strings.Split(addrs, ",") {
+func insertAddrStringIntoMap(
+	tempEP map[string]map[string]string, key, addrs, methodsKey, methods string) {
+
+	addrsList := strings.Split(addrs, ",")
+	methodsList := strings.Split(methods, ",")
+	maxMethodsIdx := len(methodsList) - 1
+
+	for addrsIdx, v := range addrsList {
 		urlObj, err := url.Parse(v)
 		if err != nil {
 			continue
@@ -119,6 +141,12 @@ func insertAddrStringIntoMap(tempEP map[string]map[string]string, key, addrs str
 			tempEP[host] = map[string]string{}
 		}
 		tempEP[host][key] = v
+
+		if addrsIdx <= maxMethodsIdx {
+			tempEP[host][methodsKey] = methodsList[addrsIdx]
+		} else {
+			tempEP[host][methodsKey] = methodsList[maxMethodsIdx]
+		}
 	}
 }
 
@@ -142,8 +170,19 @@ func NewNotifyDistributorFromEnv(retries, interval int, logger *log.Logger) *Not
 	createNodeAddr := os.Getenv("DF_NOTIFY_CREATE_NODE_URL")
 	removeNodeAddr := os.Getenv("DF_NOTIFY_REMOVE_NODE_URL")
 
+	createServiceMethods := strings.ToUpper(os.Getenv("DF_NOTIFY_CREATE_SERVICE_METHOD"))
+	removeServiceMethods := strings.ToUpper(os.Getenv("DF_NOTIFY_REMOVE_SERVICE_METHOD"))
+
+	if len(createServiceMethods) == 0 {
+		createServiceMethods = http.MethodGet
+	}
+	if len(removeServiceMethods) == 0 {
+		removeServiceMethods = http.MethodGet
+	}
+
 	return newNotifyDistributorfromStrings(
-		createServiceAddr, removeServiceAddr, createNodeAddr, removeNodeAddr, retries, interval, logger)
+		createServiceAddr, removeServiceAddr, createNodeAddr, removeNodeAddr,
+		createServiceMethods, removeServiceMethods, retries, interval, logger)
 
 }
 

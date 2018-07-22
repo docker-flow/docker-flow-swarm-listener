@@ -15,7 +15,9 @@ ENV DF_DOCKER_HOST="unix:///var/run/docker.sock" \
     DF_USE_DOCKER_SERVICE_EVENTS="true" \
     DF_NODE_POLLING_INTERVAL="-1" \
     DF_USE_DOCKER_NODE_EVENTS="true" \
-    SERVICE_NAME_PREFIX=""
+    SERVICE_NAME_PREFIX="" \
+    DF_NOTIFY_CREATE_SERVICE_METHOD="GET" \
+    DF_NOTIFY_REMOVE_SERVICE_METHOD="GET"
 
 COPY docker-flow-swarm-listener_linux_arm /usr/local/bin/docker-flow-swarm-listener
 RUN chmod +x /usr/local/bin/docker-flow-swarm-listener

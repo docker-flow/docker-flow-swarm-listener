@@ -44,9 +44,10 @@ func (s *NotifierTestSuite) TearDownTest() {
 func (s *NotifierTestSuite) Test_Create_SendsRequests() {
 
 	var query1 string
+	createMethod := http.MethodPost
 	httpSrv := httptest.NewServer(http.HandlerFunc(func(
 		w http.ResponseWriter, r *http.Request) {
-		if r.Method == "GET" {
+		if r.Method == createMethod {
 			switch r.URL.Path {
 			case "/v1/docker-flow-proxy/reconfigure":
 				w.WriteHeader(http.StatusOK)
@@ -61,7 +62,9 @@ func (s *NotifierTestSuite) Test_Create_SendsRequests() {
 
 	url1 := fmt.Sprintf("%s/v1/docker-flow-proxy/reconfigure", httpSrv.URL)
 
-	n := NewNotifier(url1, "", "service", 5, 1, s.Logger)
+	n := NewNotifier(
+		url1, "", createMethod, http.MethodGet,
+		"service", 5, 1, s.Logger)
 	s.Equal(url1, n.GetCreateAddr())
 	err := n.Create(context.Background(), s.Params)
 	s.Require().NoError(err)
@@ -97,7 +100,8 @@ func (s *NotifierTestSuite) Test_Create_SendsRequestsWithParams() {
 
 	url1 := fmt.Sprintf("%s/v1/docker-flow-proxy/reconfigure?hello=world", httpSrv.URL)
 
-	n := NewNotifier(url1, "", "service", 5, 1, s.Logger)
+	n := NewNotifier(url1, "", http.MethodGet,
+		http.MethodGet, "service", 5, 1, s.Logger)
 	s.Equal(url1, n.GetCreateAddr())
 	err := n.Create(context.Background(), s.Params)
 	s.Require().NoError(err)
@@ -116,7 +120,8 @@ func (s *NotifierTestSuite) Test_Create_SendsRequestsWithParams() {
 }
 
 func (s *NotifierTestSuite) Test_Create_ReturnsAndLogsError_WhenUrlCannotBeParsed() {
-	n := NewNotifier("%%%", "", "service", 5, 1, s.Logger)
+	n := NewNotifier("%%%", "", http.MethodGet,
+		http.MethodGet, "service", 5, 1, s.Logger)
 	err := n.Create(context.Background(), s.Params)
 	s.Error(err)
 
@@ -131,7 +136,8 @@ func (s *NotifierTestSuite) Test_Create_ReturnsAndLogsError_WhenHttpStatusIsNot2
 	}))
 
 	n := NewNotifier(
-		httpSrv.URL, "", "node", 1, 0, s.Logger)
+		httpSrv.URL, "", http.MethodGet,
+		http.MethodGet, "node", 1, 0, s.Logger)
 	err := n.Create(context.Background(), s.Params)
 	s.Error(err)
 
@@ -146,14 +152,16 @@ func (s *NotifierTestSuite) Test_Create_ReturnsNoError_WhenHttpStatusIs409() {
 	}))
 
 	n := NewNotifier(
-		httpSrv.URL, "", "node", 1, 0, s.Logger)
+		httpSrv.URL, "", http.MethodGet,
+		http.MethodGet, "node", 1, 0, s.Logger)
 	err := n.Create(context.Background(), s.Params)
 	s.Require().NoError(err)
 }
 
 func (s *NotifierTestSuite) Test_Create_ReturnsAndLogsError_WhenHttpRequestErrors() {
 	n := NewNotifier(
-		"this-does-not-exist", "", "node", 2, 1, s.Logger)
+		"this-does-not-exist", "", http.MethodGet,
+		http.MethodGet, "node", 2, 1, s.Logger)
 
 	err := n.Create(context.Background(), s.Params)
 	s.Require().Error(err)
@@ -175,7 +183,8 @@ func (s *NotifierTestSuite) Test_Create_RetriesRequests() {
 	}))
 
 	n := NewNotifier(
-		httpSrv.URL, "", "service", 2, 1, s.Logger)
+		httpSrv.URL, "", http.MethodGet,
+		http.MethodGet, "service", 2, 1, s.Logger)
 	n.Create(context.Background(), s.Params)
 
 	s.Equal(2, attempt)
@@ -190,7 +199,8 @@ func (s *NotifierTestSuite) Test_Create_Cancels() {
 		w.WriteHeader(http.StatusNotFound)
 	}))
 	n := NewNotifier(
-		httpSrv.URL, "", "service", 2, 1, s.Logger)
+		httpSrv.URL, "", http.MethodGet,
+		http.MethodGet, "service", 2, 1, s.Logger)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
@@ -205,10 +215,11 @@ func (s *NotifierTestSuite) Test_Create_Cancels() {
 
 func (s *NotifierTestSuite) Test_Remove_SendsRequests() {
 	var query1 string
+	removeMethod := http.MethodDelete
 
 	httpSrv := httptest.NewServer(http.HandlerFunc(func(
 		w http.ResponseWriter, r *http.Request) {
-		if r.Method == "GET" {
+		if r.Method == removeMethod {
 			switch r.URL.Path {
 			case "/v1/docker-flow-proxy/remove":
 				w.WriteHeader(http.StatusOK)
@@ -223,7 +234,8 @@ func (s *NotifierTestSuite) Test_Remove_SendsRequests() {
 
 	url1 := fmt.Sprintf("%s/v1/docker-flow-proxy/remove", httpSrv.URL)
 
-	n := NewNotifier("", url1, "node", 5, 1, s.Logger)
+	n := NewNotifier("", url1, http.MethodGet,
+		removeMethod, "node", 5, 1, s.Logger)
 	s.Equal(url1, n.GetRemoveAddr())
 	err := n.Remove(context.Background(), s.Params)
 	s.Require().NoError(err)
@@ -240,7 +252,8 @@ func (s *NotifierTestSuite) Test_Remove_SendsRequests() {
 }
 
 func (s *NotifierTestSuite) Test_Remove_ReturnsAndLogsError_WhenUrlCannotBeParsed() {
-	n := NewNotifier("", "%%%", "node", 5, 1, s.Logger)
+	n := NewNotifier("", "%%%", http.MethodGet,
+		http.MethodGet, "node", 5, 1, s.Logger)
 	err := n.Remove(context.Background(), s.Params)
 	s.Error(err)
 
@@ -255,7 +268,8 @@ func (s *NotifierTestSuite) Test_Remove_ReturnsAndLogsError_WhenHttpStatusIsNot2
 	}))
 
 	n := NewNotifier(
-		"", httpSrv.URL, "service", 1, 0, s.Logger)
+		"", httpSrv.URL, http.MethodGet,
+		http.MethodGet, "service", 1, 0, s.Logger)
 	err := n.Remove(context.Background(), s.Params)
 	s.Error(err)
 
@@ -265,7 +279,8 @@ func (s *NotifierTestSuite) Test_Remove_ReturnsAndLogsError_WhenHttpStatusIsNot2
 
 func (s *NotifierTestSuite) Test_Remove_ReturnsAndLogsError_WhenHttpRequestReturnsError() {
 	n := NewNotifier(
-		"", "this-does-not-exist", "service", 2, 1, s.Logger)
+		"", "this-does-not-exist", http.MethodGet,
+		http.MethodGet, "service", 2, 1, s.Logger)
 	err := n.Remove(context.Background(), s.Params)
 	s.Error(err)
 
@@ -286,7 +301,8 @@ func (s *NotifierTestSuite) Test_Remove_RetriesRequests() {
 	}))
 
 	n := NewNotifier(
-		"", httpSrv.URL, "node", 2, 1, s.Logger)
+		"", httpSrv.URL, http.MethodGet,
+		http.MethodGet, "node", 2, 1, s.Logger)
 	err := n.Remove(context.Background(), s.Params)
 	s.Require().NoError(err)
 
@@ -303,7 +319,8 @@ func (s *NotifierTestSuite) Test_Remove_Cancels() {
 		w.WriteHeader(http.StatusNotFound)
 	}))
 	n := NewNotifier(
-		"", httpSrv.URL, "service", 2, 1, s.Logger)
+		"", httpSrv.URL, http.MethodGet,
+		http.MethodGet, "service", 2, 1, s.Logger)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()

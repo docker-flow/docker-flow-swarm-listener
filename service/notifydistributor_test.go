@@ -38,6 +38,7 @@ func (s *NotifyDistributorTestSuite) Test_NewNotifyDistributorFromStrings() {
 		"http://host1:8080/removeservice,http://host2:8080/removeservice",
 		"http://host1:8080/reconfigurenode",
 		"http://host2:8080/removenode",
+		"GET", "GET",
 		5, 10, s.log)
 
 	s.Len(notifyD.NotifyEndpoints, 2)
@@ -51,6 +52,7 @@ func (s *NotifyDistributorTestSuite) Test_NewNotifyDistributorFromStrings() {
 		"http://host1:8080/removeservice",
 		"http://host1:8080/reconfigurenode",
 		"",
+		"GET", "GET",
 	)
 
 	host2EP, ok := notifyD.NotifyEndpoints["host2:8080"]
@@ -61,18 +63,56 @@ func (s *NotifyDistributorTestSuite) Test_NewNotifyDistributorFromStrings() {
 		"http://host2:8080/removeservice",
 		"",
 		"http://host2:8080/removenode",
+		"GET", "GET",
 	)
 
 	s.True(notifyD.HasServiceListeners())
 	s.True(notifyD.HasNodeListeners())
 }
+func (s *NotifyDistributorTestSuite) Test_NewNotifyDistributorFromStrings_CommaSeparatedMethods() {
+	notifyD := newNotifyDistributorfromStrings(
+		"http://host1:8080/recofigureservice,http://host2:8080/recofigureservice",
+		"http://host1:8080/removeservice,http://host2:8080/removeservice",
+		"http://host1:8080/reconfigurenode",
+		"http://host2:8080/removenode",
+		"GET,POST", "POST",
+		5, 10, s.log)
 
+	s.Len(notifyD.NotifyEndpoints, 2)
+	host1EP, ok := notifyD.NotifyEndpoints["host1:8080"]
+
+	s.Require().True(ok)
+
+	s.AssertEndpoints(
+		host1EP,
+		"http://host1:8080/recofigureservice",
+		"http://host1:8080/removeservice",
+		"http://host1:8080/reconfigurenode",
+		"",
+		"GET", "POST",
+	)
+
+	host2EP, ok := notifyD.NotifyEndpoints["host2:8080"]
+	s.Require().True(ok)
+	s.AssertEndpoints(
+		host2EP,
+		"http://host2:8080/recofigureservice",
+		"http://host2:8080/removeservice",
+		"",
+		"http://host2:8080/removenode",
+		"POST", "POST",
+	)
+
+	s.True(notifyD.HasServiceListeners())
+	s.True(notifyD.HasNodeListeners())
+}
 func (s *NotifyDistributorTestSuite) Test_NewNotifyDistributorFromStringsWithParameters() {
 	notifyD := newNotifyDistributorfromStrings(
 		"http://host1:8080/recofigureservice?hello=world,http://host2:8080/recofigureservice",
 		"http://host1:8080/removeservice,http://host2:8080/removeservice",
 		"http://host1:8080/reconfigurenode?dog=cat&bear=fox",
 		"http://host2:8080/removenode?service=aws",
+		"GET", "GET",
 		5, 10, s.log)
 
 	s.Len(notifyD.NotifyEndpoints, 2)
@@ -86,6 +126,7 @@ func (s *NotifyDistributorTestSuite) Test_NewNotifyDistributorFromStringsWithPar
 		"http://host1:8080/removeservice",
 		"http://host1:8080/reconfigurenode?dog=cat&bear=fox",
 		"",
+		"GET", "GET",
 	)
 
 	host2EP, ok := notifyD.NotifyEndpoints["host2:8080"]
@@ -96,6 +137,7 @@ func (s *NotifyDistributorTestSuite) Test_NewNotifyDistributorFromStringsWithPar
 		"http://host2:8080/removeservice",
 		"",
 		"http://host2:8080/removenode?service=aws",
+		"GET", "GET",
 	)
 
 	s.True(notifyD.HasServiceListeners())
@@ -107,6 +149,7 @@ func (s *NotifyDistributorTestSuite) Test_NewNotifyDistributorFromStrings_Separa
 		"http://host1:8080/removeservice",
 		"http://host2:8080/reconfigurenode",
 		"http://host2/removenode1,http://host2:8080/removenode2",
+		"GET", "GET",
 		5, 10, s.log)
 
 	s.Len(notifyD.NotifyEndpoints, 3)
@@ -119,6 +162,7 @@ func (s *NotifyDistributorTestSuite) Test_NewNotifyDistributorFromStrings_Separa
 		"http://host1:8080/removeservice",
 		"",
 		"",
+		"GET", "GET",
 	)
 
 	host28080EP, ok := notifyD.NotifyEndpoints["host2:8080"]
@@ -129,6 +173,7 @@ func (s *NotifyDistributorTestSuite) Test_NewNotifyDistributorFromStrings_Separa
 		"",
 		"http://host2:8080/reconfigurenode",
 		"http://host2:8080/removenode2",
+		"GET", "GET",
 	)
 
 	host2EP, ok := notifyD.NotifyEndpoints["host2"]
@@ -139,6 +184,7 @@ func (s *NotifyDistributorTestSuite) Test_NewNotifyDistributorFromStrings_Separa
 		"",
 		"",
 		"http://host2/removenode1",
+		"GET", "GET",
 	)
 
 	s.True(notifyD.HasServiceListeners())
@@ -149,6 +195,7 @@ func (s *NotifyDistributorTestSuite) Test_NewNotifyDistributorFromStrings_JustSw
 	notifyD := newNotifyDistributorfromStrings(
 		"http://host1:8080/recofigure1",
 		"http://host1:8080/removeservice", "", "",
+		"GET", "GET",
 		5, 10, s.log)
 
 	s.Len(notifyD.NotifyEndpoints, 1)
@@ -161,6 +208,7 @@ func (s *NotifyDistributorTestSuite) Test_NewNotifyDistributorFromStrings_JustSw
 		"http://host1:8080/removeservice",
 		"",
 		"",
+		"GET", "GET",
 	)
 
 	s.True(notifyD.HasServiceListeners())
@@ -171,6 +219,7 @@ func (s *NotifyDistributorTestSuite) Test_NewNotifyDistributorFromStrings_JustNo
 		"", "",
 		"http://host2:8080/reconfigurenode",
 		"http://host2:8080/removenode1,http://host2/removenode2",
+		"GET", "GET",
 		5, 10, s.log)
 
 	s.Len(notifyD.NotifyEndpoints, 2)
@@ -182,6 +231,7 @@ func (s *NotifyDistributorTestSuite) Test_NewNotifyDistributorFromStrings_JustNo
 		"",
 		"http://host2:8080/reconfigurenode",
 		"http://host2:8080/removenode1",
+		"GET", "GET",
 	)
 
 	host2EP, ok := notifyD.NotifyEndpoints["host2"]
@@ -192,6 +242,7 @@ func (s *NotifyDistributorTestSuite) Test_NewNotifyDistributorFromStrings_JustNo
 		"",
 		"",
 		"http://host2/removenode2",
+		"GET", "GET",
 	)
 
 	s.False(notifyD.HasServiceListeners())
@@ -461,7 +512,10 @@ func (s *NotifyDistributorTestSuite) Test_RunDistributesNotificationsToEndpoints
 	nodesNotifyMock2.AssertExpectations(s.T())
 }
 
-func (s *NotifyDistributorTestSuite) AssertEndpoints(endpoint NotifyEndpoint, serviceCreateAddr, serviceRemoveAddr, nodeCreateAddr, nodeRemoveAddr string) {
+func (s *NotifyDistributorTestSuite) AssertEndpoints(
+	endpoint NotifyEndpoint, serviceCreateAddr, serviceRemoveAddr,
+	nodeCreateAddr, nodeRemoveAddr,
+	serviceCreateMethod, serviceRemoveMethod string) {
 	if len(serviceCreateAddr) == 0 && len(serviceRemoveAddr) == 0 {
 		s.Nil(endpoint.ServiceNotifier)
 	} else {
@@ -477,4 +531,9 @@ func (s *NotifyDistributorTestSuite) AssertEndpoints(endpoint NotifyEndpoint, se
 		s.Equal(nodeRemoveAddr, endpoint.NodeNotifier.GetRemoveAddr())
 	}
 
+	if endpoint.ServiceNotifier != nil {
+		notifier := endpoint.ServiceNotifier.(*Notifier)
+		s.Equal(serviceCreateMethod, notifier.createHTTPMethod)
+		s.Equal(serviceRemoveMethod, notifier.removeHTTPMethod)
+	}
 }
