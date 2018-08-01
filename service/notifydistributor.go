@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
 	"net/url"
@@ -151,7 +152,10 @@ func insertAddrStringIntoMap(
 }
 
 // NewNotifyDistributorFromEnv creates `NotifyDistributor` from environment variables
-func NewNotifyDistributorFromEnv(retries, interval int, logger *log.Logger) *NotifyDistributor {
+func NewNotifyDistributorFromEnv(retries, interval int,
+	extraCreateServiceAddr, extraRemoveServiceAddr,
+	extraCreateNodeAddr, extraRemoveNodeAddr string,
+	logger *log.Logger) *NotifyDistributor {
 	var createServiceAddr, removeServiceAddr string
 	if len(os.Getenv("DF_NOTIF_CREATE_SERVICE_URL")) > 0 {
 		createServiceAddr = os.Getenv("DF_NOTIF_CREATE_SERVICE_URL")
@@ -172,6 +176,19 @@ func NewNotifyDistributorFromEnv(retries, interval int, logger *log.Logger) *Not
 
 	createServiceMethods := strings.ToUpper(os.Getenv("DF_NOTIFY_CREATE_SERVICE_METHOD"))
 	removeServiceMethods := strings.ToUpper(os.Getenv("DF_NOTIFY_REMOVE_SERVICE_METHOD"))
+
+	if len(extraCreateServiceAddr) > 0 {
+		createServiceAddr = fmt.Sprintf("%s,%s", createServiceAddr, extraCreateServiceAddr)
+	}
+	if len(extraRemoveServiceAddr) > 0 {
+		removeServiceAddr = fmt.Sprintf("%s,%s", removeServiceAddr, extraRemoveServiceAddr)
+	}
+	if len(extraCreateNodeAddr) > 0 {
+		createNodeAddr = fmt.Sprintf("%s,%s", createNodeAddr, extraCreateNodeAddr)
+	}
+	if len(extraRemoveNodeAddr) > 0 {
+		removeNodeAddr = fmt.Sprintf("%s,%s", removeNodeAddr, extraRemoveNodeAddr)
+	}
 
 	if len(createServiceMethods) == 0 {
 		createServiceMethods = http.MethodGet

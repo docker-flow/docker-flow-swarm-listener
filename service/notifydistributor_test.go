@@ -257,7 +257,7 @@ func (s *NotifyDistributorTestSuite) Test_NewNotifyDistributorFromEnv_ServiceCre
 		oldHost := os.Getenv(envKey)
 		os.Setenv(envKey, "http://host1,http://host2")
 
-		notifyD := NewNotifyDistributorFromEnv(5, 10, s.log)
+		notifyD := NewNotifyDistributorFromEnv(5, 10, "", "", "", "", s.log)
 
 		if notifyD == nil {
 			s.Fail("%s returns nil", envKey)
@@ -291,6 +291,22 @@ func (s *NotifyDistributorTestSuite) Test_NewNotifyDistributorFromEnv_ServiceCre
 	}
 }
 
+func (s *NotifyDistributorTestSuite) Test_NewNotifyDistributorFromEnv_ExtraServiceCreate() {
+	notifyD := NewNotifyDistributorFromEnv(5, 10, "http://host1,http://host2", "", "", "", s.log)
+	s.Require().NotNil(notifyD)
+	s.Len(notifyD.NotifyEndpoints, 2)
+
+	ep1, ok1 := notifyD.NotifyEndpoints["host1"]
+	s.True(ok1)
+	s.Require().NotNil(ep1.ServiceNotifier)
+	s.Equal("http://host1", ep1.ServiceNotifier.GetCreateAddr())
+
+	ep2, ok2 := notifyD.NotifyEndpoints["host2"]
+	s.True(ok2)
+	s.Require().NotNil(ep2.ServiceNotifier)
+	s.Equal("http://host2", ep2.ServiceNotifier.GetCreateAddr())
+}
+
 func (s *NotifyDistributorTestSuite) Test_NewNotifyDistributorFromEnv_ServiceRemove() {
 	envKeys := []string{"DF_NOTIFY_REMOVE_SERVICE_URL",
 		"DF_NOTIF_REMOVE_SERVICE_URL",
@@ -299,7 +315,7 @@ func (s *NotifyDistributorTestSuite) Test_NewNotifyDistributorFromEnv_ServiceRem
 		oldHost := os.Getenv(envKey)
 		os.Setenv(envKey, "http://host1,http://host2")
 
-		notifyD := NewNotifyDistributorFromEnv(5, 10, s.log)
+		notifyD := NewNotifyDistributorFromEnv(5, 10, "", "", "", "", s.log)
 
 		if notifyD == nil {
 			s.Fail("%s returns nil", envKey)
@@ -332,6 +348,21 @@ func (s *NotifyDistributorTestSuite) Test_NewNotifyDistributorFromEnv_ServiceRem
 		os.Setenv(envKey, oldHost)
 	}
 }
+func (s *NotifyDistributorTestSuite) Test_NewNotifyDistributorFromEnv_ExtraServiceRemove() {
+	notifyD := NewNotifyDistributorFromEnv(5, 10, "", "http://host1,http://host2", "", "", s.log)
+	s.Require().NotNil(notifyD)
+	s.Len(notifyD.NotifyEndpoints, 2)
+
+	ep1, ok1 := notifyD.NotifyEndpoints["host1"]
+	s.True(ok1)
+	s.Require().NotNil(ep1.ServiceNotifier)
+	s.Equal("http://host1", ep1.ServiceNotifier.GetRemoveAddr())
+
+	ep2, ok2 := notifyD.NotifyEndpoints["host2"]
+	s.True(ok2)
+	s.Require().NotNil(ep2.ServiceNotifier)
+	s.Equal("http://host2", ep2.ServiceNotifier.GetRemoveAddr())
+}
 
 func (s *NotifyDistributorTestSuite) Test_NewNotifyDistributorFromEnv_Node() {
 	defer func() {
@@ -341,7 +372,35 @@ func (s *NotifyDistributorTestSuite) Test_NewNotifyDistributorFromEnv_Node() {
 	os.Setenv("DF_NOTIFY_CREATE_NODE_URL", "http://host1/create,http://host2/create")
 	os.Setenv("DF_NOTIFY_REMOVE_NODE_URL", "http://host1/remove,http://host2/remove")
 
-	notifyD := NewNotifyDistributorFromEnv(5, 10, s.log)
+	notifyD := NewNotifyDistributorFromEnv(5, 10, "", "", "", "", s.log)
+	s.Require().NotNil(notifyD)
+
+	s.Len(notifyD.NotifyEndpoints, 2)
+	ep1, ok1 := notifyD.NotifyEndpoints["host1"]
+	s.True(ok1)
+
+	s.Require().NotNil(ep1.NodeNotifier)
+	s.Equal("http://host1/create", ep1.NodeNotifier.GetCreateAddr())
+	s.Equal("http://host1/remove", ep1.NodeNotifier.GetRemoveAddr())
+
+	ep2, ok2 := notifyD.NotifyEndpoints["host2"]
+	s.True(ok2)
+
+	s.Require().NotNil(ep2.NodeNotifier)
+	s.Equal("http://host2/create", ep2.NodeNotifier.GetCreateAddr())
+	s.Equal("http://host2/remove", ep2.NodeNotifier.GetRemoveAddr())
+}
+
+func (s *NotifyDistributorTestSuite) Test_NewNotifyDistributorFromEnv_ExtraNode() {
+	defer func() {
+		os.Unsetenv("DF_NOTIFY_CREATE_NODE_URL")
+		os.Unsetenv("DF_NOTIFY_REMOVE_NODE_URL")
+	}()
+	os.Setenv("DF_NOTIFY_CREATE_NODE_URL", "http://host1/create")
+	os.Setenv("DF_NOTIFY_REMOVE_NODE_URL", "http://host1/remove")
+
+	notifyD := NewNotifyDistributorFromEnv(5, 10, "", "", "http://host2/create",
+		"http://host2/remove", s.log)
 	s.Require().NotNil(notifyD)
 
 	s.Len(notifyD.NotifyEndpoints, 2)

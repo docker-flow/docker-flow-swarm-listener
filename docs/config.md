@@ -20,3 +20,9 @@ The following environment variables can be used when creating the `swarm-listene
 |DF_NODE_POLLING_INTERVAL |Time between each node polling request, in seconds. When this value is set less than or equal to zero, node polling is disabled.<br>**Default**: `-1`<br>**Example**:`20`|
 |DF_USE_DOCKER_NODE_EVENTS|Use docker events api to get node updates.<br>**Default**:`true`|
 |DF_SERVICE_NAME_PREFIX|Value to prefix service names with.<br>**Example**:`dev1`|
+
+## Configuring Notification URLS with Docker Secrets
+
+*Docker Flow Swarm Listener*'s notification URLs can be set with Docker Secrets. Secrets with names `df_notify_create_service_url`,
+`df_notify_remove_service_url`, `df_notify_create_node_url`, and `df_notify_remove_node_url` are used, in addition to their
+corresponding environment variables, to configure notification urls. The secrets must be a comma separated list of URLs.

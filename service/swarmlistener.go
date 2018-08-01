@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"io/ioutil"
 	"log"
 	"os"
 	"strconv"
@@ -132,7 +133,15 @@ func NewSwarmListenerFromEnv(
 
 	logger.Printf("Using Docker Client API version: %s", dockerClient.ClientVersion())
 
-	notifyDistributor := NewNotifyDistributorFromEnv(retries, interval, logger)
+	extraCreateServiceAddr := readStringFromFile("/run/secrets/df_notify_create_service_url")
+	extraRemoveServiceAddr := readStringFromFile("/run/secrets/df_notify_remove_service_url")
+	extraCreateNodeAddr := readStringFromFile("/run/secrets/df_notify_create_node_url")
+	extraRemoveNodeAddr := readStringFromFile("/run/secrets/df_notify_remove_node_url")
+
+	notifyDistributor := NewNotifyDistributorFromEnv(
+		retries, interval,
+		extraCreateServiceAddr, extraRemoveServiceAddr,
+		extraCreateNodeAddr, extraRemoveNodeAddr, logger)
 
 	var ssListener *SwarmServiceListener
 	var ssCache *SwarmServiceCache
@@ -541,4 +550,12 @@ func (l SwarmListener) GetNodesParameters(ctx context.Context) ([]map[string]str
 		}
 	}
 	return params, nil
+}
+
+func readStringFromFile(filename string) string {
+	content, err := ioutil.ReadFile(filename)
+	if err != nil {
+		return ""
+	}
+	return strings.TrimSpace(string(content))
 }
