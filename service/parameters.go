@@ -92,6 +92,15 @@ func GetNodeMiniRemoveParameters(node NodeMini) map[string]string {
 // GetSwarmServiceMiniRemoveParameters converts `SwarmServiceMini` into remove parameters
 func GetSwarmServiceMiniRemoveParameters(ssm SwarmServiceMini) map[string]string {
 	params := map[string]string{}
+	for k, v := range ssm.Labels {
+		if !strings.HasPrefix(k, "com.df.") {
+			continue
+		}
+		key := strings.TrimPrefix(k, "com.df.")
+		if len(key) > 0 {
+			params[key] = v
+		}
+	}
 	serviceName := ssm.Name
 	stackName := ssm.Labels["com.docker.stack.namespace"]
 	if len(stackName) > 0 &&

@@ -16,7 +16,7 @@ When a service is created or updated a notification will be sent to **[DF_NOTIFY
 
 All service labels prefixed by `com.df.` will be added to the notification. For example, a service with label `com.df.hello=world` will translate to parameter: `hello=world`.
 
-When a service is removed, a notification will be sent to **[DF_NOTIFY_REMOVE_SERVICE_URL]**. Only the `serviceName` parameter is included.
+When a service is removed, a notification will be sent to **[DF_NOTIFY_REMOVE_SERVICE_URL]**. The `serviceName` parameter and `com.df.` labels are included in service removal notifications.
 
 ### Node Notification
 

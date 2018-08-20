@@ -253,6 +253,7 @@ func (s *ParametersTestSuite) Test_GetSwarmServiceMiniRemoveParameters() {
 	expected := map[string]string{
 		"serviceName": "demo-go",
 		"distribute":  "true",
+		"hello":       "nyc",
 	}
 	params := GetSwarmServiceMiniRemoveParameters(ssm)
 	s.Equal(expected, params)
@@ -266,6 +267,7 @@ func (s *ParametersTestSuite) Test_GetSwarmServiceMiniRemoveParameters_ShortName
 	expected := map[string]string{
 		"serviceName": "stack_demo-go",
 		"distribute":  "true",
+		"hello":       "nyc",
 	}
 	params := GetSwarmServiceMiniRemoveParameters(ssm)
 	s.Equal(expected, params)
@@ -280,6 +282,8 @@ func (s *ParametersTestSuite) Test_GetSwarmServiceMiniRemoveParameters_ShortName
 	expected := map[string]string{
 		"serviceName": "stack_demo-go",
 		"distribute":  "true",
+		"hello":       "nyc",
+		"shortName":   "false",
 	}
 	params := GetSwarmServiceMiniRemoveParameters(ssm)
 	s.Equal(expected, params)
@@ -294,6 +298,8 @@ func (s *ParametersTestSuite) Test_GetSwarmServiceMiniRemoveParameters_ShortName
 	expected := map[string]string{
 		"serviceName": "demo-go",
 		"distribute":  "true",
+		"hello":       "nyc",
+		"shortName":   "true",
 	}
 	params := GetSwarmServiceMiniRemoveParameters(ssm)
 	s.Equal(expected, params)
