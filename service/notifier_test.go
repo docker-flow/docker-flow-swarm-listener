@@ -330,6 +330,44 @@ func (s *NotifierTestSuite) Test_Remove_Cancels() {
 	expMsg := fmt.Sprintf("Canceling service remove notification to %s", httpSrv.URL)
 	s.Contains(logMsgs, expMsg)
 }
+func (s *NotifierTestSuite) Test_Remove_SendsRequestsWithParams() {
+
+	var query1 string
+	httpSrv := httptest.NewServer(http.HandlerFunc(func(
+		w http.ResponseWriter, r *http.Request) {
+		if r.Method == "GET" {
+			switch r.URL.Path {
+			case "/v1/docker-flow-proxy/remove":
+				w.WriteHeader(http.StatusOK)
+				w.Header().Set("Content-Type", "application/json")
+				query1 = r.URL.Query().Encode()
+			default:
+				w.WriteHeader(http.StatusNotFound)
+			}
+		}
+	}))
+	defer httpSrv.Close()
+
+	url1 := fmt.Sprintf("%s/v1/docker-flow-proxy/remove?hello=world", httpSrv.URL)
+
+	n := NewNotifier("", url1, http.MethodGet,
+		http.MethodGet, "service", 5, 1, s.Logger)
+	s.Equal(url1, n.GetRemoveAddr())
+	err := n.Remove(context.Background(), s.Params)
+	s.Require().NoError(err)
+
+	newParams := "hello=world&serviceName=hello"
+
+	s.Equal(newParams, query1)
+
+	urlObj1, err := url.Parse(url1)
+	s.Require().NoError(err)
+
+	urlObj1.RawQuery = newParams
+
+	logMsgs := s.LogBytes.String()
+	s.Contains(logMsgs, fmt.Sprintf("Sending service removed notification to %s", urlObj1.String()))
+}
 
 func (s *NotifierTestSuite) EqualURLValues(expected, actual url.Values) {
 	for k := range expected {

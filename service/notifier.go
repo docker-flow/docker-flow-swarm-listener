@@ -167,7 +167,16 @@ func (n Notifier) Remove(ctx context.Context, params string) error {
 		metrics.RecordError(n.removeErrorMetric)
 		return err
 	}
-	urlObj.RawQuery = params
+
+	if len(params) > 0 {
+		if currentParams := urlObj.Query().Encode(); len(currentParams) > 0 {
+			newParams := fmt.Sprintf("%s&%s", currentParams, params)
+			urlObj.RawQuery = newParams
+		} else {
+			urlObj.RawQuery = params
+		}
+	}
+
 	fullURL := urlObj.String()
 	req, err := http.NewRequest(n.removeHTTPMethod, fullURL, nil)
 	if err != nil {
