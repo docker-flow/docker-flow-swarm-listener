@@ -19,7 +19,7 @@ EXPOSE 8080
 
 CMD ["docker-flow-swarm-listener"]
 
-HEALTHCHECK --interval=10s --start-period=5s --timeout=5s CMD wget -qO- "http://localhost:8080/v1/docker-flow-swarm-listener/ping"
+HEALTHCHECK --interval=10s --timeout=5s CMD wget -qO- "http://localhost:8080/v1/docker-flow-swarm-listener/ping"
 
 COPY --from=build /src/docker-flow-swarm-listener /usr/local/bin/docker-flow-swarm-listener
 RUN chmod +x /usr/local/bin/docker-flow-swarm-listener

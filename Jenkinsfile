@@ -15,6 +15,10 @@ apiVersion: v1
 kind: Pod
 spec:
   containers:
+  - name: golang
+    image: golang:1.9
+    command: ["cat"]
+    tty: true
   - name: docker
     image: docker:18.06
     command: ["cat"]
@@ -33,13 +37,15 @@ spec:
   stages {
     stage("build") {
       steps {
-        container("docker") {
+        container("golang") {
           script {
             def dateFormat = new SimpleDateFormat("yy.MM.dd")
             currentBuild.displayName = dateFormat.format(new Date()) + "-" + env.BUILD_NUMBER
           }
           git branch: "k8s", url: "https://github.com/docker-flow/docker-flow-swarm-listener.git" // REMOVE ME!
           k8sBuildGolang("docker-flow-swarm-listener")
+        }
+        container("docker") {
           dfBuild2("docker-flow-swarm-listener")
         // sh "docker-compose run --rm tests"
         }
