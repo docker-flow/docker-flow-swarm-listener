@@ -19,6 +19,10 @@ spec:
     image: golang:1.9
     command: ["cat"]
     tty: true
+  - name: mkdocs
+    image: cilerler/mkdocs
+    command: ["cat"]
+    tty: true
   - name: docker
     image: docker:18.06
     command: ["cat"]
