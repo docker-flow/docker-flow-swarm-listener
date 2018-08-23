@@ -51,6 +51,9 @@ spec:
         }
         container("docker") {
           dfBuild2("docker-flow-swarm-listener")
+        }
+        container("docker") {
+        }
         // sh "docker-compose run --rm tests"
         }
       }
