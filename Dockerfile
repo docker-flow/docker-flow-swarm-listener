@@ -1,13 +1,3 @@
-FROM golang:1.10.0-alpine3.7 AS build
-
-RUN apk add --update git
-ADD . /src
-WORKDIR /src
-RUN go get -d -v -t
-RUN go build -v -o docker-flow-swarm-listener
-
-
-
 FROM alpine:3.7
 LABEL maintainer="Viktor Farcic <viktor@farcic.com>"
 
