@@ -30,5 +30,5 @@ spec:
   tls:
   - hosts:
     - {{ first $url }}
-    secretName: letsencrypt-secret
+    secretName: le-{{ $serviceName }}
   {{- end -}}
