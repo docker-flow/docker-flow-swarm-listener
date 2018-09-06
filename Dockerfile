@@ -1,14 +1,11 @@
-FROM golang:1.10.0-alpine3.7 AS build
+FROM golang:1.11.0-alpine3.8 AS build
 
-RUN apk add --update git
-ADD . /src
-WORKDIR /src
-RUN go get -d -v -t
-RUN go build -v -o docker-flow-swarm-listener
+RUN apk add --no-cache --update git
+WORKDIR /develop
+COPY . .
+RUN CGO_ENABLED=0 GOOS=linux go build -o docker-flow-swarm-listener -ldflags '-w'
 
-
-
-FROM alpine:3.7
+FROM alpine:3.8
 LABEL maintainer="Viktor Farcic <viktor@farcic.com>"
 
 ENV DF_DOCKER_HOST="unix:///var/run/docker.sock" \
@@ -31,5 +28,5 @@ CMD ["docker-flow-swarm-listener"]
 
 HEALTHCHECK --interval=10s --start-period=5s --timeout=5s CMD wget -qO- "http://localhost:8080/v1/docker-flow-swarm-listener/ping"
 
-COPY --from=build /src/docker-flow-swarm-listener /usr/local/bin/docker-flow-swarm-listener
+COPY --from=build /develop/docker-flow-swarm-listener /usr/local/bin/docker-flow-swarm-listener
 RUN chmod +x /usr/local/bin/docker-flow-swarm-listener

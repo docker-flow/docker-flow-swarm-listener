@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"../metrics"
+	"github.com/docker-flow/docker-flow-swarm-listener/metrics"
 )
 
 // NotifyType is the type of notification to send

@@ -5,8 +5,9 @@ import (
 	"log"
 	"net/http"
 
-	"./metrics"
-	"./service"
+	"github.com/docker-flow/docker-flow-swarm-listener/metrics"
+	"github.com/docker-flow/docker-flow-swarm-listener/service"
+
 	"github.com/prometheus/client_golang/prometheus"
 )
 

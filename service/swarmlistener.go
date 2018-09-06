@@ -11,7 +11,7 @@ import (
 	"sync"
 	"time"
 
-	"../metrics"
+	"github.com/docker-flow/docker-flow-swarm-listener/metrics"
 )
 
 // SwarmListening provides public api for interacting with swarm listener

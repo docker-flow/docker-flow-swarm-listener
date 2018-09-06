@@ -15,7 +15,7 @@ pipeline {
           def dateFormat = new SimpleDateFormat("yy.MM.dd")
           currentBuild.displayName = dateFormat.format(new Date()) + "-" + env.BUILD_NUMBER
         }
-        dfBuild2("docker-flow-swarm-listener")
+        dfBuild2("docker-flow-swarm-listener", "thomasjpfan/gox-build:0.1.1-1.11.0-alpine3.8")
         sh "docker-compose run --rm tests"
       }
     }

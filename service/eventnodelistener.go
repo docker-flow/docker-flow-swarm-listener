@@ -10,7 +10,7 @@ import (
 	"github.com/docker/docker/api/types/filters"
 	"github.com/docker/docker/client"
 
-	"../metrics"
+	"github.com/docker-flow/docker-flow-swarm-listener/metrics"
 )
 
 // NodeListening listens to node events

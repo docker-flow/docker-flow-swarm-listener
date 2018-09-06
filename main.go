@@ -4,7 +4,7 @@ import (
 	"log"
 	"os"
 
-	"./service"
+	"github.com/docker-flow/docker-flow-swarm-listener/service"
 )
 
 func main() {

@@ -1,11 +1,9 @@
-FROM docker:17.12.1-ce
+FROM golang:1.11.0-alpine3.8
 
-RUN apk add --no-cache gcc musl-dev openssl git go expect curl && \
-    go install cmd/...
+RUN apk add --no-cache gcc musl-dev openssl git go expect curl docker
 
 COPY . /src
 WORKDIR /src
-RUN go get -d -v -t
 RUN chmod +x /src/run-tests.sh
 
 CMD ["sh", "-c", "/src/run-tests.sh"]
