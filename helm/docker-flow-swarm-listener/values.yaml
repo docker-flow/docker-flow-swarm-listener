@@ -5,8 +5,8 @@ ingress:
   - swarmlistener.dockerflow.com
 resources:
   limits:
-   cpu: 0.1
+   cpu: 10m
    memory: 6Mi
   requests:
-   cpu: 0.05
+   cpu: 5m
    memory: 3Mi
