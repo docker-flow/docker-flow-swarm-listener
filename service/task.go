@@ -180,6 +180,27 @@ func GetTaskList(ctx context.Context, client *client.Client, serviceID string) (
 
 }
 
+// TasksAllRunning checks if a service is currently up and running
+func TasksAllRunning(ctx context.Context, cli *client.Client, serviceID string) (bool, error) {
+	taskFilter := filters.NewArgs()
+	taskFilter.Add("service", serviceID)
+	taskFilter.Add("_up-to-date", "true")
+	taskFilter.Add("desired-state", "running")
+	taskFilter.Add("desired-state", "accepted")
+
+	tasks, err := cli.TaskList(ctx, types.TaskListOptions{Filters: taskFilter})
+	if err != nil {
+		return false, err
+	}
+
+	for _, task := range tasks {
+		if terminalState(task.DesiredState) || task.Status.State != swarm.TaskStateRunning {
+			return false, nil
+		}
+	}
+	return true, nil
+}
+
 type replicatedProgressUpdater struct {
 	initialized bool
 	done        bool

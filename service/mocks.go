@@ -58,6 +58,11 @@ func (m *swarmServiceInspector) GetNodeInfo(ctx context.Context, ss SwarmService
 	return args.Get(0).(NodeIPSet), args.Error(1)
 }
 
+func (m *swarmServiceInspector) SwarmServiceRunning(ctx context.Context, serviceID string) (bool, error) {
+	args := m.Called(ctx, serviceID)
+	return args.Bool(0), args.Error(1)
+}
+
 type swarmServiceCacherMock struct {
 	mock.Mock
 }

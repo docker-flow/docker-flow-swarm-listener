@@ -72,10 +72,10 @@ func (s SwarmServicePoller) Run(
 				ssMini := s.MinifyFunc(ss)
 				if s.SSCache.IsNewOrUpdated(ssMini) {
 					eventChan <- Event{
-						Type:     EventTypeCreate,
-						ID:       ss.ID,
-						TimeNano: nowTimeNano,
-						UseCache: true,
+						Type:         EventTypeCreate,
+						ID:           ss.ID,
+						TimeNano:     nowTimeNano,
+						ConsultCache: true,
 					}
 				}
 			}
@@ -83,10 +83,10 @@ func (s SwarmServicePoller) Run(
 			// Remaining keys are removal events
 			for k := range keys {
 				eventChan <- Event{
-					Type:     EventTypeRemove,
-					ID:       k,
-					TimeNano: nowTimeNano,
-					UseCache: true,
+					Type:         EventTypeRemove,
+					ID:           k,
+					TimeNano:     nowTimeNano,
+					ConsultCache: true,
 				}
 			}
 		}

@@ -50,7 +50,7 @@ func (s SwarmServiceListener) ListenForServiceEvents(eventChan chan<- Event) {
 					Type:     eventType,
 					ID:       msg.Actor.ID,
 					TimeNano: msg.TimeNano,
-					UseCache: true,
+					ConsultCache: true,
 				}
 			case err := <-msgErrs:
 				s.log.Printf("%v, Restarting docker event stream", err)

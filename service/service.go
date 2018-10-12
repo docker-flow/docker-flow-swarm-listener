@@ -17,6 +17,7 @@ type SwarmServiceInspector interface {
 	SwarmServiceInspect(ctx context.Context, serviceID string, includeNodeIPInfo bool) (*SwarmService, error)
 	SwarmServiceList(ctx context.Context) ([]SwarmService, error)
 	GetNodeInfo(ctx context.Context, ss SwarmService) (NodeIPSet, error)
+	SwarmServiceRunning(ctx context.Context, serviceID string) (bool, error)
 }
 
 // SwarmServiceClient implements `SwarmServiceInspector` for docker
@@ -109,6 +110,11 @@ func (c SwarmServiceClient) GetNodeInfo(ctx context.Context, ss SwarmService) (N
 		return NodeIPSet{}, err
 	}
 	return c.getNodeInfo(ctx, taskList, ss.Service)
+}
+
+// SwarmServiceRunning returns true if service is running
+func (c SwarmServiceClient) SwarmServiceRunning(ctx context.Context, serviceID string) (bool, error) {
+	return TasksAllRunning(ctx, c.DockerClient, serviceID)
 }
 
 func (c SwarmServiceClient) getNodeInfo(ctx context.Context, taskList []swarm.Task, ss swarm.Service) (NodeIPSet, error) {

@@ -51,7 +51,7 @@ func (s *SwarmServiceListenerTestSuite) Test_ListenForServiceEvents_CreateServic
 
 	s.Equal(EventTypeCreate, event.Type)
 	s.Equal(utilID, event.ID)
-	s.True(event.UseCache)
+	s.True(event.ConsultCache)
 }
 
 func (s *SwarmServiceListenerTestSuite) Test_ListenForServiceEvents_UpdateService() {
@@ -78,7 +78,7 @@ func (s *SwarmServiceListenerTestSuite) Test_ListenForServiceEvents_UpdateServic
 
 	s.Equal(EventTypeCreate, event.Type)
 	s.Equal(utilID, event.ID)
-	s.True(event.UseCache)
+	s.True(event.ConsultCache)
 
 	// Remove label
 	removeLabelFromService("util-1", "hello")
@@ -88,7 +88,7 @@ func (s *SwarmServiceListenerTestSuite) Test_ListenForServiceEvents_UpdateServic
 
 	s.Equal(EventTypeCreate, event.Type)
 	s.Equal(utilID, event.ID)
-	s.True(event.UseCache)
+	s.True(event.ConsultCache)
 }
 
 func (s *SwarmServiceListenerTestSuite) Test_ListenForServiceEvents_RemoveService() {
@@ -115,7 +115,7 @@ func (s *SwarmServiceListenerTestSuite) Test_ListenForServiceEvents_RemoveServic
 
 	s.Equal(EventTypeRemove, event.Type)
 	s.Equal(utilID, event.ID)
-	s.True(event.UseCache)
+	s.True(event.ConsultCache)
 }
 
 func (s *SwarmServiceListenerTestSuite) waitForServiceEvent(events <-chan Event) (*Event, error) {

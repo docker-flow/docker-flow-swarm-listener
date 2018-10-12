@@ -250,11 +250,11 @@ type SwarmListeningMock struct {
 func (m *SwarmListeningMock) Run() {
 	m.Called()
 }
-func (m *SwarmListeningMock) NotifyServices(ignoreCache bool) {
-	m.Called(ignoreCache)
+func (m *SwarmListeningMock) NotifyServices(consultCache bool) {
+	m.Called(consultCache)
 }
-func (m *SwarmListeningMock) NotifyNodes(ignoreCache bool) {
-	m.Called(ignoreCache)
+func (m *SwarmListeningMock) NotifyNodes(consultCache bool) {
+	m.Called(consultCache)
 }
 func (m *SwarmListeningMock) GetServicesParameters(ctx context.Context) ([]map[string]string, error) {
 	args := m.Called(ctx)
