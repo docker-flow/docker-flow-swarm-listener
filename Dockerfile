@@ -14,6 +14,7 @@ ENV DF_DOCKER_HOST="unix:///var/run/docker.sock" \
     DF_RETRY_INTERVAL="5" \
     DF_NOTIFY_LABEL="com.df.notify" \
     DF_INCLUDE_NODE_IP_INFO="false" \
+    DF_NODE_IP_INFO_INCLUDES_TASK_ADDRESS="true" \
     DF_SERVICE_POLLING_INTERVAL="-1" \
     DF_USE_DOCKER_SERVICE_EVENTS="true" \
     DF_NODE_POLLING_INTERVAL="-1" \

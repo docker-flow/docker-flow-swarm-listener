@@ -22,24 +22,27 @@ type SwarmServiceInspector interface {
 
 // SwarmServiceClient implements `SwarmServiceInspector` for docker
 type SwarmServiceClient struct {
-	DockerClient      *client.Client
-	FilterLabel       string
-	FilterKey         string
-	ScrapeNetLabel    string
-	ServiceNamePrefix string
-	Log               *log.Logger
+	DockerClient                 *client.Client
+	FilterLabel                  string
+	FilterKey                    string
+	ScrapeNetLabel               string
+	ServiceNamePrefix            string
+	IncludeTaskAddressInNodeInfo bool
+	Log                          *log.Logger
 }
 
 // NewSwarmServiceClient creates a `SwarmServiceClient`
 func NewSwarmServiceClient(
-	c *client.Client, filterLabel, scrapNetLabel string, serviceNamePrefix string, logger *log.Logger) *SwarmServiceClient {
+	c *client.Client, filterLabel, scrapNetLabel string, serviceNamePrefix string, includeAddressInNodeInfo bool,
+	logger *log.Logger) *SwarmServiceClient {
 	key := strings.SplitN(filterLabel, "=", 2)[0]
 	return &SwarmServiceClient{DockerClient: c,
-		FilterLabel:       filterLabel,
-		FilterKey:         key,
-		ScrapeNetLabel:    scrapNetLabel,
-		ServiceNamePrefix: serviceNamePrefix,
-		Log:               logger,
+		FilterLabel:                  filterLabel,
+		FilterKey:                    key,
+		ScrapeNetLabel:               scrapNetLabel,
+		ServiceNamePrefix:            serviceNamePrefix,
+		IncludeTaskAddressInNodeInfo: includeAddressInNodeInfo,
+		Log:                          logger,
 	}
 }
 
@@ -120,25 +123,29 @@ func (c SwarmServiceClient) SwarmServiceRunning(ctx context.Context, serviceID s
 func (c SwarmServiceClient) getNodeInfo(ctx context.Context, taskList []swarm.Task, ss swarm.Service) (NodeIPSet, error) {
 
 	networkName, ok := ss.Spec.Labels[c.ScrapeNetLabel]
-	if !ok {
+	if c.IncludeTaskAddressInNodeInfo && !ok {
 		return nil, fmt.Errorf("Unable to get NodeInfo: %s label is not defined for service %s", c.ScrapeNetLabel, ss.Spec.Name)
 	}
 
 	nodeInfo := NodeIPSet{}
 	nodeIPCache := map[string]string{}
 	for _, task := range taskList {
-		if len(task.NetworksAttachments) == 0 || len(task.NetworksAttachments[0].Addresses) == 0 {
-			continue
-		}
-		var address string
-		for _, networkAttach := range task.NetworksAttachments {
-			if networkAttach.Network.Spec.Name == networkName && len(networkAttach.Addresses) > 0 {
-				address = strings.Split(networkAttach.Addresses[0], "/")[0]
-			}
-		}
 
-		if len(address) == 0 {
-			continue
+		address := ""
+		if c.IncludeTaskAddressInNodeInfo {
+
+			if len(task.NetworksAttachments) == 0 || len(task.NetworksAttachments[0].Addresses) == 0 {
+				continue
+			}
+			for _, networkAttach := range task.NetworksAttachments {
+				if networkAttach.Network.Spec.Name == networkName && len(networkAttach.Addresses) > 0 {
+					address = strings.Split(networkAttach.Addresses[0], "/")[0]
+				}
+			}
+
+			if len(address) == 0 {
+				continue
+			}
 		}
 
 		if nodeName, ok := nodeIPCache[task.NodeID]; ok {

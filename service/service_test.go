@@ -57,7 +57,7 @@ func (s *SwarmServiceClientTestSuite) SetupTest() {
 	s.LogBytes = new(bytes.Buffer)
 	s.Logger = log.New(s.LogBytes, "", 0)
 
-	s.SClient = NewSwarmServiceClient(c, "com.df.notify=true", "com.df.scrapeNetwork", "", s.Logger)
+	s.SClient = NewSwarmServiceClient(c, "com.df.notify=true", "com.df.scrapeNetwork", "", true, s.Logger)
 }
 
 func (s *SwarmServiceClientTestSuite) TearDownSuite() {

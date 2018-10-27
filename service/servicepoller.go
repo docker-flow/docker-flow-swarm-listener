@@ -64,7 +64,10 @@ func (s SwarmServicePoller) Run(
 				delete(keys, ss.ID)
 
 				if s.IncludeNodeInfo {
-					if nodeInfo, err := s.SSClient.GetNodeInfo(ctx, ss); err == nil {
+					nodeInfo, err := s.SSClient.GetNodeInfo(ctx, ss)
+					if err != nil {
+						s.Log.Printf("ERROR: GetServicesParameters, %v", err)
+					} else {
 						ss.NodeInfo = nodeInfo
 					}
 				}

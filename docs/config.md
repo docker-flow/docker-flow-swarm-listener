@@ -11,6 +11,7 @@ The following environment variables can be used when creating the `swarm-listene
 |DF_NOTIFY_CREATE_SERVICE_METHOD|Comma separated list of HTTP methods used to send requests to its corresponding `DF_NOTIFY_CREATE_SERVICE_URL`. If the number of comma separated list of HTTP methods is less than the number of create service URLs, then the last HTTP method in the list will be used for the rest of the services.<br>**Default**: `GET` <br>**Example**: `GET,POST`|
 |DF_NOTIFY_REMOVE_SERVICE_METHOD|Comma separated list of HTTP methods used to send requests to its corresponding `DF_NOTIFY_REMOVE_SERVICE_URL`. If the number of comma separated list of HTTP methods is less than the number of remove service URLs, then the last HTTP method in the list will be used for the rest of the services<br>**Default**: `GET` <br>**Example**: `GET,POST`|
 |DF_INCLUDE_NODE_IP_INFO|Include node and ip information for service in notification.<br>**Default**:`false`|
+|DF_NODE_IP_INFO_INCLUDES_TASK_ADDRESS|Include task ip address when `DF_INCLUDE_NODE_IP_INFO` is true.<br>**Default**: `true`|
 |DF_NOTIFY_CREATE_NODE_URL |Comma separated list of URLs that will be used to send notification requests when a node is created or updated.<br>**Example**: `url1,url2`|
 |DF_NOTIFY_REMOVE_NODE_URL |Comma separated list of URLs that will be used to send notification requests when a node is remove.<br>**Example**: `url1,url2`|
 |DF_RETRY           |Number of notification request retries<br>**Default**: `50`<br>**Example**: `100`|
