@@ -45,10 +45,7 @@ func (s NodeListener) ListenForNodeEvents(
 				if !s.validEventNode(msg) {
 					continue
 				}
-				eventType := EventTypeCreate
-				if msg.Action == "remove" {
-					eventType = EventTypeRemove
-				}
+				eventType := s.getEventType(msg)
 				eventChan <- Event{
 					Type:     eventType,
 					ID:       msg.Actor.ID,
@@ -79,4 +76,16 @@ func (s NodeListener) validEventNode(msg events.Message) bool {
 		return false
 	}
 	return true
+}
+
+func (s NodeListener) getEventType(msg events.Message) EventType {
+	if msg.Action == "remove" {
+		return EventTypeRemove
+	}
+
+	if name := msg.Actor.Attributes["state.new"]; name == "down" {
+		return EventTypeRemove
+	}
+
+	return EventTypeCreate
 }

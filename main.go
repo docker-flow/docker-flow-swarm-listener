@@ -22,8 +22,8 @@ func main() {
 	}
 
 	l.Printf("Sending notifications for running services and nodes")
-	swarmListener.NotifyServices(true)
-	swarmListener.NotifyNodes(true)
+	go swarmListener.CompletelyNotifyServices()
+	go swarmListener.NotifyNodes(false)
 
 	swarmListener.Run()
 	serve := NewServe(swarmListener, l)

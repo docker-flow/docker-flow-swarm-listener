@@ -73,7 +73,10 @@ func (s *SwarmListenerTestSuite) SetupTest() {
 		true,
 		"com.df.notify",
 		"com.docker.stack.namespace",
+		false,
 		s.Logger,
+		make(chan struct{}),
+		make(chan struct{}),
 	)
 }
 
@@ -91,13 +94,15 @@ func (s *SwarmListenerTestSuite) Test_Run_ServicesChannel() {
 	ss2m := SwarmServiceMini{ID: "serviceID2", Name: "serviceName2", Labels: map[string]string{}}
 
 	s.SSListenerMock.On("ListenForServiceEvents", mock.AnythingOfType("chan<- service.Event"))
+	s.NodeListeningMock.On("ListenForNodeEvents", mock.AnythingOfType("chan<- service.Event"))
 	s.SSClientMock.On("SwarmServiceInspect", mock.AnythingOfType("*context.cancelCtx"), "serviceID1", true).Return(&ss1, nil)
+	s.NodePollerMock.
+		On("Run", mock.AnythingOfType("chan<- service.Event"))
 	s.SSCacheMock.On("InsertAndCheck", ss1m).Return(true).
 		On("Get", "serviceID2").Return(ss2m, true).
 		On("Len").Return(2)
 	s.NotifyDistributorMock.
 		On("HasServiceListeners").Return(true).
-		On("HasNodeListeners").Return(false).
 		On("Run", mock.AnythingOfType("<-chan service.Notification"), mock.AnythingOfType("<-chan service.Notification"))
 	s.SSPollerMock.
 		On("Run", mock.AnythingOfType("chan<- service.Event"))
@@ -188,11 +193,11 @@ func (s *SwarmListenerTestSuite) Test_Run_NodeChannel() {
 		On("Get", "nodeID2").Return(n2m, true)
 	s.NotifyDistributorMock.
 		On("HasServiceListeners").Return(false).
-		On("HasNodeListeners").Return(true).
 		On("Run", mock.AnythingOfType("<-chan service.Notification"), mock.AnythingOfType("<-chan service.Notification"))
 	s.NodePollerMock.
 		On("Run", mock.AnythingOfType("chan<- service.Event"))
 
+	s.SwarmListener.HasNodeListeners = true
 	s.SwarmListener.Run()
 
 	go func() {
@@ -331,7 +336,7 @@ func (s *SwarmListenerTestSuite) Test_NotifyNodes_WithoutCache() {
 		},
 	}
 	s.NodeClientMock.On("NodeList", mock.AnythingOfType("*context.emptyCtx")).Return(expNodes, nil)
-	s.NotifyDistributorMock.On("HasNodeListeners").Return(true)
+	s.SwarmListener.HasNodeListeners = true
 
 	s.SwarmListener.NotifyNodes(false)
 
@@ -367,7 +372,7 @@ func (s *SwarmListenerTestSuite) Test_NotifyNodes_WithCache() {
 		},
 	}
 	s.NodeClientMock.On("NodeList", mock.AnythingOfType("*context.emptyCtx")).Return(expNodes, nil)
-	s.NotifyDistributorMock.On("HasNodeListeners").Return(true)
+	s.SwarmListener.HasNodeListeners = true
 
 	s.SwarmListener.NotifyNodes(true)
 

@@ -1,4 +1,4 @@
-FROM golang:1.11.0-alpine3.8 AS build
+FROM golang:1.11.1-alpine3.8 AS build
 
 RUN apk add --no-cache --update git
 WORKDIR /develop
