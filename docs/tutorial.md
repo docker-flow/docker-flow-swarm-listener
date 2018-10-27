@@ -21,7 +21,6 @@ docker service create --name proxy \
     -p 443:443 \
     -p 8080:8080 \
     --network proxy \
-    -e MODE=swarm \
     dockerflow/docker-flow-proxy
 ```
 
