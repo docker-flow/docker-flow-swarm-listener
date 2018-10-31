@@ -604,16 +604,17 @@ func (l *SwarmListener) CompletelyNotifyServices() {
 	}
 
 	l.stopEventChannels()
-	defer l.startEventChannels()
 
 	ctx := context.Background()
 	services, err := l.SSClient.SwarmServiceList(ctx)
 	if err != nil {
 		l.Log.Printf("ERROR: CompletelyNotifyServices, %v", err)
+		l.startEventChannels()
 		return
 	}
 
 	if len(services) == 0 {
+		l.startEventChannels()
 		return
 	}
 
@@ -647,6 +648,7 @@ func (l *SwarmListener) CompletelyNotifyServices() {
 				l.SSNotificationChan, EventTypeCreate, nowTimeNano, ID, params, errChan)
 		}(paramsEncoded, ssm.ID)
 	}
+	l.startEventChannels()
 
 	counter := 0
 	for err := range errChan {
