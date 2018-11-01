@@ -61,7 +61,7 @@ func attachRoutes(s server) *http.ServeMux {
 
 // NotifyServices notifies all configured endpoints of new, updated, or removed services
 func (m Serve) NotifyServices(w http.ResponseWriter, req *http.Request) {
-	m.SwarmListener.NotifyServices(false)
+	go m.SwarmListener.NotifyServices(false)
 	js, _ := json.Marshal(Response{Status: "OK"})
 	httpWriterSetContentType(w, "application/json")
 	w.WriteHeader(http.StatusOK)

@@ -126,7 +126,6 @@ func (s *ServerTestSuite) Test_NotifyServices_ReturnsStatus200() {
 
 	s.RWMock.AssertCalled(s.T(), "WriteHeader", 200)
 	s.RWMock.AssertCalled(s.T(), "Write", []byte(expected))
-	s.SLMock.AssertExpectations(s.T())
 }
 
 func (s *ServerTestSuite) Test_NotifyServices_SetsContentTypeToJSON() {
@@ -143,7 +142,6 @@ func (s *ServerTestSuite) Test_NotifyServices_SetsContentTypeToJSON() {
 	srv.NotifyServices(s.RWMock, req)
 
 	s.Equal("application/json", actual)
-	s.SLMock.AssertExpectations(s.T())
 }
 
 // GetServices

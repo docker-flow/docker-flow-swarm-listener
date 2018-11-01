@@ -544,11 +544,9 @@ func (l SwarmListener) NotifyServices(consultCache bool) {
 	}
 
 	nowTimeNano := time.Now().UTC().UnixNano()
-	go func() {
-		for _, s := range services {
-			l.placeOnEventChan(l.SSInternalEventChan, EventTypeCreate, s.ID, nowTimeNano, consultCache)
-		}
-	}()
+	for _, s := range services {
+		l.placeOnEventChan(l.SSInternalEventChan, EventTypeCreate, s.ID, nowTimeNano, consultCache)
+	}
 }
 
 // NotifyNodes places all services on queue to notify serivces on node events
@@ -565,11 +563,9 @@ func (l SwarmListener) NotifyNodes(consultCache bool) {
 	}
 
 	nowTimeNano := time.Now().UTC().UnixNano()
-	go func() {
-		for _, n := range nodes {
-			l.placeOnEventChan(l.NodeInteralEventChan, EventTypeCreate, n.ID, nowTimeNano, consultCache)
-		}
-	}()
+	for _, n := range nodes {
+		l.placeOnEventChan(l.NodeInteralEventChan, EventTypeCreate, n.ID, nowTimeNano, consultCache)
+	}
 }
 
 func (l SwarmListener) placeOnNotificationChan(notiChan chan<- Notification, eventType EventType, timeNano int64, ID string, parameters string, errorChan chan error) {
@@ -629,11 +625,9 @@ func (l *SwarmListener) CompletelyNotifyServices() {
 			ssm := MinifySwarmService(ss, l.IgnoreKey, l.IncludeKey)
 			params := GetSwarmServiceMiniRemoveParameters(ssm)
 			paramsEncoded := ConvertMapStringStringToURLValues(params).Encode()
-			go func(params string, ID string) {
-				l.placeOnNotificationChan(
-					l.SSNotificationChan, EventTypeRemove, nowTimeNano, ID, params, errChan)
-				l.placeOnEventChan(l.SSInternalEventChan, EventTypeCreate, ID, nowTimeNano, false)
-			}(paramsEncoded, ssm.ID)
+			l.placeOnNotificationChan(
+				l.SSNotificationChan, EventTypeRemove, nowTimeNano, ssm.ID, paramsEncoded, errChan)
+			l.placeOnEventChan(l.SSInternalEventChan, EventTypeCreate, ssm.ID, nowTimeNano, false)
 			continue
 		}
 
@@ -642,11 +636,8 @@ func (l *SwarmListener) CompletelyNotifyServices() {
 		l.SSCache.InsertAndCheck(ssm)
 		params := GetSwarmServiceMiniCreateParameters(ssm)
 		paramsEncoded := ConvertMapStringStringToURLValues(params).Encode()
-
-		go func(params string, ID string) {
-			l.placeOnNotificationChan(
-				l.SSNotificationChan, EventTypeCreate, nowTimeNano, ID, params, errChan)
-		}(paramsEncoded, ssm.ID)
+		l.placeOnNotificationChan(
+			l.SSNotificationChan, EventTypeCreate, nowTimeNano, ssm.ID, paramsEncoded, errChan)
 	}
 	l.startEventChannels()
 
