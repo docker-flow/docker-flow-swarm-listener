@@ -32,6 +32,9 @@ Fork [docker-flow-swarm-listener](https://github.com/docker-flow/docker-flow-swa
 
 ### Unit Testing
 
+!!! info
+  *Docker Flow Swarm Listener* supports golang 1.11 modules.
+
 ```bash
 go get -d -v -t
 
