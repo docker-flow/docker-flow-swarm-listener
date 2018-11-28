@@ -45,16 +45,17 @@ type SwarmListener struct {
 
 	NotifyDistributor NotifyDistributing
 
-	ServiceCancelManager   CancelManaging
-	NodeCancelManager      CancelManaging
-	IncludeNodeInfo        bool
-	UseDockerServiceEvents bool
-	UseDockerNodeEvents    bool
-	IgnoreKey              string
-	IncludeKey             string
-	HasServiceListeners    bool
-	HasNodeListeners       bool
-	Log                    *log.Logger
+	ServiceCancelManager           CancelManaging
+	NodeCancelManager              CancelManaging
+	IncludeNodeInfo                bool
+	UseDockerServiceEvents         bool
+	UseDockerNodeEvents            bool
+	NotifyCreateServiceImmediately bool
+	IgnoreKey                      string
+	IncludeKey                     string
+	HasServiceListeners            bool
+	HasNodeListeners               bool
+	Log                            *log.Logger
 
 	StopServiceEventChan chan struct{}
 	StopNodeEventChan    chan struct{}
@@ -85,6 +86,7 @@ func newSwarmListener(
 	includeNodeInfo bool,
 	useDockerServiceEvents bool,
 	useDockerNodeEvents bool,
+	notifyCreateServiceImmediately bool,
 	ignoreKey string,
 	includeKey string,
 	hasServiceListeners bool,
@@ -113,16 +115,17 @@ func newSwarmListener(
 		ServiceCancelManager: serviceCancelManager,
 		NodeCancelManager:    nodeCancelManager,
 
-		IncludeNodeInfo:        includeNodeInfo,
-		UseDockerServiceEvents: useDockerServiceEvents,
-		UseDockerNodeEvents:    useDockerNodeEvents,
-		IgnoreKey:              ignoreKey,
-		IncludeKey:             includeKey,
-		HasServiceListeners:    hasServiceListeners,
-		HasNodeListeners:       hasNodeListeners,
-		Log:                    logger,
-		StopServiceEventChan:   stopServiceEventChan,
-		StopNodeEventChan:      stopNodeEventChan,
+		IncludeNodeInfo:                includeNodeInfo,
+		UseDockerServiceEvents:         useDockerServiceEvents,
+		UseDockerNodeEvents:            useDockerNodeEvents,
+		NotifyCreateServiceImmediately: notifyCreateServiceImmediately,
+		IgnoreKey:                      ignoreKey,
+		IncludeKey:                     includeKey,
+		HasServiceListeners:            hasServiceListeners,
+		HasNodeListeners:               hasNodeListeners,
+		Log:                            logger,
+		StopServiceEventChan:           stopServiceEventChan,
+		StopNodeEventChan:              stopNodeEventChan,
 	}
 }
 
@@ -147,6 +150,11 @@ func NewSwarmListenerFromEnv(
 	if err != nil {
 		useDockerNodeEvents = false
 	}
+	notifyCreateServiceImmediately, err := strconv.ParseBool(os.Getenv("DF_NOTIFY_CREATE_SERVICE_IMMEDIATELY"))
+	if err != nil {
+		notifyCreateServiceImmediately = false
+	}
+
 	serviceNamePrefix := os.Getenv("DF_SERVICE_NAME_PREFIX")
 
 	dockerClient, err := NewDockerClientFromEnv()
@@ -245,6 +253,7 @@ func NewSwarmListenerFromEnv(
 		includeNodeInfo,
 		useDockerServiceEvents,
 		useDockerNodeEvents,
+		notifyCreateServiceImmediately,
 		ignoreKey,
 		"com.docker.stack.namespace",
 		hasServiceListeners,
@@ -362,7 +371,7 @@ func (l *SwarmListener) processServiceEventCreate(event Event) {
 	errChan := make(chan error)
 
 	go func() {
-		service, err := l.SSClient.SwarmServiceInspect(ctx, event.ID, l.IncludeNodeInfo)
+		service, err := l.SSClient.SwarmServiceInspect(ctx, event.ID)
 		if err != nil {
 			errChan <- err
 			return
@@ -372,6 +381,31 @@ func (l *SwarmListener) processServiceEventCreate(event Event) {
 			errChan <- nil
 			return
 		}
+
+		if l.NotifyCreateServiceImmediately {
+			ssm := MinifySwarmService(*service, l.IgnoreKey, l.IncludeKey)
+			isUpdated := l.SSCache.InsertAndCheck(ssm)
+			if event.ConsultCache && !isUpdated {
+				errChan <- nil
+				return
+			}
+			metrics.RecordService(l.SSCache.Len())
+			params := GetSwarmServiceMiniCreateParameters(ssm)
+			paramsEncoded := ConvertMapStringStringToURLValues(params).Encode()
+			l.placeOnNotificationChan(
+				l.SSNotificationChan, event.Type, event.TimeNano, ssm.ID, paramsEncoded, errChan)
+		}
+
+		// Wait for service to converge
+		nodeInfo, err := l.SSClient.GetNodeInfo(ctx, *service)
+		if err != nil {
+			errChan <- err
+			return
+		}
+		if l.IncludeNodeInfo {
+			service.NodeInfo = nodeInfo
+		}
+
 		ssm := MinifySwarmService(*service, l.IgnoreKey, l.IncludeKey)
 
 		// Store in cache

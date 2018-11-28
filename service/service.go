@@ -14,7 +14,7 @@ import (
 
 // SwarmServiceInspector is able to inspect services
 type SwarmServiceInspector interface {
-	SwarmServiceInspect(ctx context.Context, serviceID string, includeNodeIPInfo bool) (*SwarmService, error)
+	SwarmServiceInspect(ctx context.Context, serviceID string) (*SwarmService, error)
 	SwarmServiceList(ctx context.Context) ([]SwarmService, error)
 	GetNodeInfo(ctx context.Context, ss SwarmService) (NodeIPSet, error)
 	SwarmServiceRunning(ctx context.Context, serviceID string) (bool, error)
@@ -49,7 +49,7 @@ func NewSwarmServiceClient(
 // SwarmServiceInspect returns `SwarmService` from its ID
 // Returns nil when service doesnt not have the `FilterLabel`
 // When `includeNodeIPInfo` is true, return node info as well
-func (c SwarmServiceClient) SwarmServiceInspect(ctx context.Context, serviceID string, includeNodeIPInfo bool) (*SwarmService, error) {
+func (c SwarmServiceClient) SwarmServiceInspect(ctx context.Context, serviceID string) (*SwarmService, error) {
 	service, _, err := c.DockerClient.ServiceInspectWithRaw(ctx, serviceID, types.ServiceInspectOptions{})
 	if err != nil {
 		return nil, err
@@ -65,17 +65,6 @@ func (c SwarmServiceClient) SwarmServiceInspect(ctx context.Context, serviceID s
 	}
 
 	ss := SwarmService{service, nil}
-
-	// Always wait for service to converge
-	taskList, err := GetTaskList(ctx, c.DockerClient, ss.ID)
-	if err != nil {
-		return nil, err
-	}
-	if includeNodeIPInfo {
-		if nodeInfo, err := c.getNodeInfo(ctx, taskList, service); err == nil {
-			ss.NodeInfo = nodeInfo
-		}
-	}
 	return &ss, nil
 }
 

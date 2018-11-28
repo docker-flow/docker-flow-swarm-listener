@@ -43,8 +43,8 @@ type swarmServiceInspector struct {
 	mock.Mock
 }
 
-func (m *swarmServiceInspector) SwarmServiceInspect(ctx context.Context, serviceID string, includeNodeIPInfo bool) (*SwarmService, error) {
-	args := m.Called(ctx, serviceID, includeNodeIPInfo)
+func (m *swarmServiceInspector) SwarmServiceInspect(ctx context.Context, serviceID string) (*SwarmService, error) {
+	args := m.Called(ctx, serviceID)
 	return args.Get(0).(*SwarmService), args.Error(1)
 }
 

@@ -70,17 +70,21 @@ func (s *SwarmServiceClientTestSuite) TearDownSuite() {
 
 func (s *SwarmServiceClientTestSuite) Test_SwarmServiceInspect_NodeInfo_UndefinedScrapeNetwork() {
 
-	util3Service, err := s.SClient.SwarmServiceInspect(context.Background(), s.Util3ID, true)
+	util3Service, err := s.SClient.SwarmServiceInspect(context.Background(), s.Util3ID)
 	s.Require().NoError(err)
 	s.Require().NotNil(util3Service)
 
 	s.Equal(s.Util3ID, util3Service.ID)
+
+	nodeInfo, err := s.SClient.GetNodeInfo(context.Background(), *util3Service)
+	s.Require().NoError(err)
+	util3Service.NodeInfo = nodeInfo
 	s.Nil(util3Service.NodeInfo)
 }
 func (s *SwarmServiceClientTestSuite) Test_SwarmServiceInspect_With_Service_Name_Prefix() {
 	s.SClient.ServiceNamePrefix = "dev1"
 
-	util1Service, err := s.SClient.SwarmServiceInspect(context.Background(), s.Util1ID, false)
+	util1Service, err := s.SClient.SwarmServiceInspect(context.Background(), s.Util1ID)
 	s.Require().NoError(err)
 	s.Require().NotNil(util1Service)
 
@@ -91,39 +95,45 @@ func (s *SwarmServiceClientTestSuite) Test_SwarmServiceInspect_With_Service_Name
 
 func (s *SwarmServiceClientTestSuite) Test_ServiceList_Filtered() {
 
-	util2Service, err := s.SClient.SwarmServiceInspect(context.Background(), s.Util2ID, false)
+	util2Service, err := s.SClient.SwarmServiceInspect(context.Background(), s.Util2ID)
 	s.Require().NoError(err)
 	s.Nil(util2Service)
 
 }
 
 func (s *SwarmServiceClientTestSuite) Test_SwarmServiceInspect_NodeInfo_OneReplica() {
-	util1Service, err := s.SClient.SwarmServiceInspect(context.Background(), s.Util1ID, true)
+	util1Service, err := s.SClient.SwarmServiceInspect(context.Background(), s.Util1ID)
 	s.Require().NoError(err)
 	s.Require().NotNil(util1Service)
 
 	s.Equal(s.Util1ID, util1Service.ID)
-	s.Require().NotNil(util1Service.NodeInfo)
 
-	nodeInfo := util1Service.NodeInfo
+	nodeInfo, err := s.SClient.GetNodeInfo(context.Background(), *util1Service)
+	s.Require().NoError(err)
+	util1Service.NodeInfo = nodeInfo
+
+	s.Require().NotNil(util1Service.NodeInfo)
 	s.Require().Len(nodeInfo, 1)
 }
 
 func (s *SwarmServiceClientTestSuite) Test_SwarmServiceInspect_NodeInfo_TwoReplica() {
 
-	util4Service, err := s.SClient.SwarmServiceInspect(context.Background(), s.Util4ID, true)
+	util4Service, err := s.SClient.SwarmServiceInspect(context.Background(), s.Util4ID)
 	s.Require().NoError(err)
 	s.Require().NotNil(util4Service)
 
 	s.Equal(s.Util4ID, util4Service.ID)
+	nodeInfo, err := s.SClient.GetNodeInfo(context.Background(), *util4Service)
+	s.Require().NoError(err)
+	util4Service.NodeInfo = nodeInfo
+
 	s.Require().NotNil(util4Service.NodeInfo)
 
-	nodeInfo := util4Service.NodeInfo
 	s.Require().Len(nodeInfo, 2)
 }
 
 func (s *SwarmServiceClientTestSuite) Test_SwarmServiceInspect_IncorrectName() {
-	_, err := s.SClient.SwarmServiceInspect(context.Background(), "cowsfly", true)
+	_, err := s.SClient.SwarmServiceInspect(context.Background(), "cowsfly")
 	s.Error(err)
 }
 
