@@ -55,8 +55,8 @@ func (c SwarmServiceClient) SwarmServiceInspect(ctx context.Context, serviceID s
 		return nil, err
 	}
 
-	// Check if service has label
-	if _, ok := service.Spec.Labels[c.FilterKey]; !ok {
+	// Check if service has label and true
+	if value, ok := service.Spec.Labels[c.FilterKey]; !ok || !strings.EqualFold(value, "true") {
 		return nil, nil
 	}
 

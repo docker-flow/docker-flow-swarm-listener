@@ -28,9 +28,10 @@ func TestSwarmServiceClientTestSuite(t *testing.T) {
 func (s *SwarmServiceClientTestSuite) SetupSuite() {
 	createTestOverlayNetwork("util-network")
 	createTestService("util-1", []string{"com.df.notify=true", "com.df.scrapeNetwork=util-network"}, false, "", "util-network")
-	createTestService("util-2", []string{}, false, "", "util-network")
+	createTestService("util-2", []string{"com.df.notify=false"}, false, "", "util-network")
 	createTestService("util-3", []string{"com.df.notify=true"}, true, "", "util-network")
 	createTestService("util-4", []string{"com.df.notify=true", "com.df.scrapeNetwork=util-network"}, false, "2", "util-network")
+	createTestService("util-5", []string{}, false, "", "util-network")
 
 	time.Sleep(time.Second)
 	ID1, err := getServiceID("util-1")
