@@ -1,0 +1,42 @@
+---
+# Source: docker-flow-swarm-listener/templates/deployment.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: swarm-listener-docker-flow-swarm-listener
+  labels:
+    app: docker-flow-swarm-listener
+    chart: docker-flow-swarm-listener-0.0.1
+    release: swarm-listener
+    heritage: Tiller
+spec:
+  selector:
+    matchLabels:
+      app: docker-flow-swarm-listener
+      release: swarm-listener
+  template:
+    metadata:
+      labels:
+        app: docker-flow-swarm-listener
+        release: swarm-listener
+    spec:
+      containers:
+      - name: ui
+        image: dockerflow/docker-flow-swarm-listener-docs:latest
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 80
+          periodSeconds: 1
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 80
+        resources:
+          limits:
+            cpu: 10m
+            memory: 10Mi
+          requests:
+            cpu: 5m
+            memory: 5Mi
+          

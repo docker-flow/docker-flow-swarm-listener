@@ -1,0 +1,18 @@
+---
+# Source: docker-flow-swarm-listener/templates/svc.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: swarm-listener-docker-flow-swarm-listener
+  labels:
+    app: docker-flow-swarm-listener
+    chart: docker-flow-swarm-listener-0.0.1
+    release: swarm-listener
+    heritage: Tiller
+spec:
+  ports:
+  - port: 80
+  type: NodePort
+  selector:
+    app: docker-flow-swarm-listener
+    release: swarm-listener
